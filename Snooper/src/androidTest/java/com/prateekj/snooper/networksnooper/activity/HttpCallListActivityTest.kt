@@ -31,7 +31,6 @@ import com.prateekj.snooper.utils.EspressoViewMatchers.withRecyclerView
 import com.prateekj.snooper.utils.TestUtilities.getDate
 import org.hamcrest.Matchers.allOf
 import org.junit.After
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -51,7 +50,8 @@ class HttpCallListActivityTest {
             HttpCallListActivity::class.java
         )
 
-    private lateinit var snooperRepo: SnooperRepo
+    private lateinit var snooperRepo:
+            SnooperRepo
 
     @Before
     @Throws(Exception::class)
@@ -349,7 +349,7 @@ class HttpCallListActivityTest {
         ).perform(click())
 
         onView(
-            withId(
+            withText(
                 R.string.delete_records_dialog_text
             )
         ).check(
@@ -438,10 +438,15 @@ class HttpCallListActivityTest {
 
                 .build()
 
-        httpCall.date = date
+        val datedHttpCall =
+            httpCall.copy(
+                date = date
+            )
 
         return snooperRepo.save(
-            HttpCallRecord.from(httpCall)
+            HttpCallRecord.from(
+                datedHttpCall
+            )
         )
     }
 
@@ -466,10 +471,15 @@ class HttpCallListActivityTest {
 
                 .build()
 
-        httpCall.date = date
+        val datedHttpCall =
+            httpCall.copy(
+                date = date
+            )
 
         snooperRepo.save(
-            HttpCallRecord.from(httpCall)
+            HttpCallRecord.from(
+                datedHttpCall
+            )
         )
     }
 }
