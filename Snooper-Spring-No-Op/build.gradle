@@ -7,19 +7,21 @@ android {
 
     namespace "com.prateekj.snooper.spring.noop"
 
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    compileSdk rootProject.ext.compileSdkVersion
 
     buildFeatures {
         viewBinding true
     }
 
     group "com.github.jainsahab"
+
     version snooperVersion
 
     defaultConfig {
 
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdk rootProject.ext.minSdkVersion
+
+        targetSdk rootProject.ext.targetSdkVersion
 
         consumerProguardFiles 'consumer-rules.pro'
     }
@@ -27,14 +29,16 @@ android {
     compileOptions {
 
         sourceCompatibility JavaVersion.VERSION_1_8
+
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
+
         jvmTarget = '1.8'
     }
 
-    packagingOptions {
+    packaging {
 
         resources {
 
