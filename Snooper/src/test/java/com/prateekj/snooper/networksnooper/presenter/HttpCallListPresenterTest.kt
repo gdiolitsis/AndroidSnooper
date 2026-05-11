@@ -9,109 +9,278 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Before
 import org.junit.Test
-import java.util.Arrays.asList
 
 class HttpCallListPresenterTest {
 
-  private lateinit var view: HttpListView
-  private lateinit var repo: SnooperRepo
-  private lateinit var httpCallListPresenter: HttpCallListPresenter
+    private lateinit var view:
+            HttpListView
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    view = mockk(relaxed = true)
-    repo = mockk(relaxed = true)
-    this.httpCallListPresenter = HttpCallListPresenter(view, repo)
-  }
+    private lateinit var repo:
+            SnooperRepo
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldInitializeHttpCallRecordsList() {
-    val httpCallRecords = mutableListOf(mockk<HttpCallRecord>(relaxed = true))
-    every { repo.findAllSortByDateAfter(-1, 20) } returns httpCallRecords
-    httpCallListPresenter.init()
+    private lateinit var httpCallListPresenter:
+            HttpCallListPresenter
 
-    verify { view.initHttpCallRecordList(httpCallRecords) }
-  }
+    @Before
+    fun setUp() {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldShowNoCallsFoundMessage() {
-    every { repo.findAllSortByDateAfter(-1, 20) } returns mutableListOf()
-    httpCallListPresenter.init()
+        view =
+            mockk(relaxed = true)
 
-    verify { view.renderNoCallsFoundView() }
-    verify(exactly = 0) { view.initHttpCallRecordList(any()) }
-  }
+        repo =
+            mockk(relaxed = true)
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldQueryNextSetOfRecordOnNextPageCall() {
-    val lastSetHttpCalls = mutableListOf(createCallWithId(1))
-    val nextSetHttpCalls = mutableListOf(createCallWithId(3), createCallWithId(2))
-    every { repo.findAllSortByDateAfter(-1, 20) } returns mutableListOf(
-      createCallWithId(5),
-      createCallWithId(4)
-    )
+        httpCallListPresenter =
+            HttpCallListPresenter(
+                view,
+                repo
+            )
+    }
 
-    httpCallListPresenter.init()
+    @Test
+    fun shouldInitializeHttpCallRecordsList() {
 
-    every { repo.findAllSortByDateAfter(4, 20) } returns nextSetHttpCalls
-    httpCallListPresenter.onNextPageCall()
-    verify { repo.findAllSortByDateAfter(4, 20) }
-    verify { view.appendRecordList(nextSetHttpCalls) }
+        val httpCallRecords =
+            mutableListOf(
+                mockk<HttpCallRecord>(
+                    relaxed = true
+                )
+            )
 
-    every { repo.findAllSortByDateAfter(2, 20) } returns lastSetHttpCalls
-    httpCallListPresenter.onNextPageCall()
-    verify { repo.findAllSortByDateAfter(2, 20) }
-    verify { view.appendRecordList(lastSetHttpCalls) }
+        every {
+            repo.findAllSortByDateAfter(
+                -1,
+                20
+            )
+        } returns httpCallRecords
 
-    every { repo.findAllSortByDateAfter(1, 20) } returns mutableListOf()
-    httpCallListPresenter.onNextPageCall()
-    verify { repo.findAllSortByDateAfter(1, 20) }
-    verify { view.appendRecordList(match { it.isEmpty() }) }
-  }
+        httpCallListPresenter.init()
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldNotifyViewToNavigateToResponseBody() {
-    val httpCall = mockk<HttpCallRecord>(relaxed = true)
-    every { httpCall.id } returns 2L
+        verify(exactly = 1) {
+            view.initHttpCallRecordList(
+                httpCallRecords
+            )
+        }
+    }
 
-    httpCallListPresenter.onClick(httpCall)
+    @Test
+    fun shouldShowNoCallsFoundMessage() {
 
-    verify { view.navigateToResponseBody(2) }
-  }
+        every {
+            repo.findAllSortByDateAfter(
+                -1,
+                20
+            )
+        } returns mutableListOf()
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldNotifyViewToFinishIt() {
-    httpCallListPresenter.onDoneClick()
+        httpCallListPresenter.init()
 
-    verify { view.finishView() }
-  }
+        verify(exactly = 1) {
+            view.renderNoCallsFoundView()
+        }
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldDeleteTheRecordsAndUpdateUi() {
-    httpCallListPresenter.confirmDeleteRecords()
+        verify(exactly = 0) {
+            view.initHttpCallRecordList(
+                any()
+            )
+        }
+    }
 
-    verify { repo.deleteAll() }
-    verify { view.updateListViewAfterDelete() }
-  }
+    @Test
+    fun shouldQueryNextSetOfRecordOnNextPageCall() {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldShowConfirmationDialogOnClickOfDeleteRecords() {
-    httpCallListPresenter.onDeleteRecordsClicked()
+        val lastSetHttpCalls =
+            mutableListOf(
+                createCallWithId(1)
+            )
 
-    verify { view.showDeleteConfirmationDialog() }
-  }
+        val nextSetHttpCalls =
+            mutableListOf(
+                createCallWithId(3),
+                createCallWithId(2)
+            )
 
-  private fun createCallWithId(id: Int): HttpCallRecord {
-    val firstHttpCall = HttpCallRecord.from(HttpCall.Builder().build())
-    firstHttpCall.id = id.toLong()
-    return firstHttpCall
-  }
+        every {
+            repo.findAllSortByDateAfter(
+                -1,
+                20
+            )
+        } returns mutableListOf(
+            createCallWithId(5),
+            createCallWithId(4)
+        )
+
+        httpCallListPresenter.init()
+
+        every {
+            repo.findAllSortByDateAfter(
+                4,
+                20
+            )
+        } returns nextSetHttpCalls
+
+        httpCallListPresenter.onNextPageCall()
+
+        verify(exactly = 1) {
+            repo.findAllSortByDateAfter(
+                4,
+                20
+            )
+        }
+
+        verify(exactly = 1) {
+            view.appendRecordList(
+                nextSetHttpCalls
+            )
+        }
+
+        every {
+            repo.findAllSortByDateAfter(
+                2,
+                20
+            )
+        } returns lastSetHttpCalls
+
+        httpCallListPresenter.onNextPageCall()
+
+        verify(exactly = 1) {
+            repo.findAllSortByDateAfter(
+                2,
+                20
+            )
+        }
+
+        verify(exactly = 1) {
+            view.appendRecordList(
+                lastSetHttpCalls
+            )
+        }
+
+        every {
+            repo.findAllSortByDateAfter(
+                1,
+                20
+            )
+        } returns mutableListOf()
+
+        httpCallListPresenter.onNextPageCall()
+
+        verify(exactly = 1) {
+            repo.findAllSortByDateAfter(
+                1,
+                20
+            )
+        }
+
+        verify(exactly = 1) {
+            view.appendRecordList(
+                match {
+                    it.isEmpty()
+                }
+            )
+        }
+    }
+
+    @Test
+    fun shouldNotifyViewToNavigateToResponseBody() {
+
+        val httpCall =
+            mockk<HttpCallRecord>(
+                relaxed = true
+            )
+
+        every {
+            httpCall.id
+        } returns 2L
+
+        httpCallListPresenter.onClick(
+            httpCall
+        )
+
+        verify(exactly = 1) {
+            view.navigateToResponseBody(
+                2L
+            )
+        }
+    }
+
+    @Test
+    fun shouldNotifyViewToFinishIt() {
+
+        httpCallListPresenter.onDoneClick()
+
+        verify(exactly = 1) {
+            view.finishView()
+        }
+    }
+
+    @Test
+    fun shouldDeleteTheRecordsAndUpdateUi() {
+
+        httpCallListPresenter
+            .confirmDeleteRecords()
+
+        verify(exactly = 1) {
+            repo.deleteAll()
+        }
+
+        verify(exactly = 1) {
+            view.updateListViewAfterDelete()
+        }
+    }
+
+    @Test
+    fun shouldShowConfirmationDialogOnClickOfDeleteRecords() {
+
+        httpCallListPresenter
+            .onDeleteRecordsClicked()
+
+        verify(exactly = 1) {
+            view.showDeleteConfirmationDialog()
+        }
+    }
+
+    @Test
+    fun shouldAppendEmptyListWhenNoMorePagesExist() {
+
+        every {
+            repo.findAllSortByDateAfter(
+                -1,
+                20
+            )
+        } returns mutableListOf(
+            createCallWithId(1)
+        )
+
+        httpCallListPresenter.init()
+
+        every {
+            repo.findAllSortByDateAfter(
+                1,
+                20
+            )
+        } returns mutableListOf()
+
+        httpCallListPresenter.onNextPageCall()
+
+        verify(exactly = 1) {
+            view.appendRecordList(
+                emptyList()
+            )
+        }
+    }
+
+    private fun createCallWithId(
+        id: Int
+    ): HttpCallRecord {
+
+        return HttpCallRecord.from(
+            HttpCall.Builder()
+                .build()
+        ).apply {
+
+            this.id =
+                id.toLong()
+        }
+    }
 }
