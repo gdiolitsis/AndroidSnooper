@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getDrawable
 import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.ActivityTableViewBinding
 import com.prateekj.snooper.dbreader.DatabaseDataReader
 import com.prateekj.snooper.dbreader.DatabaseReader
 import com.prateekj.snooper.dbreader.activity.DatabaseDetailActivity.Companion.TABLE_NAME
@@ -16,11 +17,12 @@ import com.prateekj.snooper.dbreader.model.Table
 import com.prateekj.snooper.dbreader.view.TableViewCallback
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.SnooperBaseActivity
-import kotlinx.android.synthetic.main.activity_table_view.*
 
 class TableDetailActivity :
     SnooperBaseActivity(),
     TableViewCallback {
+
+    private lateinit var binding: ActivityTableViewBinding
 
     private lateinit var databaseReader: DatabaseReader
 
@@ -30,14 +32,21 @@ class TableDetailActivity :
 
         super.onCreate(savedInstanceState)
 
+        binding =
+            ActivityTableViewBinding.inflate(
+                layoutInflater
+            )
+
         setContentView(
-            R.layout.activity_table_view
+            binding.root
         )
 
         initViews()
 
         val tableName =
-            intent.getStringExtra(TABLE_NAME)
+            intent.getStringExtra(
+                TABLE_NAME
+            )
 
         val dbPath =
             intent.getStringExtra(
@@ -73,7 +82,7 @@ class TableDetailActivity :
 
     override fun onTableFetchStarted() {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.visibility =
             VISIBLE
     }
 
@@ -81,7 +90,7 @@ class TableDetailActivity :
         table: Table
     ) {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.visibility =
             GONE
 
         updateView(table)
@@ -89,7 +98,9 @@ class TableDetailActivity :
 
     private fun initViews() {
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(true)
@@ -113,7 +124,7 @@ class TableDetailActivity :
 
         for (i in rows.indices) {
 
-            table_layout?.addView(
+            binding.tableLayout.addView(
                 addRowData(
                     rows[i].data,
                     i + 1
@@ -173,7 +184,9 @@ class TableDetailActivity :
             columnRow.addView(columnView)
         }
 
-        table_layout?.addView(columnRow)
+        binding.tableLayout.addView(
+            columnRow
+        )
     }
 
     private fun addRowData(
