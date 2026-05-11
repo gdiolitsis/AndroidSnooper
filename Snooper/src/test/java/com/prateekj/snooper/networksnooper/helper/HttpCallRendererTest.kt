@@ -17,83 +17,192 @@ import org.junit.Test
 
 class HttpCallRendererTest {
 
-  private lateinit var httpCallView: HttpCallView
-  private lateinit var httpCallRenderer: HttpCallRenderer
+    private lateinit var httpCallView:
+            HttpCallView
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    httpCallView = mockk(relaxed = true)
-    httpCallRenderer = HttpCallRenderer(httpCallView, false)
-  }
+    private lateinit var httpCallRenderer:
+            HttpCallRenderer
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnResponseTypeFragment() {
-    val expectedFragment = mockk<Fragment>()
-    every { httpCallView.getResponseBodyFragment() } returns expectedFragment
+    @Before
+    fun setUp() {
 
-    val fragment = httpCallRenderer.getFragment(0)
+        httpCallView =
+            mockk(relaxed = true)
 
-    assertThat(fragment, sameInstance(expectedFragment))
-    verify { httpCallView.getResponseBodyFragment() }
-  }
+        httpCallRenderer =
+            HttpCallRenderer(
+                httpCallView,
+                false
+            )
+    }
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnErrorTypeFragment() {
-    val expectedFragment = mockk<Fragment>()
-    every { httpCallView.getExceptionFragment() } returns expectedFragment
-    val httpCallRenderer = HttpCallRenderer(httpCallView, true)
+    @Test
+    fun shouldReturnResponseTypeFragment() {
 
-    val fragment = httpCallRenderer.getFragment(0)
+        val expectedFragment =
+            mockk<Fragment>()
 
-    assertThat(fragment, sameInstance(expectedFragment))
-    verify { httpCallView.getExceptionFragment() }
-  }
+        every {
+            httpCallView
+                .getResponseBodyFragment()
+        } returns expectedFragment
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnRequestTypeFragment() {
-    val expectedFragment = mockk<Fragment>(relaxed = true)
-    every { httpCallView.getRequestBodyFragment() } returns expectedFragment
+        val fragment =
+            httpCallRenderer
+                .getFragment(0)
 
-    val fragment = httpCallRenderer.getFragment(1)
+        assertThat(
+            fragment,
+            sameInstance(expectedFragment)
+        )
 
-    assertThat(fragment, sameInstance(expectedFragment))
-    verify { httpCallView.getRequestBodyFragment() }
-  }
+        verify(exactly = 1) {
+            httpCallView
+                .getResponseBodyFragment()
+        }
+    }
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnHeaderTypeFragment() {
-    val expectedFragment = mockk<Fragment>()
-    every { httpCallView.getHeadersFragment() } returns expectedFragment
+    @Test
+    fun shouldReturnErrorTypeFragment() {
 
-    val fragment = httpCallRenderer.getFragment(2)
+        val expectedFragment =
+            mockk<Fragment>()
 
-    assertThat(fragment, sameInstance(expectedFragment))
-    verify { httpCallView.getHeadersFragment() }
-  }
+        every {
+            httpCallView
+                .getExceptionFragment()
+        } returns expectedFragment
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnHttpCallTabs() {
-    val tabs = httpCallRenderer.getTabs()
+        val renderer =
+            HttpCallRenderer(
+                httpCallView,
+                true
+            )
 
-    assertThat(tabs[0], `is`(RESPONSE))
-    assertThat(tabs[1], `is`(REQUEST))
-    assertThat(tabs[2], `is`(HEADERS))
-  }
+        val fragment =
+            renderer.getFragment(0)
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnHttpCallTabsForErrorMode() {
-    val httpCallRenderer = HttpCallRenderer(httpCallView, true)
-    val tabs = httpCallRenderer.getTabs()
+        assertThat(
+            fragment,
+            sameInstance(expectedFragment)
+        )
 
-    assertThat(tabs[0], `is`(ERROR))
-    assertThat(tabs[1], `is`(REQUEST))
-    assertThat(tabs[2], `is`(HEADERS))
-  }
+        verify(exactly = 1) {
+            httpCallView
+                .getExceptionFragment()
+        }
+    }
+
+    @Test
+    fun shouldReturnRequestTypeFragment() {
+
+        val expectedFragment =
+            mockk<Fragment>()
+
+        every {
+            httpCallView
+                .getRequestBodyFragment()
+        } returns expectedFragment
+
+        val fragment =
+            httpCallRenderer
+                .getFragment(1)
+
+        assertThat(
+            fragment,
+            sameInstance(expectedFragment)
+        )
+
+        verify(exactly = 1) {
+            httpCallView
+                .getRequestBodyFragment()
+        }
+    }
+
+    @Test
+    fun shouldReturnHeaderTypeFragment() {
+
+        val expectedFragment =
+            mockk<Fragment>()
+
+        every {
+            httpCallView
+                .getHeadersFragment()
+        } returns expectedFragment
+
+        val fragment =
+            httpCallRenderer
+                .getFragment(2)
+
+        assertThat(
+            fragment,
+            sameInstance(expectedFragment)
+        )
+
+        verify(exactly = 1) {
+            httpCallView
+                .getHeadersFragment()
+        }
+    }
+
+    @Test
+    fun shouldReturnHttpCallTabs() {
+
+        val tabs =
+            httpCallRenderer
+                .getTabs()
+
+        assertThat(
+            tabs.size,
+            `is`(3)
+        )
+
+        assertThat(
+            tabs[0],
+            `is`(RESPONSE)
+        )
+
+        assertThat(
+            tabs[1],
+            `is`(REQUEST)
+        )
+
+        assertThat(
+            tabs[2],
+            `is`(HEADERS)
+        )
+    }
+
+    @Test
+    fun shouldReturnHttpCallTabsForErrorMode() {
+
+        val renderer =
+            HttpCallRenderer(
+                httpCallView,
+                true
+            )
+
+        val tabs =
+            renderer.getTabs()
+
+        assertThat(
+            tabs.size,
+            `is`(3)
+        )
+
+        assertThat(
+            tabs[0],
+            `is`(ERROR)
+        )
+
+        assertThat(
+            tabs[1],
+            `is`(REQUEST)
+        )
+
+        assertThat(
+            tabs[2],
+            `is`(HEADERS)
+        )
+    }
 }
