@@ -55,7 +55,7 @@ afterEvaluate {
 
                 version = VERSION_NAME
 
-                artifact androidSourcesJar
+                artifact(tasks.named("androidSourcesJar"))
 
                 pom {
 
