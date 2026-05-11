@@ -1,10 +1,9 @@
 package com.prateekj.snooper.networksnooper.adapter
 
-import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat.getColor
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.prateekj.snooper.R
 import com.prateekj.snooper.networksnooper.model.HttpCallRecord
@@ -12,57 +11,124 @@ import com.prateekj.snooper.networksnooper.viewmodel.HttpCallViewModel
 import kotlinx.android.synthetic.main.activity_http_call_list_item.view.*
 
 class HttpCallListAdapter(
-  private var httpCallRecords: MutableList<HttpCallRecord>,
-  private val listener: HttpCallListClickListener
-) : RecyclerView.Adapter<HttpCallListAdapter.HttpCallViewHolder>() {
+    private var httpCallRecords:
+            MutableList<HttpCallRecord>,
+    private val listener:
+            HttpCallListClickListener
+) : RecyclerView.Adapter<
+        HttpCallListAdapter.HttpCallViewHolder>() {
 
-  class HttpCallViewHolder(
-    private val view: View,
-    private val listener: HttpCallListClickListener
-  ) : RecyclerView.ViewHolder(view) {
+    class HttpCallViewHolder(
+        private val view: View,
+        private val listener:
+                HttpCallListClickListener
+    ) : RecyclerView.ViewHolder(view) {
 
-    @SuppressLint("ResourceAsColor")
-    fun bind(httpCall: HttpCallRecord) {
-      val httpCallViewModel = HttpCallViewModel(httpCall)
-      view.url.text = httpCallViewModel.url
-      view.method.text = httpCallViewModel.method
-      view.status_code.text = httpCallViewModel.statusCode
-      view.status_text.text = httpCallViewModel.statusText
-      view.time_stamp.text = httpCallViewModel.timeStamp
-      view.response_info_container.visibility = httpCallViewModel.responseInfoVisibility
-      view.error_text.visibility = httpCallViewModel.failedTextVisibility
+        fun bind(
+            httpCall: HttpCallRecord
+        ) {
 
-      view.method.setTextColor(getColor(view.context, httpCallViewModel.getStatusColor()))
-      view.status_code.setTextColor(getColor(view.context, httpCallViewModel.getStatusColor()))
-      view.status_text.setTextColor(getColor(view.context, httpCallViewModel.getStatusColor()))
-      setClickListener(httpCall)
+            val viewModel =
+                HttpCallViewModel(httpCall)
+
+            val statusColor =
+                ContextCompat.getColor(
+                    view.context,
+                    viewModel.getStatusColor()
+                )
+
+            view.url.text =
+                viewModel.url
+
+            view.method.text =
+                viewModel.method
+
+            view.status_code.text =
+                viewModel.statusCode
+
+            view.status_text.text =
+                viewModel.statusText
+
+            view.time_stamp.text =
+                viewModel.timeStamp
+
+            view.response_info_container.visibility =
+                viewModel.responseInfoVisibility
+
+            view.error_text.visibility =
+                viewModel.failedTextVisibility
+
+            view.method.setTextColor(
+                statusColor
+            )
+
+            view.status_code.setTextColor(
+                statusColor
+            )
+
+            view.status_text.setTextColor(
+                statusColor
+            )
+
+            itemView.setOnClickListener {
+
+                listener.onClick(httpCall)
+            }
+        }
     }
 
-    private fun setClickListener(httpCall: HttpCallRecord) {
-      this.itemView.setOnClickListener { listener.onClick(httpCall) }
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): HttpCallViewHolder {
+
+        val itemView =
+            LayoutInflater.from(
+                parent.context
+            ).inflate(
+                R.layout.activity_http_call_list_item,
+                parent,
+                false
+            )
+
+        return HttpCallViewHolder(
+            itemView,
+            listener
+        )
     }
 
-  }
+    override fun onBindViewHolder(
+        holder: HttpCallViewHolder,
+        position: Int
+    ) {
 
-  override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HttpCallViewHolder {
-    val inflater = LayoutInflater.from(parent.context)
-    val listItemView = inflater.inflate(R.layout.activity_http_call_list_item, parent, false)
-    return HttpCallViewHolder(listItemView, listener)
-  }
+        holder.bind(
+            httpCallRecords[position]
+        )
+    }
 
-  override fun onBindViewHolder(holder: HttpCallViewHolder, position: Int) {
-    holder.bind(httpCallRecords[position])
-  }
+    override fun getItemCount():
+            Int {
 
-  override fun getItemCount(): Int {
-    return httpCallRecords.size
-  }
+        return httpCallRecords.size
+    }
 
-  fun refreshData(httpCallRecords: MutableList<HttpCallRecord>) {
-    this.httpCallRecords = httpCallRecords
-  }
+    fun refreshData(
+        httpCallRecords:
+                MutableList<HttpCallRecord>
+    ) {
 
-  fun appendData(httpCallRecords: List<HttpCallRecord>) {
-    this.httpCallRecords.addAll(httpCallRecords)
-  }
+        this.httpCallRecords =
+            httpCallRecords
+    }
+
+    fun appendData(
+        httpCallRecords:
+                List<HttpCallRecord>
+    ) {
+
+        this.httpCallRecords.addAll(
+            httpCallRecords
+        )
+    }
 }
