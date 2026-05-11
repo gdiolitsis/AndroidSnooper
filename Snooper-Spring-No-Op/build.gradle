@@ -5,6 +5,8 @@ apply from: '../Publish.gradle'
 
 android {
 
+    namespace "com.prateekj.snooper.spring.noop"
+
     compileSdkVersion rootProject.ext.compileSdkVersion
 
     buildFeatures {
