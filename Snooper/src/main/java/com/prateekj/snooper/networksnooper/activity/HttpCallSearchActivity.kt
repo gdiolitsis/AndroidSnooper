@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.prateekj.snooper.R
 import com.prateekj.snooper.customviews.DividerItemDecoration
+import com.prateekj.snooper.databinding.ActivityHttpCallSearchBinding
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.HttpCallActivity.Companion.HTTP_CALL_ID
 import com.prateekj.snooper.networksnooper.adapter.HttpCallListAdapter
@@ -17,13 +18,15 @@ import com.prateekj.snooper.networksnooper.database.SnooperRepo
 import com.prateekj.snooper.networksnooper.model.HttpCallRecord
 import com.prateekj.snooper.networksnooper.presenter.HttpClassSearchPresenter
 import com.prateekj.snooper.networksnooper.views.HttpCallSearchView
-import kotlinx.android.synthetic.main.activity_http_call_search.*
 
 class HttpCallSearchActivity :
     SnooperBaseActivity(),
     HttpCallSearchView,
     HttpCallListClickListener,
     SearchView.OnQueryTextListener {
+
+    private lateinit var binding:
+            ActivityHttpCallSearchBinding
 
     private lateinit var httpCallListAdapter:
             HttpCallListAdapter
@@ -37,11 +40,18 @@ class HttpCallSearchActivity :
 
         super.onCreate(savedInstanceState)
 
+        binding =
+            ActivityHttpCallSearchBinding.inflate(
+                layoutInflater
+            )
+
         setContentView(
-            R.layout.activity_http_call_search
+            binding.root
         )
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(true)
@@ -60,13 +70,13 @@ class HttpCallSearchActivity :
 
     private fun setupRecyclerView() {
 
-        list?.layoutManager =
+        binding.list.layoutManager =
             LinearLayoutManager(this)
 
-        list?.itemAnimator =
+        binding.list.itemAnimator =
             DefaultItemAnimator()
 
-        list?.addItemDecoration(
+        binding.list.addItemDecoration(
             DividerItemDecoration(
                 this,
                 DividerItemDecoration.VERTICAL,
@@ -80,13 +90,13 @@ class HttpCallSearchActivity :
                 this
             )
 
-        list?.adapter =
+        binding.list.adapter =
             httpCallListAdapter
     }
 
     private fun setupSearchView() {
 
-        searchView?.setOnQueryTextListener(
+        binding.searchView.setOnQueryTextListener(
             this
         )
     }
@@ -95,10 +105,10 @@ class HttpCallSearchActivity :
         httpCallRecords: List<HttpCallRecord>
     ) {
 
-        no_results_found_container.visibility =
+        binding.noResultsFoundContainer.visibility =
             GONE
 
-        list?.visibility =
+        binding.list.visibility =
             VISIBLE
 
         httpCallListAdapter.refreshData(
@@ -112,37 +122,37 @@ class HttpCallSearchActivity :
         keyword: String
     ) {
 
-        list?.visibility =
+        binding.list.visibility =
             GONE
 
-        no_results_found.text =
+        binding.noResultsFound.text =
             getString(
                 R.string.no_results_found,
                 keyword
             )
 
-        no_results_found_container.visibility =
+        binding.noResultsFoundContainer.visibility =
             VISIBLE
     }
 
     override fun hideSearchResultsView() {
 
-        list?.visibility =
+        binding.list.visibility =
             GONE
 
-        no_results_found_container.visibility =
+        binding.noResultsFoundContainer.visibility =
             GONE
     }
 
     override fun showLoader() {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.visibility =
             VISIBLE
     }
 
     override fun hideLoader() {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.visibility =
             GONE
     }
 
