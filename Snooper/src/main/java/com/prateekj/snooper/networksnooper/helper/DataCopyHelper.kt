@@ -8,107 +8,208 @@ import com.prateekj.snooper.networksnooper.model.HttpHeader
 import com.prateekj.snooper.networksnooper.model.HttpHeader.Companion.CONTENT_TYPE
 
 class DataCopyHelper(
-  private val httpCallRecord: HttpCallRecord,
-  private val responseFormatterFactory: ResponseFormatterFactory,
-  private val resources: Resources
+    private val httpCallRecord:
+            HttpCallRecord,
+    private val responseFormatterFactory:
+            ResponseFormatterFactory,
+    private val resources:
+            Resources
 ) {
 
-  fun getResponseDataForCopy(): String {
-    return getFormattedData(
-      httpCallRecord.getResponseHeader(CONTENT_TYPE),
-      httpCallRecord.responseBody
-    )
-  }
+    fun getResponseDataForCopy():
+            String {
 
-  fun getRequestDataForCopy(): String {
-    return getFormattedData(
-      httpCallRecord.getRequestHeader(CONTENT_TYPE),
-      httpCallRecord.payload
-    )
-
-  }
-
-  fun getErrorsForCopy(): String? = httpCallRecord.error
-
-  fun getHeadersForCopy(): String {
-    val dataToCopy = StringBuilder()
-    appendHeaders(
-      httpCallRecord.requestHeaders,
-      dataToCopy,
-      resources.getString(R.string.request_headers)
-    )
-    appendHeaders(
-      httpCallRecord.responseHeaders,
-      dataToCopy,
-      resources.getString(R.string.response_headers)
-    )
-    return dataToCopy.toString()
-  }
-
-  fun getHttpCallData(): StringBuilder {
-    val dataToCopy = StringBuilder()
-    appendRequestData(dataToCopy)
-    appendResponseData(dataToCopy)
-    return dataToCopy
-  }
-
-  private fun appendRequestData(dataToCopy: StringBuilder) {
-    val formattedRequestData = getRequestDataForCopy()
-    if (formattedRequestData.isNotEmpty()) {
-      val heading = resources.getString(R.string.request_body_heading)
-      dataToCopy.append("$heading\n$formattedRequestData")
+        return getFormattedData(
+            httpCallRecord.getResponseHeader(
+                CONTENT_TYPE
+            ),
+            httpCallRecord.responseBody
+        )
     }
-    appendHeaders(
-      httpCallRecord.requestHeaders,
-      dataToCopy,
-      resources.getString(R.string.request_headers)
-    )
-  }
 
-  private fun appendHeaders(
-    headers: List<HttpHeader>?,
-    dataToCopy: StringBuilder,
-    heading: String
-  ) {
-    if (headers != null && headers.isNotEmpty()) {
-      dataToCopy.append("\n$heading\n")
-      headers.forEach {
-        dataToCopy.append("${it.name}: ${toHeaderValues(it)}\n")
-      }
+    fun getRequestDataForCopy():
+            String {
+
+        return getFormattedData(
+            httpCallRecord.getRequestHeader(
+                CONTENT_TYPE
+            ),
+            httpCallRecord.payload
+        )
     }
-  }
 
-  private fun toHeaderValues(httpHeader: HttpHeader): String {
-    return httpHeader.values.joinToString(separator = ";") { it.value }
-  }
+    fun getErrorsForCopy():
+            String {
 
-  private fun appendResponseData(dataToCopy: StringBuilder) {
-    val formattedResponseData = getResponseDataForCopy()
-
-    if (formattedResponseData.isNotEmpty()) {
-      val heading = resources.getString(R.string.response_body_heading)
-      dataToCopy.append("$heading\n$formattedResponseData")
+        return httpCallRecord.error ?: ""
     }
-    appendHeaders(
-      httpCallRecord.responseHeaders,
-      dataToCopy,
-      resources.getString(R.string.response_headers)
-    )
-  }
 
+    fun getHeadersForCopy():
+            String {
 
-  private fun getFormattedData(contentTypeHeader: HttpHeader?, dataToCopy: String?): String {
-    if (dataToCopy == null) {
-      return ""
+        return buildString {
+
+            appendHeaders(
+                httpCallRecord.requestHeaders,
+                this,
+                resources.getString(
+                    R.string.request_headers
+                )
+            )
+
+            appendHeaders(
+                httpCallRecord.responseHeaders,
+                this,
+                resources.getString(
+                    R.string.response_headers
+                )
+            )
+        }
     }
-    if (contentHeadersPresent(contentTypeHeader)) {
-      val formatter = this.responseFormatterFactory.getFor(contentTypeHeader!!.values[0].value)
-      return formatter.format(dataToCopy)
-    }
-    return dataToCopy
-  }
 
-  private fun contentHeadersPresent(contentTypeHeader: HttpHeader?): Boolean {
-    return contentTypeHeader != null && contentTypeHeader.values.size > 0
-  }
+    fun getHttpCallData():
+            StringBuilder {
+
+        return StringBuilder().apply {
+
+            appendRequestData(this)
+            appendResponseData(this)
+        }
+    }
+
+    private fun appendRequestData(
+        builder: StringBuilder
+    ) {
+
+        val formattedRequestData =
+            getRequestDataForCopy()
+
+        if (
+            formattedRequestData.isNotEmpty()
+        ) {
+
+            val heading =
+                resources.getString(
+                    R.string.request_body_heading
+                )
+
+            builder.append(
+                "$heading\n$formattedRequestData"
+            )
+        }
+
+        appendHeaders(
+            httpCallRecord.requestHeaders,
+            builder,
+            resources.getString(
+                R.string.request_headers
+            )
+        )
+    }
+
+    private fun appendResponseData(
+        builder: StringBuilder
+    ) {
+
+        val formattedResponseData =
+            getResponseDataForCopy()
+
+        if (
+            formattedResponseData.isNotEmpty()
+        ) {
+
+            val heading =
+                resources.getString(
+                    R.string.response_body_heading
+                )
+
+            builder.append(
+                "$heading\n$formattedResponseData"
+            )
+        }
+
+        appendHeaders(
+            httpCallRecord.responseHeaders,
+            builder,
+            resources.getString(
+                R.string.response_headers
+            )
+        )
+    }
+
+    private fun appendHeaders(
+        headers: List<HttpHeader>?,
+        builder: StringBuilder,
+        heading: String
+    ) {
+
+        if (
+            headers.isNullOrEmpty()
+        ) {
+            return
+        }
+
+        builder.append(
+            "\n$heading\n"
+        )
+
+        headers.forEach { header ->
+
+            builder.append(
+                "${header.name}: ${
+                    toHeaderValues(header)
+                }\n"
+            )
+        }
+    }
+
+    private fun toHeaderValues(
+        httpHeader: HttpHeader
+    ): String {
+
+        return httpHeader.values
+            .joinToString(";") {
+                it.value
+            }
+    }
+
+    private fun getFormattedData(
+        contentTypeHeader: HttpHeader?,
+        dataToCopy: String?
+    ): String {
+
+        if (
+            dataToCopy.isNullOrEmpty()
+        ) {
+            return ""
+        }
+
+        if (
+            contentHeadersPresent(
+                contentTypeHeader
+            )
+        ) {
+
+            val formatter =
+                responseFormatterFactory.getFor(
+                    contentTypeHeader!!
+                        .values[0]
+                        .value
+                )
+
+            return formatter.format(
+                dataToCopy
+            )
+        }
+
+        return dataToCopy
+    }
+
+    private fun contentHeadersPresent(
+        contentTypeHeader: HttpHeader?
+    ): Boolean {
+
+        return contentTypeHeader != null &&
+                contentTypeHeader.values.isNotEmpty()
+    }
 }
