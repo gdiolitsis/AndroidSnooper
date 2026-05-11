@@ -18,7 +18,8 @@ import java.io.File
 
 class DatabaseReaderTest {
 
-    private lateinit var context: Context
+    private lateinit var context:
+            Context
 
     private lateinit var applicationContext:
             Context
@@ -68,12 +69,9 @@ class DatabaseReaderTest {
     @Test
     fun shouldReturnEmptyListIfNoDbFilesPresent() {
 
-        val databases =
-            arrayOfNulls<String>(0)
-
         every {
             applicationContext.databaseList()
-        } returns databases
+        } returns emptyArray()
 
         resolveBackgroundTask()
 
@@ -147,11 +145,15 @@ class DatabaseReaderTest {
             )
 
         every {
-            context.getDatabasePath("app.db")
+            context.getDatabasePath(
+                "app.db"
+            )
         } returns file1
 
         every {
-            context.getDatabasePath("user.db")
+            context.getDatabasePath(
+                "user.db"
+            )
         } returns file2
 
         resolveBackgroundTask()
@@ -165,15 +167,15 @@ class DatabaseReaderTest {
 
             dbReaderCallback
                 .onApplicationDbFetchCompleted(
-                    match {
+                    match { databasesList ->
 
                         assertEquals(
                             2,
-                            it.size
+                            databasesList.size
                         )
 
                         assertThat(
-                            it[0],
+                            databasesList[0],
                             isSameAsDatabaseWithParameters(
                                 "/location1/app.db",
                                 "app.db"
@@ -181,7 +183,7 @@ class DatabaseReaderTest {
                         )
 
                         assertThat(
-                            it[1],
+                            databasesList[1],
                             isSameAsDatabaseWithParameters(
                                 "/location2/user.db",
                                 "user.db"
@@ -201,18 +203,15 @@ class DatabaseReaderTest {
 
         return object :
             CustomTypeSafeMatcher<Database>(
-                "a Database with name $name"
+                "Database(name=$name, path=$path)"
             ) {
 
             override fun matchesSafely(
                 item: Database
             ): Boolean {
 
-                return (
-                    item.name == name
-                    &&
-                    item.path == path
-                )
+                return item.name == name &&
+                        item.path == path
             }
         }
     }
@@ -236,11 +235,12 @@ class DatabaseReaderTest {
         return file
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun resolveBackgroundTask() {
 
         every {
             backgroundTaskExecutor.execute(
-                any<BackgroundTask<List<Database>>>()
+                any()
             )
         } answers {
 
@@ -249,9 +249,14 @@ class DatabaseReaderTest {
                     BackgroundTask<List<Database>>
                     >()
 
-            backgroundTask.onResult(
+            val result =
                 backgroundTask.onExecute()
+
+            backgroundTask.onResult(
+                result
             )
+
+            Unit
         }
     }
 }
