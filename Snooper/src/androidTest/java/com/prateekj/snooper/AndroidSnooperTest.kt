@@ -24,8 +24,15 @@ class AndroidSnooperTest {
     @Throws(Exception::class)
     fun setUp() {
 
+        val instrumentation =
+            InstrumentationRegistry.getInstrumentation()
+
+        val application =
+            instrumentation.targetContext.applicationContext
+                as android.app.Application
+
         androidSnooper =
-            AndroidSnooper.instance
+            AndroidSnooper.init(application)
     }
 
     @Test
@@ -36,8 +43,8 @@ class AndroidSnooperTest {
             InstrumentationRegistry.getInstrumentation()
 
         val application =
-            (instrumentation as SnooperInstrumentationRunner)
-                .application
+            instrumentation.targetContext.applicationContext
+                as android.app.Application
 
         val newSnooper =
             AndroidSnooper.init(application)
