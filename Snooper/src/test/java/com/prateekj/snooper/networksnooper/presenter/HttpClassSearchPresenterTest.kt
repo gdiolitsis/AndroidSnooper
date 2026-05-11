@@ -11,74 +11,195 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Before
 import org.junit.Test
-import java.util.ArrayList
 
 class HttpClassSearchPresenterTest {
 
-  private lateinit var mockExecutor: BackgroundTaskExecutor
-  private lateinit var httpCallSearchView: HttpCallSearchView
-  private lateinit var repo: SnooperRepo
-  private lateinit var searchPresenter: HttpClassSearchPresenter
+    private lateinit var mockExecutor:
+            BackgroundTaskExecutor
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    mockExecutor = mockk(relaxed = true)
-    httpCallSearchView = mockk(relaxed = true)
-    repo = mockk(relaxed = true)
-    searchPresenter = HttpClassSearchPresenter(repo, httpCallSearchView, mockExecutor)
-  }
+    private lateinit var httpCallSearchView:
+            HttpCallSearchView
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldShowSearchedHttpCallRecordsOnView() {
-    val httpCallRecordList = listOf(mockk<HttpCallRecord>(relaxed = true))
-    resolveBackgroundTask()
-    every { repo.searchHttpRecord("url") } returns httpCallRecordList
+    private lateinit var repo:
+            SnooperRepo
 
-    searchPresenter.searchCalls("url")
+    private lateinit var searchPresenter:
+            HttpClassSearchPresenter
 
-    verify { repo.searchHttpRecord("url") }
+    @Before
+    fun setUp() {
 
-    verify { httpCallSearchView.hideSearchResultsView() }
-    verify { httpCallSearchView.showLoader() }
-    verify { httpCallSearchView.hideLoader() }
-    verify { httpCallSearchView.showResults(refEq(httpCallRecordList)) }
-  }
+        mockExecutor =
+            mockk(relaxed = true)
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldShowNoResultsFoundMessage() {
-    val httpCallRecordList = ArrayList<HttpCallRecord>()
-    resolveBackgroundTask()
-    every { repo.searchHttpRecord("url") } returns httpCallRecordList
+        httpCallSearchView =
+            mockk(relaxed = true)
 
-    searchPresenter.searchCalls("url")
+        repo =
+            mockk(relaxed = true)
 
-    verify { repo.searchHttpRecord("url") }
-
-    verify { httpCallSearchView.hideSearchResultsView() }
-    verify { httpCallSearchView.showLoader() }
-    verify { httpCallSearchView.hideLoader() }
-    verify { httpCallSearchView.showNoResultsFoundMessage("url") }
-  }
-
-  @Test
-  @Throws(Exception::class)
-  fun shouldShowEmptySearchedHttpCallRecordsWhenTextIsEmpty() {
-    searchPresenter.searchCalls("")
-
-    verify(exactly = 0) { repo.searchHttpRecord("url") }
-
-    verify { httpCallSearchView.hideLoader() }
-    verify { httpCallSearchView.showResults(match { it.size == 0 }) }
-    confirmVerified(httpCallSearchView)
-  }
-
-  private fun resolveBackgroundTask() {
-    every { mockExecutor.execute(any<BackgroundTask<String>>()) } answers {
-      val backgroundTask = this.firstArg<BackgroundTask<String>>()
-      backgroundTask.onResult(backgroundTask.onExecute())
+        searchPresenter =
+            HttpClassSearchPresenter(
+                repo,
+                httpCallSearchView,
+                mockExecutor
+            )
     }
-  }
+
+    @Test
+    fun shouldShowSearchedHttpCallRecordsOnView() {
+
+        val httpCallRecordList =
+            listOf(
+                mockk<HttpCallRecord>(
+                    relaxed = true
+                )
+            )
+
+        resolveBackgroundTask()
+
+        every {
+            repo.searchHttpRecord(
+                "url"
+            )
+        } returns httpCallRecordList
+
+        searchPresenter.searchCalls(
+            "url"
+        )
+
+        verify(exactly = 1) {
+            repo.searchHttpRecord(
+                "url"
+            )
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .hideSearchResultsView()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .showLoader()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .hideLoader()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .showResults(
+                    refEq(
+                        httpCallRecordList
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun shouldShowNoResultsFoundMessage() {
+
+        val httpCallRecordList =
+            emptyList<HttpCallRecord>()
+
+        resolveBackgroundTask()
+
+        every {
+            repo.searchHttpRecord(
+                "url"
+            )
+        } returns httpCallRecordList
+
+        searchPresenter.searchCalls(
+            "url"
+        )
+
+        verify(exactly = 1) {
+            repo.searchHttpRecord(
+                "url"
+            )
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .hideSearchResultsView()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .showLoader()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .hideLoader()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .showNoResultsFoundMessage(
+                    "url"
+                )
+        }
+    }
+
+    @Test
+    fun shouldShowEmptyResultsWhenTextIsEmpty() {
+
+        searchPresenter.searchCalls(
+            ""
+        )
+
+        verify(exactly = 0) {
+            repo.searchHttpRecord(
+                any()
+            )
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .hideLoader()
+        }
+
+        verify(exactly = 1) {
+            httpCallSearchView
+                .showResults(
+                    match {
+                        it.isEmpty()
+                    }
+                )
+        }
+
+        confirmVerified(
+            httpCallSearchView
+        )
+    }
+
+    private fun resolveBackgroundTask() {
+
+        every {
+            mockExecutor.execute(
+                any<
+                    BackgroundTask<
+                        List<HttpCallRecord>
+                    >
+                >()
+            )
+        } answers {
+
+            val backgroundTask =
+                firstArg<
+                    BackgroundTask<
+                        List<HttpCallRecord>
+                    >
+                >()
+
+            backgroundTask.onResult(
+                backgroundTask.onExecute()
+            )
+        }
+    }
 }
