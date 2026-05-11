@@ -53,51 +53,52 @@ class SnooperRepo(
 
             database.beginTransaction()
 
-            val values = ContentValues().apply {
+            val values =
+                ContentValues().apply {
 
-                put(
-                    COLUMN_URL,
-                    httpCallRecord.url
-                )
+                    put(
+                        COLUMN_URL,
+                        httpCallRecord.url
+                    )
 
-                put(
-                    COLUMN_PAYLOAD,
-                    httpCallRecord.payload
-                )
+                    put(
+                        COLUMN_PAYLOAD,
+                        httpCallRecord.payload
+                    )
 
-                put(
-                    COLUMN_RESPONSE_BODY,
-                    httpCallRecord.responseBody
-                )
+                    put(
+                        COLUMN_RESPONSE_BODY,
+                        httpCallRecord.responseBody
+                    )
 
-                put(
-                    COLUMN_METHOD,
-                    httpCallRecord.method
-                )
+                    put(
+                        COLUMN_METHOD,
+                        httpCallRecord.method
+                    )
 
-                put(
-                    COLUMN_STATUSCODE,
-                    httpCallRecord.statusCode
-                )
+                    put(
+                        COLUMN_STATUSCODE,
+                        httpCallRecord.statusCode
+                    )
 
-                put(
-                    COLUMN_STATUSTEXT,
-                    httpCallRecord.statusText
-                )
+                    put(
+                        COLUMN_STATUSTEXT,
+                        httpCallRecord.statusText
+                    )
 
-                put(
-                    COLUMN_DATE,
-                    httpCallRecord.date?.time
-                )
+                    put(
+                        COLUMN_DATE,
+                        httpCallRecord.date?.time
+                    )
 
-                put(
-                    COLUMN_ERROR,
-                    httpCallRecord.error
-                )
-            }
+                    put(
+                        COLUMN_ERROR,
+                        httpCallRecord.error
+                    )
+                }
 
             val httpCallRecordId =
-                database.insert(
+                database.insertOrThrow(
                     HTTP_CALL_RECORD_TABLE_NAME,
                     null,
                     values
@@ -108,7 +109,7 @@ class SnooperRepo(
                 httpCallRecordId,
                 httpCallRecord.requestHeaders
                     ?: emptyList(),
-                "req"
+                REQUEST_HEADER_TYPE
             )
 
             saveHeaders(
@@ -116,7 +117,7 @@ class SnooperRepo(
                 httpCallRecordId,
                 httpCallRecord.responseHeaders
                     ?: emptyList(),
-                "res"
+                RESPONSE_HEADER_TYPE
             )
 
             database.setTransactionSuccessful()
@@ -126,6 +127,7 @@ class SnooperRepo(
         } finally {
 
             database.endTransaction()
+
             database.close()
         }
     }
@@ -136,31 +138,33 @@ class SnooperRepo(
         val database =
             dbReadHelper.readableDatabase
 
-        val records =
-            mutableListOf<HttpCallRecord>()
+        return try {
 
-        val parser =
-            HttpCallRecordCursorParser()
+            val records =
+                mutableListOf<HttpCallRecord>()
 
-        val cursor =
+            val parser =
+                HttpCallRecordCursorParser()
+
             database.rawQuery(
                 HTTP_CALL_RECORD_GET_SORT_BY_DATE,
                 null
-            )
+            ).use { cursor ->
 
-        cursor.use {
+                while (cursor.moveToNext()) {
 
-            while (it.moveToNext()) {
-
-                records.add(
-                    parser.parse(it)
-                )
+                    records.add(
+                        parser.parse(cursor)
+                    )
+                }
             }
+
+            records
+
+        } finally {
+
+            database.close()
         }
-
-        database.close()
-
-        return records
     }
 
     fun searchHttpRecord(
@@ -170,16 +174,17 @@ class SnooperRepo(
         val database =
             dbReadHelper.readableDatabase
 
-        val records =
-            mutableListOf<HttpCallRecord>()
+        return try {
 
-        val parser =
-            HttpCallRecordCursorParser()
+            val records =
+                mutableListOf<HttpCallRecord>()
 
-        val likeText =
-            "%$text%"
+            val parser =
+                HttpCallRecordCursorParser()
 
-        val cursor =
+            val likeText =
+                "%$text%"
+
             database.rawQuery(
                 HTTP_CALL_RECORD_SEARCH,
                 arrayOf(
@@ -188,21 +193,22 @@ class SnooperRepo(
                     likeText,
                     likeText
                 )
-            )
+            ).use { cursor ->
 
-        cursor.use {
+                while (cursor.moveToNext()) {
 
-            while (it.moveToNext()) {
-
-                records.add(
-                    parser.parse(it)
-                )
+                    records.add(
+                        parser.parse(cursor)
+                    )
+                }
             }
+
+            records
+
+        } finally {
+
+            database.close()
         }
-
-        database.close()
-
-        return records
     }
 
     fun findAllSortByDateAfter(
@@ -213,46 +219,51 @@ class SnooperRepo(
         val database =
             dbReadHelper.readableDatabase
 
-        val records =
-            mutableListOf<HttpCallRecord>()
+        return try {
 
-        val parser =
-            HttpCallRecordCursorParser()
+            val records =
+                mutableListOf<HttpCallRecord>()
 
-        val cursor: Cursor =
-            if (id == -1L) {
+            val parser =
+                HttpCallRecordCursorParser()
 
-                database.rawQuery(
-                    HTTP_CALL_RECORD_GET_SORT_BY_DATE_WITH_SIZE,
-                    arrayOf(
-                        pageSize.toString()
+            val cursor: Cursor =
+                if (id == -1L) {
+
+                    database.rawQuery(
+                        HTTP_CALL_RECORD_GET_SORT_BY_DATE_WITH_SIZE,
+                        arrayOf(
+                            pageSize.toString()
+                        )
                     )
-                )
 
-            } else {
+                } else {
 
-                database.rawQuery(
-                    HTTP_CALL_RECORD_GET_NEXT_SORT_BY_DATE_WITH_SIZE,
-                    arrayOf(
-                        id.toString(),
-                        pageSize.toString()
+                    database.rawQuery(
+                        HTTP_CALL_RECORD_GET_NEXT_SORT_BY_DATE_WITH_SIZE,
+                        arrayOf(
+                            id.toString(),
+                            pageSize.toString()
+                        )
                     )
-                )
+                }
+
+            cursor.use {
+
+                while (it.moveToNext()) {
+
+                    records.add(
+                        parser.parse(it)
+                    )
+                }
             }
 
-        cursor.use {
+            records
 
-            while (it.moveToNext()) {
+        } finally {
 
-                records.add(
-                    parser.parse(it)
-                )
-            }
+            database.close()
         }
-
-        database.close()
-
-        return records
     }
 
     fun findById(
@@ -262,43 +273,49 @@ class SnooperRepo(
         val database =
             dbReadHelper.readableDatabase
 
-        val parser =
-            HttpCallRecordCursorParser()
+        return try {
 
-        val cursor =
+            val parser =
+                HttpCallRecordCursorParser()
+
+            var record:
+                    HttpCallRecord? = null
+
             database.rawQuery(
                 HTTP_CALL_RECORD_GET_BY_ID,
                 arrayOf(id.toString())
-            )
+            ).use { cursor ->
 
-        lateinit var record: HttpCallRecord
+                if (cursor.moveToFirst()) {
 
-        cursor.use {
+                    record =
+                        parser.parse(cursor).apply {
 
-            if (it.moveToFirst()) {
+                            requestHeaders =
+                                findHeader(
+                                    database,
+                                    this.id,
+                                    REQUEST_HEADER_TYPE
+                                )
 
-                record =
-                    parser.parse(it)
-
-                record.requestHeaders =
-                    findHeader(
-                        database,
-                        record.id,
-                        "req"
-                    )
-
-                record.responseHeaders =
-                    findHeader(
-                        database,
-                        record.id,
-                        "res"
-                    )
+                            responseHeaders =
+                                findHeader(
+                                    database,
+                                    this.id,
+                                    RESPONSE_HEADER_TYPE
+                                )
+                        }
+                }
             }
+
+            requireNotNull(record) {
+                "No HttpCallRecord found for id=$id"
+            }
+
+        } finally {
+
+            database.close()
         }
-
-        database.close()
-
-        return record
     }
 
     fun deleteAll() {
@@ -321,6 +338,7 @@ class SnooperRepo(
         } finally {
 
             database.endTransaction()
+
             database.close()
         }
     }
@@ -337,21 +355,18 @@ class SnooperRepo(
         val parser =
             HttpHeaderCursorParser()
 
-        val cursor =
-            database.rawQuery(
-                HTTP_HEADER_GET_BY_CALL_ID,
-                arrayOf(
-                    callId.toString(),
-                    headerType
-                )
+        database.rawQuery(
+            HTTP_HEADER_GET_BY_CALL_ID,
+            arrayOf(
+                callId.toString(),
+                headerType
             )
+        ).use { cursor ->
 
-        cursor.use {
-
-            while (it.moveToNext()) {
+            while (cursor.moveToNext()) {
 
                 val header =
-                    parser.parse(it)
+                    parser.parse(cursor)
 
                 header.values =
                     findHeaderValue(
@@ -377,20 +392,17 @@ class SnooperRepo(
         val parser =
             HttpHeaderValueCursorParser()
 
-        val cursor =
-            database.rawQuery(
-                HTTP_HEADER_VALUE_GET_BY_HEADER_ID,
-                arrayOf(
-                    headerId.toString()
-                )
+        database.rawQuery(
+            HTTP_HEADER_VALUE_GET_BY_HEADER_ID,
+            arrayOf(
+                headerId.toString()
             )
+        ).use { cursor ->
 
-        cursor.use {
-
-            while (it.moveToNext()) {
+            while (cursor.moveToNext()) {
 
                 values.add(
-                    parser.parse(it)
+                    parser.parse(cursor)
                 )
             }
         }
@@ -443,7 +455,7 @@ class SnooperRepo(
             }
 
         val headerId =
-            database.insert(
+            database.insertOrThrow(
                 HEADER_TABLE_NAME,
                 null,
                 values
@@ -479,10 +491,19 @@ class SnooperRepo(
                 )
             }
 
-        database.insert(
+        database.insertOrThrow(
             HEADER_VALUE_TABLE_NAME,
             null,
             values
         )
+    }
+
+    companion object {
+
+        private const val REQUEST_HEADER_TYPE =
+            "req"
+
+        private const val RESPONSE_HEADER_TYPE =
+            "res"
     }
 }
