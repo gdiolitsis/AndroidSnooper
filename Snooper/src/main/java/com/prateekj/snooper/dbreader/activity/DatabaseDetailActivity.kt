@@ -6,7 +6,7 @@ import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.ActivityDbViewBinding
 import com.prateekj.snooper.dbreader.DatabaseDataReader
 import com.prateekj.snooper.dbreader.DatabaseReader
 import com.prateekj.snooper.dbreader.activity.DatabaseListActivity.Companion.DB_NAME
@@ -16,12 +16,13 @@ import com.prateekj.snooper.dbreader.model.Database
 import com.prateekj.snooper.dbreader.view.DbViewCallback
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.SnooperBaseActivity
-import kotlinx.android.synthetic.main.activity_db_view.*
 
 class DatabaseDetailActivity :
     SnooperBaseActivity(),
     DbViewCallback,
     TableEventListener {
+
+    private lateinit var binding: ActivityDbViewBinding
 
     private lateinit var databaseReader: DatabaseReader
 
@@ -34,8 +35,11 @@ class DatabaseDetailActivity :
 
         super.onCreate(savedInstanceState)
 
+        binding =
+            ActivityDbViewBinding.inflate(layoutInflater)
+
         setContentView(
-            R.layout.activity_db_view
+            binding.root
         )
 
         initViews()
@@ -76,7 +80,7 @@ class DatabaseDetailActivity :
 
     override fun onDbFetchStarted() {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.visibility =
             VISIBLE
     }
 
@@ -84,7 +88,7 @@ class DatabaseDetailActivity :
         databases: Database
     ) {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.visibility =
             GONE
 
         updateDbView(databases)
@@ -94,10 +98,10 @@ class DatabaseDetailActivity :
         database: Database
     ) {
 
-        db_name?.text =
+        binding.dbName.text =
             database.name ?: ""
 
-        db_version?.text =
+        binding.dbVersion.text =
             database.version.toString()
 
         updateTableList(
@@ -118,7 +122,7 @@ class DatabaseDetailActivity :
         val layoutManager =
             LinearLayoutManager(this)
 
-        table_list?.apply {
+        binding.tableList.apply {
 
             this.layoutManager =
                 layoutManager
@@ -133,7 +137,7 @@ class DatabaseDetailActivity :
 
     private fun initViews() {
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(binding.toolbar)
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(true)
