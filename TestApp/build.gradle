@@ -16,7 +16,7 @@ android {
 
         applicationId "com.github.jainsahab"
 
-        minSdk 19
+        minSdk 21
 
         targetSdk rootProject.ext.targetSdkVersion
 
