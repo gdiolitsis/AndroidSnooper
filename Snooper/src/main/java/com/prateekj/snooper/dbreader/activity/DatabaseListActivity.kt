@@ -17,47 +17,113 @@ import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.SnooperBaseActivity
 import kotlinx.android.synthetic.main.activity_db_reader.*
 
-class DatabaseListActivity : SnooperBaseActivity(), DbReaderCallback, DbEventListener {
-  private lateinit var adapter: DatabaseAdapter
-  private lateinit var databaseReader: DatabaseReader
+class DatabaseListActivity :
+    SnooperBaseActivity(),
+    DbReaderCallback,
+    DbEventListener {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_db_reader)
-    initViews()
+    private lateinit var adapter: DatabaseAdapter
 
-    val backgroundTaskExecutor = BackgroundTaskExecutor(this)
-    databaseReader = DatabaseReader(this, backgroundTaskExecutor, DatabaseDataReader())
-    databaseReader.fetchApplicationDatabases(this)
-  }
+    private lateinit var databaseReader: DatabaseReader
 
-  override fun onDbFetchStarted() {
-    embedded_loader!!.visibility = VISIBLE
-  }
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
-  override fun onApplicationDbFetchCompleted(databases: List<Database>) {
-    embedded_loader!!.visibility = GONE
-    adapter = DatabaseAdapter(databases, this)
-    val mLayoutManager = LinearLayoutManager(this)
-    db_list.layoutManager = mLayoutManager
-    db_list.itemAnimator = DefaultItemAnimator()
-    db_list.adapter = adapter
-  }
+        super.onCreate(savedInstanceState)
 
-  override fun onDatabaseClick(db: Database) {
-    val dbViewActivity = Intent(this@DatabaseListActivity, DatabaseDetailActivity::class.java)
-    dbViewActivity.putExtra(DB_PATH, db.path)
-    dbViewActivity.putExtra(DB_NAME, db.name)
-    startActivity(dbViewActivity)
-  }
+        setContentView(
+            R.layout.activity_db_reader
+        )
 
-  private fun initViews() {
-    setSupportActionBar(toolbar)
-    supportActionBar!!.setDisplayHomeAsUpEnabled(false)
-  }
+        initViews()
 
-  companion object {
-    const val DB_PATH = "DB_PATH"
-    const val DB_NAME = "DB_NAME"
-  }
+        val backgroundTaskExecutor =
+            BackgroundTaskExecutor(this)
+
+        databaseReader =
+            DatabaseReader(
+                this,
+                backgroundTaskExecutor,
+                DatabaseDataReader()
+            )
+
+        databaseReader.fetchApplicationDatabases(this)
+    }
+
+    override fun onDbFetchStarted() {
+
+        embedded_loader?.visibility =
+            VISIBLE
+    }
+
+    override fun onApplicationDbFetchCompleted(
+        databases: List<Database>
+    ) {
+
+        embedded_loader?.visibility =
+            GONE
+
+        adapter =
+            DatabaseAdapter(
+                databases,
+                this
+            )
+
+        val layoutManager =
+            LinearLayoutManager(this)
+
+        db_list?.apply {
+
+            this.layoutManager =
+                layoutManager
+
+            itemAnimator =
+                DefaultItemAnimator()
+
+            adapter =
+                this@DatabaseListActivity.adapter
+        }
+    }
+
+    override fun onDatabaseClick(
+        db: Database
+    ) {
+
+        val dbViewActivity =
+            Intent(
+                this@DatabaseListActivity,
+                DatabaseDetailActivity::class.java
+            ).apply {
+
+                putExtra(
+                    DB_PATH,
+                    db.path
+                )
+
+                putExtra(
+                    DB_NAME,
+                    db.name
+                )
+            }
+
+        startActivity(dbViewActivity)
+    }
+
+    private fun initViews() {
+
+        setSupportActionBar(toolbar)
+
+        supportActionBar
+            ?.setDisplayHomeAsUpEnabled(false)
+    }
+
+    companion object {
+
+        const val DB_PATH =
+            "DB_PATH"
+
+        const val DB_NAME =
+            "DB_NAME"
+    }
 }
