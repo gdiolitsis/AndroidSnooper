@@ -6,19 +6,33 @@ import org.junit.Test
 
 class SnooperShakeListenerTest {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldVerifySnooperShakeBehaviour() {
-    val shakeAction = mockk<SnooperShakeAction>(relaxed = true)
-    val shakeListener = SnooperShakeListener(shakeAction)
+    @Test
+    fun shouldVerifySnooperShakeBehaviour() {
 
-    repeat(4) { shakeListener.onShake() }
+        val shakeAction =
+            mockk<SnooperShakeAction>(
+                relaxed = true
+            )
 
-    verifySequence {
-      shakeAction.startSnooperFlow()
-      shakeAction.endSnooperFlow()
-      shakeAction.startSnooperFlow()
-      shakeAction.endSnooperFlow()
+        val shakeListener =
+            SnooperShakeListener(
+                shakeAction
+            )
+
+        repeat(4) {
+
+            shakeListener.onShake()
+        }
+
+        verifySequence {
+
+            shakeAction.startSnooperFlow()
+
+            shakeAction.endSnooperFlow()
+
+            shakeAction.startSnooperFlow()
+
+            shakeAction.endSnooperFlow()
+        }
     }
-  }
 }
