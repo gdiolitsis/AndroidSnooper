@@ -1,15 +1,26 @@
 package com.prateekj.snooper
 
-class SnooperShakeListener(private val shakeAction: SnooperShakeAction) : OnShakeListener {
-  private var isSnooperFlowStarted: Boolean = false
+class SnooperShakeListener(
+    private val shakeAction: SnooperShakeAction
+) : OnShakeListener {
 
-  override fun onShake() {
-    if (!isSnooperFlowStarted) {
-      this.shakeAction.startSnooperFlow()
-      isSnooperFlowStarted = true
-      return
+    @Volatile
+    private var isSnooperFlowStarted =
+        false
+
+    override fun onShake() {
+
+        if (!isSnooperFlowStarted) {
+
+            shakeAction.startSnooperFlow()
+
+            isSnooperFlowStarted = true
+
+            return
+        }
+
+        shakeAction.endSnooperFlow()
+
+        isSnooperFlowStarted = false
     }
-    this.shakeAction.endSnooperFlow()
-    isSnooperFlowStarted = false
-  }
 }
