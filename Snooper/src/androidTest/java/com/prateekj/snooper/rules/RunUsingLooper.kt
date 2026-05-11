@@ -17,23 +17,24 @@ class RunUsingLooper : TestRule {
             @Throws(Throwable::class)
             override fun evaluate() {
 
-                var looperPrepared = false
+                val hasLooper =
+                    Looper.myLooper() != null
 
                 try {
 
-                    if (Looper.myLooper() == null) {
+                    if (!hasLooper) {
 
                         Looper.prepare()
-                        looperPrepared = true
                     }
 
                     base.evaluate()
 
                 } finally {
 
-                    if (looperPrepared) {
+                    if (!hasLooper) {
 
-                        Looper.myLooper()?.quitSafely()
+                        Looper.myLooper()
+                            ?.quitSafely()
                     }
                 }
             }
