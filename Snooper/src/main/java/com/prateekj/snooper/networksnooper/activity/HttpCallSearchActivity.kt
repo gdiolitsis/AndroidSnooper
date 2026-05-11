@@ -70,19 +70,24 @@ class HttpCallSearchActivity :
 
     private fun setupRecyclerView() {
 
-        binding.list.layoutManager =
-            LinearLayoutManager(this)
+        binding.list.apply {
 
-        binding.list.itemAnimator =
-            DefaultItemAnimator()
+            layoutManager =
+                LinearLayoutManager(
+                    this@HttpCallSearchActivity
+                )
 
-        binding.list.addItemDecoration(
-            DividerItemDecoration(
-                this,
-                DividerItemDecoration.VERTICAL,
-                R.drawable.grey_divider
+            itemAnimator =
+                DefaultItemAnimator()
+
+            addItemDecoration(
+                DividerItemDecoration(
+                    this@HttpCallSearchActivity,
+                    DividerItemDecoration.VERTICAL,
+                    R.drawable.grey_divider
+                )
             )
-        )
+        }
 
         httpCallListAdapter =
             HttpCallListAdapter(
@@ -96,14 +101,22 @@ class HttpCallSearchActivity :
 
     private fun setupSearchView() {
 
-        binding.searchView.setOnQueryTextListener(
-            this
-        )
+        binding.searchView.apply {
+
+            isIconified = false
+
+            setOnQueryTextListener(
+                this@HttpCallSearchActivity
+            )
+        }
     }
 
     override fun showResults(
         httpCallRecords: List<HttpCallRecord>
     ) {
+
+        binding.embeddedLoader.visibility =
+            GONE
 
         binding.noResultsFoundContainer.visibility =
             GONE
@@ -115,12 +128,18 @@ class HttpCallSearchActivity :
             httpCallRecords.toMutableList()
         )
 
-        httpCallListAdapter.notifyDataSetChanged()
+        binding.list.post {
+
+            httpCallListAdapter.notifyDataSetChanged()
+        }
     }
 
     override fun showNoResultsFoundMessage(
         keyword: String
     ) {
+
+        binding.embeddedLoader.visibility =
+            GONE
 
         binding.list.visibility =
             GONE
@@ -136,6 +155,9 @@ class HttpCallSearchActivity :
     }
 
     override fun hideSearchResultsView() {
+
+        binding.embeddedLoader.visibility =
+            GONE
 
         binding.list.visibility =
             GONE
@@ -160,6 +182,13 @@ class HttpCallSearchActivity :
         httpCall: HttpCallRecord
     ) {
 
+        val httpCallId =
+            httpCall.id
+
+        if (httpCallId <= 0L) {
+            return
+        }
+
         val intent =
             Intent(
                 this,
@@ -168,7 +197,7 @@ class HttpCallSearchActivity :
 
                 putExtra(
                     HTTP_CALL_ID,
-                    httpCall.id
+                    httpCallId
                 )
             }
 
@@ -186,17 +215,38 @@ class HttpCallSearchActivity :
         query: String?
     ): Boolean {
 
-        return false
+        val keyword =
+            query
+                ?.trim()
+                .orEmpty()
+
+        httpClassSearchPresenter.searchCalls(
+            keyword
+        )
+
+        clearSearchFocus()
+
+        return true
     }
 
     override fun onQueryTextChange(
         text: String?
     ): Boolean {
 
+        val keyword =
+            text
+                ?.trim()
+                .orEmpty()
+
         httpClassSearchPresenter.searchCalls(
-            text.orEmpty()
+            keyword
         )
 
         return true
+    }
+
+    private fun clearSearchFocus() {
+
+        binding.searchView.clearFocus()
     }
 }
