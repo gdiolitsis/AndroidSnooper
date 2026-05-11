@@ -6,26 +6,61 @@ import java.io.IOException
 
 class SnooperInterceptor : ClientHttpRequestInterceptor {
 
-  @Throws(IOException::class)
-  override fun intercept(
-    request: HttpRequest, byteArray: ByteArray,
-    execution: ClientHttpRequestExecution
-  ): ClientHttpResponse {
+    @Throws(IOException::class)
+    override fun intercept(
+        request: HttpRequest,
+        byteArray: ByteArray,
+        execution: ClientHttpRequestExecution
+    ): ClientHttpResponse {
 
-    val transformer = SpringHttpRequestTransformer()
-    val snooper = AndroidSnooper.instance
-    val streamResponse: ClientHttpResponse
-    try {
-      streamResponse = execution.execute(request, byteArray)
-    } catch (e: Exception) {
-      val call = transformer.transform(request, byteArray, e)
-      snooper.record(call)
-      throw e
+        val transformer =
+            SpringHttpRequestTransformer()
+
+        val snooper =
+            AndroidSnooper.instance
+
+        return try {
+
+            val streamResponse =
+                execution.execute(
+                    request,
+                    byteArray
+                )
+
+            val httpResponse =
+                BufferingClientHttpResponseWrapper(
+                    streamResponse
+                )
+
+            val call =
+                transformer.transform(
+                    request,
+                    byteArray,
+                    httpResponse
+                )
+
+            try {
+                snooper.record(call)
+            } catch (_: Throwable) {}
+
+            httpResponse
+
+        } catch (e: Exception) {
+
+            try {
+
+                val call =
+                    transformer.transform(
+                        request,
+                        byteArray,
+                        e
+                    )
+
+                snooper.record(call)
+
+            } catch (_: Throwable) {}
+
+            throw e
+        }
     }
-
-    val httpResponse = BufferingClientHttpResponseWrapper(streamResponse)
-    val call = transformer.transform(request, byteArray, httpResponse)
-    snooper.record(call)
-    return httpResponse
-  }
 }
