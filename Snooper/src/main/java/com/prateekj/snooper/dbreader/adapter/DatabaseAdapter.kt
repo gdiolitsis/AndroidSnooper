@@ -1,12 +1,10 @@
 package com.prateekj.snooper.dbreader.adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.DbCardItemBinding
 import com.prateekj.snooper.dbreader.model.Database
-import kotlinx.android.synthetic.main.db_card_item.view.*
 
 class DatabaseAdapter(
     private val databaseList: List<Database>,
@@ -14,21 +12,21 @@ class DatabaseAdapter(
 ) : RecyclerView.Adapter<DatabaseAdapter.DbViewHolder>() {
 
     class DbViewHolder(
-        private val view: View,
+        private val binding: DbCardItemBinding,
         private val dbEventListener: DbEventListener
-    ) : RecyclerView.ViewHolder(view) {
+    ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(
             db: Database
         ) {
 
-            view.name?.text =
+            binding.name.text =
                 db.name ?: ""
 
-            view.path?.text =
+            binding.path.text =
                 db.path ?: ""
 
-            itemView.setOnClickListener {
+            binding.root.setOnClickListener {
 
                 dbEventListener.onDatabaseClick(db)
             }
@@ -40,16 +38,15 @@ class DatabaseAdapter(
         viewType: Int
     ): DbViewHolder {
 
-        val itemView =
-            LayoutInflater.from(parent.context)
-                .inflate(
-                    R.layout.db_card_item,
-                    parent,
-                    false
-                )
+        val binding =
+            DbCardItemBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
 
         return DbViewHolder(
-            itemView,
+            binding,
             dbEventListener
         )
     }
