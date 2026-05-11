@@ -63,7 +63,7 @@ class DatabaseDataReader {
             mutableListOf<Row>()
 
         database.rawQuery(
-            "SELECT * FROM $tableName",
+            "SELECT * FROM `$tableName`",
             null
         ).use { cursor ->
 
