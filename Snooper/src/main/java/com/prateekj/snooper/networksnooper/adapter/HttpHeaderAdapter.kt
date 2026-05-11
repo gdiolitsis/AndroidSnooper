@@ -4,10 +4,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
-import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.HeaderListItemBinding
 import com.prateekj.snooper.networksnooper.model.HttpHeader
 import com.prateekj.snooper.networksnooper.viewmodel.HttpHeaderViewModel
-import kotlinx.android.synthetic.main.header_list_item.view.*
 
 class HttpHeaderAdapter private constructor(
     headers: List<HttpHeader>
@@ -45,22 +44,38 @@ class HttpHeaderAdapter private constructor(
         parent: ViewGroup
     ): View {
 
-        val view =
-            convertView ?: LayoutInflater
-                .from(parent.context)
-                .inflate(
-                    R.layout.header_list_item,
+        val binding =
+            if (convertView == null) {
+
+                HeaderListItemBinding.inflate(
+                    LayoutInflater.from(
+                        parent.context
+                    ),
                     parent,
                     false
                 )
 
+            } else {
+
+                convertView.tag
+                        as HeaderListItemBinding
+            }
+
+        val view =
+            binding.root
+
+        if (view.tag == null) {
+
+            view.tag = binding
+        }
+
         val viewModel =
             getItem(position)
 
-        view.header_name.text =
+        binding.headerName.text =
             viewModel.headerName()
 
-        view.header_value.text =
+        binding.headerValue.text =
             viewModel.headerValues()
 
         return view
@@ -72,7 +87,9 @@ class HttpHeaderAdapter private constructor(
             headers: List<HttpHeader>
         ): HttpHeaderAdapter {
 
-            return HttpHeaderAdapter(headers)
+            return HttpHeaderAdapter(
+                headers
+            )
         }
     }
 }
