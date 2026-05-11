@@ -36,7 +36,9 @@ class DatabaseDetailActivity :
         super.onCreate(savedInstanceState)
 
         binding =
-            ActivityDbViewBinding.inflate(layoutInflater)
+            ActivityDbViewBinding.inflate(
+                layoutInflater
+            )
 
         setContentView(
             binding.root
@@ -80,7 +82,7 @@ class DatabaseDetailActivity :
 
     override fun onDbFetchStarted() {
 
-        binding.embeddedLoader.root.visibility =
+        binding.embeddedLoader.visibility =
             VISIBLE
     }
 
@@ -88,7 +90,7 @@ class DatabaseDetailActivity :
         databases: Database
     ) {
 
-        binding.embeddedLoader.root.visibility =
+        binding.embeddedLoader.visibility =
             GONE
 
         updateDbView(databases)
@@ -137,7 +139,9 @@ class DatabaseDetailActivity :
 
     private fun initViews() {
 
-        setSupportActionBar(binding.toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(true)
