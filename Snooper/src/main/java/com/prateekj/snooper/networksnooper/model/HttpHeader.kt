@@ -1,22 +1,14 @@
 package com.prateekj.snooper.networksnooper.model
 
-class HttpHeader {
+data class HttpHeader(
 
-    var id: Int = 0
+    var id: Int = 0,
 
-    var name: String? = null
+    var name: String? = null,
 
     var values:
-            List<HttpHeaderValue> =
-        emptyList()
-
-    constructor()
-
-    constructor(
-        name: String
-    ) {
-        this.name = name
-    }
+            List<HttpHeaderValue> = emptyList()
+) {
 
     companion object {
 
@@ -30,14 +22,11 @@ class HttpHeader {
             return headers.entries.map { entry ->
 
                 HttpHeader(
-                    entry.key
-                ).apply {
-
-                    values =
-                        HttpHeaderValue.from(
-                            entry.value
-                        )
-                }
+                    name = entry.key,
+                    values = HttpHeaderValue.from(
+                        entry.value
+                    )
+                )
             }
         }
     }
