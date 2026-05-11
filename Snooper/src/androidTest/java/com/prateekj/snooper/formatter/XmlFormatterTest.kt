@@ -43,7 +43,9 @@ class XmlFormatterTest {
             "<invalid>1</tags>"
 
         val formattedResponse =
-            formatter.format(xml)
+            formatter.format(
+                xml
+            )
 
         assertThat(
             formattedResponse,
