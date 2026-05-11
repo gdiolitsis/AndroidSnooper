@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -53,11 +54,16 @@ abstract class SnooperBaseActivity :
 
     override fun onPause() {
 
-        LocalBroadcastManager
-            .getInstance(this)
-            .unregisterReceiver(receiver)
+        safelyUnregisterReceiver()
 
         super.onPause()
+    }
+
+    override fun onDestroy() {
+
+        safelyUnregisterReceiver()
+
+        super.onDestroy()
     }
 
     override fun onOptionsItemSelected(
@@ -68,13 +74,17 @@ abstract class SnooperBaseActivity :
 
             android.R.id.home -> {
 
-                onBackPressedDispatcher.onBackPressed()
+                onBackPressedDispatcher
+                    .onBackPressed()
 
                 true
             }
 
             else -> {
-                super.onOptionsItemSelected(item)
+
+                super.onOptionsItemSelected(
+                    item
+                )
             }
         }
     }
@@ -91,11 +101,24 @@ abstract class SnooperBaseActivity :
             grantResults
         )
 
-        appPermissionChecker.handlePermissionResult(
-            requestCode,
-            permissions,
-            grantResults
-        )
+        appPermissionChecker
+            .handlePermissionResult(
+                requestCode,
+                permissions,
+                grantResults
+            )
+    }
+
+    private fun safelyUnregisterReceiver() {
+
+        try {
+
+            LocalBroadcastManager
+                .getInstance(this)
+                .unregisterReceiver(receiver)
+
+        } catch (_: Exception) {
+        }
     }
 
     private fun createFinishActivityReceiver(
@@ -108,6 +131,18 @@ abstract class SnooperBaseActivity :
                 context: Context?,
                 intent: Intent?
             ) {
+
+                if (
+                    activity.isFinishing ||
+                    (
+                        Build.VERSION.SDK_INT >=
+                        Build.VERSION_CODES.JELLY_BEAN_MR1 &&
+                        activity.isDestroyed
+                    )
+                ) {
+
+                    return
+                }
 
                 ActivityCompat.finishAffinity(
                     activity
