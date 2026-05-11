@@ -118,7 +118,7 @@ class AccordionView : LinearLayout {
         try {
 
             state =
-                typedArray.getInteger(
+                typedArray.getInt(
                     R.styleable.AccordionView_state,
                     COLLAPSE
                 )
