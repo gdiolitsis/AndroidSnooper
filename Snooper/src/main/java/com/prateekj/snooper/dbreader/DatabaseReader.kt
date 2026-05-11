@@ -151,6 +151,6 @@ class DatabaseReader(
     companion object {
 
         private val TAG =
-            DatabaseReader::class.java.name
+            DatabaseReader::class.java.simpleName
     }
 }
