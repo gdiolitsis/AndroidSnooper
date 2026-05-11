@@ -18,58 +18,157 @@ import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.SnooperBaseActivity
 import kotlinx.android.synthetic.main.activity_db_view.*
 
-class DatabaseDetailActivity : SnooperBaseActivity(), DbViewCallback, TableEventListener {
-  private lateinit var databaseReader: DatabaseReader
-  private lateinit var dbPath: String
+class DatabaseDetailActivity :
+    SnooperBaseActivity(),
+    DbViewCallback,
+    TableEventListener {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_db_view)
-    initViews()
-    dbPath = intent.getStringExtra(DatabaseListActivity.DB_PATH)
-    val dbName = intent.getStringExtra(DB_NAME)
-    val backgroundTaskExecutor = BackgroundTaskExecutor(this)
-    databaseReader = DatabaseReader(this, backgroundTaskExecutor, DatabaseDataReader())
-    databaseReader.fetchDbContent(this, dbPath, dbName)
-  }
+    private lateinit var databaseReader: DatabaseReader
 
-  override fun onDbFetchStarted() {
-    embedded_loader!!.visibility = VISIBLE
-  }
+    private var dbPath: String =
+        ""
 
-  override fun onDbFetchCompleted(databases: Database) {
-    embedded_loader!!.visibility = GONE
-    updateDbView(databases)
-  }
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
-  private fun updateDbView(database: Database) {
-    db_name.text = database.name
-    db_version.text = database.version.toString()
-    updateTableList(database.tables!!)
-  }
+        super.onCreate(savedInstanceState)
 
-  private fun updateTableList(tables: List<String>) {
-    val tableAdapter = TableAdapter(tables, this)
-    val mLayoutManager = LinearLayoutManager(this)
-    table_list.layoutManager = mLayoutManager
-    table_list.itemAnimator = DefaultItemAnimator()
-    table_list.adapter = tableAdapter
-  }
+        setContentView(
+            R.layout.activity_db_view
+        )
 
-  private fun initViews() {
-    setSupportActionBar(toolbar)
-    supportActionBar!!.setDisplayHomeAsUpEnabled(true)
-  }
+        initViews()
 
-  override fun onTableClick(table: String) {
-    val dbViewActivity = Intent(this, TableDetailActivity::class.java)
-    dbViewActivity.putExtra(TABLE_NAME, table)
-    dbViewActivity.putExtra(DB_PATH, dbPath)
-    startActivity(dbViewActivity)
-  }
+        dbPath =
+            intent.getStringExtra(
+                DatabaseListActivity.DB_PATH
+            ) ?: ""
 
-  companion object {
-    const val TABLE_NAME = "TABLE_NAME"
-    const val DB_PATH = "DB_PATH"
-  }
+        val dbName =
+            intent.getStringExtra(
+                DB_NAME
+            ) ?: ""
+
+        if (dbPath.isBlank()) {
+
+            finish()
+
+            return
+        }
+
+        val backgroundTaskExecutor =
+            BackgroundTaskExecutor(this)
+
+        databaseReader =
+            DatabaseReader(
+                this,
+                backgroundTaskExecutor,
+                DatabaseDataReader()
+            )
+
+        databaseReader.fetchDbContent(
+            this,
+            dbPath,
+            dbName
+        )
+    }
+
+    override fun onDbFetchStarted() {
+
+        embedded_loader?.visibility =
+            VISIBLE
+    }
+
+    override fun onDbFetchCompleted(
+        databases: Database
+    ) {
+
+        embedded_loader?.visibility =
+            GONE
+
+        updateDbView(databases)
+    }
+
+    private fun updateDbView(
+        database: Database
+    ) {
+
+        db_name?.text =
+            database.name ?: ""
+
+        db_version?.text =
+            database.version.toString()
+
+        updateTableList(
+            database.tables ?: emptyList()
+        )
+    }
+
+    private fun updateTableList(
+        tables: List<String>
+    ) {
+
+        val tableAdapter =
+            TableAdapter(
+                tables,
+                this
+            )
+
+        val layoutManager =
+            LinearLayoutManager(this)
+
+        table_list?.apply {
+
+            this.layoutManager =
+                layoutManager
+
+            itemAnimator =
+                DefaultItemAnimator()
+
+            adapter =
+                tableAdapter
+        }
+    }
+
+    private fun initViews() {
+
+        setSupportActionBar(toolbar)
+
+        supportActionBar
+            ?.setDisplayHomeAsUpEnabled(true)
+    }
+
+    override fun onTableClick(
+        table: String
+    ) {
+
+        val dbViewActivity =
+            Intent(
+                this,
+                TableDetailActivity::class.java
+            ).apply {
+
+                putExtra(
+                    TABLE_NAME,
+                    table
+                )
+
+                putExtra(
+                    DB_PATH,
+                    dbPath
+                )
+            }
+
+        startActivity(dbViewActivity)
+    }
+
+    companion object {
+
+        const val TABLE_NAME =
+            "TABLE_NAME"
+
+        const val DB_PATH =
+            "DB_PATH"
+    }
 }
