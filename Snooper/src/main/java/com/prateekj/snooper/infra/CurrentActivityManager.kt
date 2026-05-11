@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.app.Application.ActivityLifecycleCallbacks
 import android.os.Bundle
+import com.prateekj.snooper.utils.Logger
 import java.util.concurrent.CopyOnWriteArrayList
 
 class CurrentActivityManager private constructor(
@@ -12,6 +13,10 @@ class CurrentActivityManager private constructor(
 
     private val listeners =
         CopyOnWriteArrayList<Listener>()
+
+    @Volatile
+    private var currentActivity:
+            Activity? = null
 
     interface Listener {
 
@@ -31,10 +36,16 @@ class CurrentActivityManager private constructor(
         listener: Listener
     ) {
 
-        if (!listeners.contains(listener)) {
+        if (
+            !listeners.contains(listener)
+        ) {
 
             listeners.add(listener)
         }
+
+        listener.currentActivity(
+            currentActivity
+        )
     }
 
     fun unregisterListener(
@@ -48,6 +59,8 @@ class CurrentActivityManager private constructor(
         activity: Activity
     ) {
 
+        currentActivity = activity
+
         notifyListeners(activity)
     }
 
@@ -55,7 +68,12 @@ class CurrentActivityManager private constructor(
         activity: Activity
     ) {
 
-        notifyListeners(null)
+        if (currentActivity === activity) {
+
+            currentActivity = null
+
+            notifyListeners(null)
+        }
     }
 
     private fun notifyListeners(
@@ -66,9 +84,17 @@ class CurrentActivityManager private constructor(
 
             try {
 
-                listener.currentActivity(activity)
+                listener.currentActivity(
+                    activity
+                )
 
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+
+                Logger.e(
+                    TAG,
+                    "Listener error",
+                    e
+                )
             }
         }
     }
@@ -98,9 +124,17 @@ class CurrentActivityManager private constructor(
     override fun onActivityDestroyed(
         activity: Activity
     ) {
+
+        if (currentActivity === activity) {
+
+            currentActivity = null
+        }
     }
 
     companion object {
+
+        private val TAG =
+            CurrentActivityManager::class.java.simpleName
 
         @Volatile
         private var INSTANCE:
