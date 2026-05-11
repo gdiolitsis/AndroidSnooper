@@ -127,7 +127,17 @@ class HttpCallFragment :
         )
 
         binding.scrollView
-            .setOnScrollChangeListener(this)
+            .setOnScrollChangeListener(
+    NestedScrollView.OnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
+        onScrollChange(
+            v,
+            scrollX,
+            scrollY,
+            oldScrollX,
+            oldScrollY
+        )
+    }
+)
     }
 
     override fun onDestroyView() {
