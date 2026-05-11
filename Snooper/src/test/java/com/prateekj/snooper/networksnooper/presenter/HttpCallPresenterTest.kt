@@ -19,136 +19,273 @@ import org.junit.Test
 
 class HttpCallPresenterTest {
 
-  private lateinit var view: HttpCallView
-  private lateinit var httpCall: HttpCallRecord
-  private lateinit var dataCopyHelper: DataCopyHelper
-  private lateinit var fileUtil: FileUtil
-  private lateinit var backgroundTaskExecutor: BackgroundTaskExecutor
-  private lateinit var httpCallPresenter: HttpCallPresenter
+    private lateinit var view:
+            HttpCallView
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    view = mockk(relaxed = true)
-    httpCall = mockk(relaxed = true)
-    dataCopyHelper = mockk(relaxed = true)
-    fileUtil = mockk(relaxed = true)
-    backgroundTaskExecutor = mockk(relaxed = true)
-    httpCallPresenter = HttpCallPresenter(
-      dataCopyHelper,
-      httpCall,
-      view,
-      fileUtil,
-      backgroundTaskExecutor
-    )
-  }
+    private lateinit var httpCall:
+            HttpCallRecord
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldAskViewToCopyTheResponseData() {
-    val responseBody = "response body"
-    every { dataCopyHelper.getResponseDataForCopy() } returns responseBody
+    private lateinit var dataCopyHelper:
+            DataCopyHelper
 
-    httpCallPresenter.copyHttpCallBody(RESPONSE)
+    private lateinit var fileUtil:
+            FileUtil
 
-    verify { view.copyToClipboard(responseBody) }
-  }
+    private lateinit var backgroundTaskExecutor:
+            BackgroundTaskExecutor
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldAskViewToCopyTheRequestData() {
-    val formatRequestBody = "format Request body"
-    every { dataCopyHelper.getRequestDataForCopy() } returns formatRequestBody
+    private lateinit var httpCallPresenter:
+            HttpCallPresenter
 
-    httpCallPresenter.copyHttpCallBody(REQUEST)
+    @Before
+    fun setUp() {
 
-    verify { view.copyToClipboard(formatRequestBody) }
-  }
+        view =
+            mockk(relaxed = true)
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldAskViewToCopyTheHeaders() {
-    val headers = "headers"
-    every { dataCopyHelper.getHeadersForCopy() } returns headers
+        httpCall =
+            mockk(relaxed = true)
 
-    httpCallPresenter.copyHttpCallBody(HEADERS)
+        dataCopyHelper =
+            mockk(relaxed = true)
 
-    verify { view.copyToClipboard(headers) }
-  }
+        fileUtil =
+            mockk(relaxed = true)
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldAskViewToCopyTheError() {
-    val error = "error"
-    every { dataCopyHelper.getErrorsForCopy() } returns error
+        backgroundTaskExecutor =
+            mockk(relaxed = true)
 
-    httpCallPresenter.copyHttpCallBody(ERROR)
-
-    verify { view.copyToClipboard(error) }
-  }
-
-  @Test
-  @Throws(Exception::class)
-  fun shouldAskViewToCopyTheEmptyStringIfErrorNotCaptured() {
-    every { dataCopyHelper.getErrorsForCopy() } returns null
-
-    httpCallPresenter.copyHttpCallBody(ERROR)
-
-    verify { view.copyToClipboard("") }
-  }
-
-  @Test
-  @Throws(Exception::class)
-  fun shouldShareRequestResponseData() {
-    every { httpCall.date } returns getDate(2017, 4, 12, 1, 2, 3)
-    val stringBuilder = StringBuilder()
-    every { dataCopyHelper.getHttpCallData() } returns stringBuilder
-    every {
-      fileUtil.createLogFile(
-        eq(stringBuilder),
-        eq("2017_05_12_01_02_03.txt")
-      )
-    } returns "filePath"
-    resolveBackgroundTask()
-
-    httpCallPresenter.shareHttpCallBody()
-
-    verify { view.shareData("filePath") }
-  }
-
-  @Test
-  @Throws(Exception::class)
-  fun shouldNotShareDataIfFileNotCreated() {
-    every { httpCall.date } returns getDate(2017, 4, 12, 1, 2, 3)
-    val stringBuilder = StringBuilder()
-    every { dataCopyHelper.getHttpCallData() } returns stringBuilder
-    every {
-      fileUtil.createLogFile(
-        eq(stringBuilder),
-        eq("2017_05_12_01_02_03.txt")
-      )
-    } returns ""
-    resolveBackgroundTask()
-
-    httpCallPresenter.shareHttpCallBody()
-
-    verify(exactly = 0) { view.shareData("filePath") }
-  }
-
-  @Test
-  @Throws(Exception::class)
-  fun shouldShowShareNotAvailableDialogWhenPermissionIsDenied() {
-    httpCallPresenter.onPermissionDenied()
-
-    verify { view.showMessageShareNotAvailable() }
-  }
-
-
-  private fun resolveBackgroundTask() {
-    every { backgroundTaskExecutor.execute(any<BackgroundTask<String>>()) } answers {
-      val backgroundTask = this.firstArg<BackgroundTask<String>>()
-      backgroundTask.onResult(backgroundTask.onExecute())
+        httpCallPresenter =
+            HttpCallPresenter(
+                dataCopyHelper,
+                httpCall,
+                view,
+                fileUtil,
+                backgroundTaskExecutor
+            )
     }
-  }
 
+    @Test
+    fun shouldAskViewToCopyTheResponseData() {
+
+        val responseBody =
+            "response body"
+
+        every {
+            dataCopyHelper
+                .getResponseDataForCopy()
+        } returns responseBody
+
+        httpCallPresenter
+            .copyHttpCallBody(
+                RESPONSE
+            )
+
+        verify(exactly = 1) {
+            view.copyToClipboard(
+                responseBody
+            )
+        }
+    }
+
+    @Test
+    fun shouldAskViewToCopyTheRequestData() {
+
+        val formattedRequestBody =
+            "formatted request body"
+
+        every {
+            dataCopyHelper
+                .getRequestDataForCopy()
+        } returns formattedRequestBody
+
+        httpCallPresenter
+            .copyHttpCallBody(
+                REQUEST
+            )
+
+        verify(exactly = 1) {
+            view.copyToClipboard(
+                formattedRequestBody
+            )
+        }
+    }
+
+    @Test
+    fun shouldAskViewToCopyTheHeaders() {
+
+        val headers =
+            "headers"
+
+        every {
+            dataCopyHelper
+                .getHeadersForCopy()
+        } returns headers
+
+        httpCallPresenter
+            .copyHttpCallBody(
+                HEADERS
+            )
+
+        verify(exactly = 1) {
+            view.copyToClipboard(
+                headers
+            )
+        }
+    }
+
+    @Test
+    fun shouldAskViewToCopyTheError() {
+
+        val error =
+            "error"
+
+        every {
+            dataCopyHelper
+                .getErrorsForCopy()
+        } returns error
+
+        httpCallPresenter
+            .copyHttpCallBody(
+                ERROR
+            )
+
+        verify(exactly = 1) {
+            view.copyToClipboard(
+                error
+            )
+        }
+    }
+
+    @Test
+    fun shouldAskViewToCopyEmptyStringIfErrorIsNull() {
+
+        every {
+            dataCopyHelper
+                .getErrorsForCopy()
+        } returns ""
+
+        httpCallPresenter
+            .copyHttpCallBody(
+                ERROR
+            )
+
+        verify(exactly = 1) {
+            view.copyToClipboard(
+                ""
+            )
+        }
+    }
+
+    @Test
+    fun shouldShareRequestResponseData() {
+
+        every {
+            httpCall.date
+        } returns getDate(
+            2017,
+            4,
+            12,
+            1,
+            2,
+            3
+        )
+
+        val httpCallData =
+            StringBuilder()
+
+        every {
+            dataCopyHelper
+                .getHttpCallData()
+        } returns httpCallData
+
+        every {
+            fileUtil.createLogFile(
+                eq(httpCallData),
+                eq("2017_05_12_01_02_03.txt")
+            )
+        } returns "filePath"
+
+        resolveBackgroundTask()
+
+        httpCallPresenter
+            .shareHttpCallBody()
+
+        verify(exactly = 1) {
+            view.shareData(
+                "filePath"
+            )
+        }
+    }
+
+    @Test
+    fun shouldNotShareDataIfFileCreationFails() {
+
+        every {
+            httpCall.date
+        } returns getDate(
+            2017,
+            4,
+            12,
+            1,
+            2,
+            3
+        )
+
+        val httpCallData =
+            StringBuilder()
+
+        every {
+            dataCopyHelper
+                .getHttpCallData()
+        } returns httpCallData
+
+        every {
+            fileUtil.createLogFile(
+                eq(httpCallData),
+                eq("2017_05_12_01_02_03.txt")
+            )
+        } returns ""
+
+        resolveBackgroundTask()
+
+        httpCallPresenter
+            .shareHttpCallBody()
+
+        verify(exactly = 0) {
+            view.shareData(
+                any()
+            )
+        }
+    }
+
+    @Test
+    fun shouldShowShareNotAvailableDialogWhenPermissionDenied() {
+
+        httpCallPresenter
+            .onPermissionDenied()
+
+        verify(exactly = 1) {
+            view.showMessageShareNotAvailable()
+        }
+    }
+
+    private fun resolveBackgroundTask() {
+
+        every {
+            backgroundTaskExecutor.execute(
+                any<BackgroundTask<String>>()
+            )
+        } answers {
+
+            val backgroundTask =
+                firstArg<
+                    BackgroundTask<String>
+                >()
+
+            backgroundTask.onResult(
+                backgroundTask.onExecute()
+            )
+        }
+    }
 }
