@@ -2,6 +2,7 @@ package com.prateekj.snooper.utils
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import org.hamcrest.CustomTypeSafeMatcher
 import org.hamcrest.Matcher
@@ -27,15 +28,36 @@ object EspressoIntentMatchers {
             ): Boolean {
 
                 val intent =
-                    item.get(
-                        EXTRA_INTENT
-                    ) as? Intent
-                        ?: return false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+
+                        item.getParcelable(
+                            EXTRA_INTENT,
+                            Intent::class.java
+                        )
+
+                    } else {
+
+                        @Suppress("DEPRECATION")
+                        item.getParcelable(
+                            EXTRA_INTENT
+                        )
+                    } ?: return false
 
                 val uri =
-                    intent.getParcelableExtra<Uri>(
-                        EXTRA_STREAM
-                    ) ?: return false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+
+                        intent.getParcelableExtra(
+                            EXTRA_STREAM,
+                            Uri::class.java
+                        )
+
+                    } else {
+
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(
+                            EXTRA_STREAM
+                        )
+                    } ?: return false
 
                 val uriPath =
                     uri.path ?: return false
