@@ -15,17 +15,29 @@ class HttpClassSearchPresenter(
             BackgroundTaskExecutor
 ) {
 
+    @Volatile
+    private var latestQuery =
+        ""
+
     fun searchCalls(
         text: String
     ) {
 
+        val query =
+            text.trim()
+
+        latestQuery =
+            query
+
         if (
-            text.isEmpty()
+            query.isEmpty()
         ) {
 
-            showResults(
-                emptyList()
-            )
+            httpCallSearchView
+                .hideLoader()
+
+            httpCallSearchView
+                .hideSearchResultsView()
 
             return
         }
@@ -37,7 +49,7 @@ class HttpClassSearchPresenter(
             .showLoader()
 
         taskExecutor.execute(
-            searchHttpCallTask(text)
+            searchHttpCallTask(query)
         )
     }
 
@@ -52,12 +64,19 @@ class HttpClassSearchPresenter(
                     List<HttpCallRecord> {
 
                 return snooperRepo
-                    .searchHttpRecord(text)
+                    .searchHttpRecord(
+                        text
+                    )
             }
 
             override fun onResult(
                 result: List<HttpCallRecord>
             ) {
+
+                // Ignore stale async results
+                if (text != latestQuery) {
+                    return
+                }
 
                 if (
                     result.isEmpty()
@@ -70,7 +89,9 @@ class HttpClassSearchPresenter(
                     return
                 }
 
-                showResults(result)
+                showResults(
+                    result
+                )
             }
         }
     }
@@ -96,6 +117,8 @@ class HttpClassSearchPresenter(
             .hideLoader()
 
         httpCallSearchView
-            .showResults(result)
+            .showResults(
+                result
+            )
     }
 }
