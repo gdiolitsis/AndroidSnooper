@@ -80,7 +80,7 @@ dependencies {
     implementation project(path: ':Snooper')
 
     implementation(
-            'org.springframework.android:spring-android-rest-template:2.0.0.M3'
+            'org.springframework.android:spring-android-rest-template:2.0.0.RELEASE'
     ) {
         exclude group: 'xmlpull'
         exclude group: 'xpp3'
