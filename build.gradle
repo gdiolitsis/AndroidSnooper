@@ -40,15 +40,6 @@ buildscript {
         google()
 
         mavenCentral()
-
-        // ⚠️ REQUIRED FOR SPRING ANDROID
-        maven {
-            url "https://repo.spring.io/plugins-release/"
-        }
-
-        maven {
-            url "https://repo.spring.io/libs-release/"
-        }
     }
 
     dependencies {
@@ -74,15 +65,6 @@ allprojects {
         google()
 
         mavenCentral()
-
-        // ⚠️ REQUIRED FOR SPRING ANDROID
-        maven {
-            url "https://repo.spring.io/plugins-release/"
-        }
-
-        maven {
-            url "https://repo.spring.io/libs-release/"
-        }
     }
 }
 
