@@ -20,6 +20,7 @@ import androidx.fragment.app.FragmentStatePagerAdapter
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayout.Tab
 import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.ActivityHttpCallDetailBinding
 import com.prateekj.snooper.formatter.ResponseFormatterFactory
 import com.prateekj.snooper.infra.AppPermissionChecker
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
@@ -31,12 +32,14 @@ import com.prateekj.snooper.networksnooper.helper.HttpCallRenderer
 import com.prateekj.snooper.networksnooper.presenter.HttpCallPresenter
 import com.prateekj.snooper.networksnooper.views.HttpCallView
 import com.prateekj.snooper.utils.FileUtil
-import kotlinx.android.synthetic.main.activity_http_call_detail.*
 import java.io.File
 
 class HttpCallActivity :
     SnooperBaseActivity(),
     HttpCallView {
+
+    private lateinit var binding:
+            ActivityHttpCallDetailBinding
 
     private var httpCallPresenter:
             HttpCallPresenter? = null
@@ -50,11 +53,18 @@ class HttpCallActivity :
 
         super.onCreate(savedInstanceState)
 
+        binding =
+            ActivityHttpCallDetailBinding.inflate(
+                layoutInflater
+            )
+
         setContentView(
-            R.layout.activity_http_call_detail
+            binding.root
         )
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(true)
@@ -86,6 +96,7 @@ class HttpCallActivity :
 
         val dataCopyHelper =
             DataCopyHelper(
+                this,
                 httpCall,
                 ResponseFormatterFactory(),
                 resources
@@ -120,13 +131,14 @@ class HttpCallActivity :
 
         for (tab in renderer.getTabs()) {
 
-            tab_layout.addTab(
-                tab_layout.newTab()
+            binding.tabLayout.addTab(
+                binding.tabLayout
+                    .newTab()
                     .setText(tab.tabTitle)
             )
         }
 
-        tab_layout.tabGravity =
+        binding.tabLayout.tabGravity =
             TabLayout.GRAVITY_FILL
 
         val adapter =
@@ -134,23 +146,23 @@ class HttpCallActivity :
                 supportFragmentManager
             )
 
-        pager?.adapter =
+        binding.pager.adapter =
             adapter
 
-        pager?.addOnPageChangeListener(
+        binding.pager.addOnPageChangeListener(
             TabLayout.TabLayoutOnPageChangeListener(
-                tab_layout
+                binding.tabLayout
             )
         )
 
-        tab_layout.addOnTabSelectedListener(
+        binding.tabLayout.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
 
                 override fun onTabSelected(
                     tab: Tab
                 ) {
 
-                    pager?.currentItem =
+                    binding.pager.currentItem =
                         tab.position
                 }
 
@@ -193,7 +205,7 @@ class HttpCallActivity :
 
                 val currentTab =
                     renderer.getTabs()[
-                        pager?.currentItem ?: 0
+                        binding.pager.currentItem
                     ]
 
                 httpCallPresenter
@@ -294,7 +306,8 @@ class HttpCallActivity :
         appPermissionChecker.handlePermission(
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             WRITE_EXTERNAL_STORAGE_REQUEST_CODE,
-            object : AppPermissionChecker.PermissionRequestCallBack {
+            object :
+                AppPermissionChecker.PermissionRequestCallBack {
 
                 override fun permissionGranted() {
 
@@ -311,7 +324,8 @@ class HttpCallActivity :
         )
     }
 
-    override fun getResponseBodyFragment(): Fragment {
+    override fun getResponseBodyFragment():
+            Fragment {
 
         return HttpCallFragment().apply {
 
@@ -326,7 +340,8 @@ class HttpCallActivity :
         }
     }
 
-    override fun getRequestBodyFragment(): Fragment {
+    override fun getRequestBodyFragment():
+            Fragment {
 
         return HttpCallFragment().apply {
 
@@ -341,7 +356,8 @@ class HttpCallActivity :
         }
     }
 
-    override fun getHeadersFragment(): Fragment {
+    override fun getHeadersFragment():
+            Fragment {
 
         return HttpHeadersFragment().apply {
 
@@ -350,7 +366,8 @@ class HttpCallActivity :
         }
     }
 
-    override fun getExceptionFragment(): Fragment {
+    override fun getExceptionFragment():
+            Fragment {
 
         return HttpCallFragment().apply {
 
