@@ -63,6 +63,15 @@ class SnooperInterceptor : ClientHttpRequestInterceptor {
                 ""
             }
 
+            val statusCode = try {
+
+                response.statusCode.value()
+
+            } catch (_: Throwable) {
+
+                -1
+            }
+
             val httpCall = builder
 
                 .withResponseBody(
@@ -70,7 +79,7 @@ class SnooperInterceptor : ClientHttpRequestInterceptor {
                 )
 
                 .withStatusCode(
-                    response.rawStatusCode
+                    statusCode
                 )
 
                 .withStatusText(
@@ -84,8 +93,13 @@ class SnooperInterceptor : ClientHttpRequestInterceptor {
                 .build()
 
             try {
-                AndroidSnooper.instance.record(httpCall)
-            } catch (_: Throwable) {}
+
+                AndroidSnooper
+                    .instance
+                    .record(httpCall)
+
+            } catch (_: Throwable) {
+            }
 
             response
 
@@ -100,8 +114,13 @@ class SnooperInterceptor : ClientHttpRequestInterceptor {
                 .build()
 
             try {
-                AndroidSnooper.instance.record(httpCall)
-            } catch (_: Throwable) {}
+
+                AndroidSnooper
+                    .instance
+                    .record(httpCall)
+
+            } catch (_: Throwable) {
+            }
 
             throw e
         }
