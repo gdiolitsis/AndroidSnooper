@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.prateekj.snooper.R
 import com.prateekj.snooper.customviews.DividerItemDecoration
 import com.prateekj.snooper.customviews.NextPageRequestListener
+import com.prateekj.snooper.databinding.ActivityHttpCallListBinding
 import com.prateekj.snooper.networksnooper.activity.HttpCallActivity.Companion.HTTP_CALL_ID
 import com.prateekj.snooper.networksnooper.adapter.HttpCallListAdapter
 import com.prateekj.snooper.networksnooper.database.SnooperRepo
@@ -20,12 +21,14 @@ import com.prateekj.snooper.networksnooper.model.HttpCallRecord
 import com.prateekj.snooper.networksnooper.presenter.HttpCallListPresenter
 import com.prateekj.snooper.networksnooper.presenter.HttpCallListPresenter.Companion.PAGE_SIZE
 import com.prateekj.snooper.networksnooper.views.HttpListView
-import kotlinx.android.synthetic.main.activity_http_call_list.*
 
 class HttpCallListActivity :
     SnooperBaseActivity(),
     HttpListView,
     NextPageRequestListener {
+
+    private lateinit var binding:
+            ActivityHttpCallListBinding
 
     private lateinit var presenter:
             HttpCallListPresenter
@@ -48,11 +51,18 @@ class HttpCallListActivity :
 
         super.onCreate(savedInstanceState)
 
+        binding =
+            ActivityHttpCallListBinding.inflate(
+                layoutInflater
+            )
+
         setContentView(
-            R.layout.activity_http_call_list
+            binding.root
         )
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
 
         repo =
             SnooperRepo(this)
@@ -70,13 +80,13 @@ class HttpCallListActivity :
 
     private fun setupRecyclerView() {
 
-        list.layoutManager =
+        binding.list.layoutManager =
             LinearLayoutManager(this)
 
-        list.itemAnimator =
+        binding.list.itemAnimator =
             DefaultItemAnimator()
 
-        list.addItemDecoration(
+        binding.list.addItemDecoration(
             DividerItemDecoration(
                 this,
                 DividerItemDecoration.VERTICAL,
@@ -84,7 +94,7 @@ class HttpCallListActivity :
             )
         )
 
-        list.setNextPageListener(this)
+        binding.list.setNextPageListener(this)
     }
 
     override fun onCreateOptionsMenu(
@@ -245,7 +255,7 @@ class HttpCallListActivity :
             httpCallRecords
         )
 
-        list.adapter =
+        binding.list.adapter =
             httpCallListAdapter
     }
 
@@ -268,7 +278,7 @@ class HttpCallListActivity :
             httpCallRecords
         )
 
-        list.post {
+        binding.list.post {
 
             httpCallListAdapter.notifyDataSetChanged()
         }
@@ -280,10 +290,10 @@ class HttpCallListActivity :
 
         invalidateOptionsMenu()
 
-        http_call_list_container.visibility =
+        binding.httpCallListContainer.visibility =
             GONE
 
-        no_calls_found_container.visibility =
+        binding.noCallsFoundContainer.visibility =
             VISIBLE
     }
 
