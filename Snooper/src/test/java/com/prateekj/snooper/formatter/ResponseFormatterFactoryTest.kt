@@ -4,32 +4,65 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-
 class ResponseFormatterFactoryTest {
 
-  private lateinit var factory: ResponseFormatterFactory
+    private lateinit var factory:
+            ResponseFormatterFactory
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    factory = ResponseFormatterFactory()
-  }
+    @Before
+    fun setUp() {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnXmlFormatter() {
-    assertTrue(factory.getFor("xml") is XmlFormatter)
-  }
+        factory =
+            ResponseFormatterFactory()
+    }
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnJsonFormatter() {
-    assertTrue(factory.getFor("json") is JsonResponseFormatter)
-  }
+    @Test
+    fun shouldReturnXmlFormatter() {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnPlainTextFormatter() {
-    assertTrue(factory.getFor("plain") is PlainTextFormatter)
-  }
+        assertTrue(
+            factory.getFor(
+                "application/xml"
+            ) is XmlFormatter
+        )
+    }
+
+    @Test
+    fun shouldReturnJsonFormatter() {
+
+        assertTrue(
+            factory.getFor(
+                "application/json"
+            ) is JsonResponseFormatter
+        )
+    }
+
+    @Test
+    fun shouldReturnPlainTextFormatter() {
+
+        assertTrue(
+            factory.getFor(
+                "plain/text"
+            ) is PlainTextFormatter
+        )
+    }
+
+    @Test
+    fun shouldReturnXmlFormatterForMixedCase() {
+
+        assertTrue(
+            factory.getFor(
+                "Application/XML"
+            ) is XmlFormatter
+        )
+    }
+
+    @Test
+    fun shouldReturnJsonFormatterForMixedCase() {
+
+        assertTrue(
+            factory.getFor(
+                "Application/JSON"
+            ) is JsonResponseFormatter
+        )
+    }
 }
