@@ -82,7 +82,7 @@ class TestDbRule(
         }
 
         Logger.d(
-            "Database",
+            TAG,
             "New database is being copied to device!"
         )
 
@@ -101,6 +101,11 @@ class TestDbRule(
                     finalDbName
                 )
 
+            if (outputFile.exists()) {
+
+                outputFile.delete()
+            }
+
             val outputStream =
                 FileOutputStream(outputFile)
 
@@ -109,21 +114,34 @@ class TestDbRule(
                 outputStream.use { output ->
 
                     input.copyTo(output)
+
+                    output.flush()
                 }
             }
 
             Logger.d(
-                "Database",
+                TAG,
                 "New database has been copied to device!"
             )
 
         } catch (e: IOException) {
 
             Logger.e(
-                "Database",
+                TAG,
                 e.message,
                 e
             )
+
+            throw RuntimeException(
+                "Failed to copy test database",
+                e
+            )
         }
+    }
+
+    companion object {
+
+        private const val TAG =
+            "TestDbRule"
     }
 }
