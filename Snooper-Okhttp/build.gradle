@@ -5,6 +5,8 @@ apply from: '../Publish.gradle'
 
 android {
 
+    namespace "com.prateekj.snooper.okhttp"
+
     compileSdkVersion rootProject.ext.compileSdkVersion
 
     buildFeatures {
