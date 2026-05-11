@@ -1,11 +1,9 @@
 package com.prateekj.snooper.dbreader.adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.prateekj.snooper.R
-import kotlinx.android.synthetic.main.table_item.view.*
+import com.prateekj.snooper.databinding.TableItemBinding
 
 class TableAdapter(
     private val tableList: List<String>,
@@ -13,22 +11,22 @@ class TableAdapter(
 ) : RecyclerView.Adapter<TableAdapter.TableViewHolder>() {
 
     class TableViewHolder(
-        private val view: View,
+        private val binding: TableItemBinding,
         private val tableEventListener: TableEventListener
-    ) : RecyclerView.ViewHolder(view) {
+    ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(
             tableName: String,
             rowNum: Int
         ) {
 
-            view.table_name?.text =
+            binding.tableName.text =
                 tableName
 
-            view.row_num?.text =
+            binding.rowNum.text =
                 "$rowNum. "
 
-            itemView.setOnClickListener {
+            binding.root.setOnClickListener {
 
                 tableEventListener.onTableClick(
                     tableName
@@ -42,16 +40,15 @@ class TableAdapter(
         viewType: Int
     ): TableViewHolder {
 
-        val itemView =
-            LayoutInflater.from(parent.context)
-                .inflate(
-                    R.layout.table_item,
-                    parent,
-                    false
-                )
+        val binding =
+            TableItemBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
 
         return TableViewHolder(
-            itemView,
+            binding,
             tableEventListener
         )
     }
