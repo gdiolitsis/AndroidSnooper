@@ -1,14 +1,12 @@
 package com.prateekj.snooper.networksnooper.adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.ActivityHttpCallListItemBinding
 import com.prateekj.snooper.networksnooper.model.HttpCallRecord
 import com.prateekj.snooper.networksnooper.viewmodel.HttpCallViewModel
-import kotlinx.android.synthetic.main.activity_http_call_list_item.view.*
 
 class HttpCallListAdapter(
     private var httpCallRecords:
@@ -19,60 +17,67 @@ class HttpCallListAdapter(
         HttpCallListAdapter.HttpCallViewHolder>() {
 
     class HttpCallViewHolder(
-        private val view: View,
+        private val binding:
+                ActivityHttpCallListItemBinding,
         private val listener:
                 HttpCallListClickListener
-    ) : RecyclerView.ViewHolder(view) {
+    ) : RecyclerView.ViewHolder(
+        binding.root
+    ) {
 
         fun bind(
             httpCall: HttpCallRecord
         ) {
 
             val viewModel =
-                HttpCallViewModel(httpCall)
+                HttpCallViewModel(
+                    httpCall
+                )
 
             val statusColor =
                 ContextCompat.getColor(
-                    view.context,
+                    binding.root.context,
                     viewModel.getStatusColor()
                 )
 
-            view.url.text =
+            binding.url.text =
                 viewModel.url
 
-            view.method.text =
+            binding.method.text =
                 viewModel.method
 
-            view.status_code.text =
+            binding.statusCode.text =
                 viewModel.statusCode
 
-            view.status_text.text =
+            binding.statusText.text =
                 viewModel.statusText
 
-            view.time_stamp.text =
+            binding.timeStamp.text =
                 viewModel.timeStamp
 
-            view.response_info_container.visibility =
+            binding.responseInfoContainer.visibility =
                 viewModel.responseInfoVisibility
 
-            view.error_text.visibility =
+            binding.errorText.visibility =
                 viewModel.failedTextVisibility
 
-            view.method.setTextColor(
+            binding.method.setTextColor(
                 statusColor
             )
 
-            view.status_code.setTextColor(
+            binding.statusCode.setTextColor(
                 statusColor
             )
 
-            view.status_text.setTextColor(
+            binding.statusText.setTextColor(
                 statusColor
             )
 
-            itemView.setOnClickListener {
+            binding.root.setOnClickListener {
 
-                listener.onClick(httpCall)
+                listener.onClick(
+                    httpCall
+                )
             }
         }
     }
@@ -82,17 +87,17 @@ class HttpCallListAdapter(
         viewType: Int
     ): HttpCallViewHolder {
 
-        val itemView =
-            LayoutInflater.from(
-                parent.context
-            ).inflate(
-                R.layout.activity_http_call_list_item,
+        val binding =
+            ActivityHttpCallListItemBinding.inflate(
+                LayoutInflater.from(
+                    parent.context
+                ),
                 parent,
                 false
             )
 
         return HttpCallViewHolder(
-            itemView,
+            binding,
             listener
         )
     }
