@@ -2,9 +2,9 @@ package com.prateekj.snooper.dbreader.model
 
 data class Table(
 
-    var name: String? = null,
+    var name: String = "",
 
-    var columns: List<String>? = null,
+    var columns: List<String> = emptyList(),
 
-    var rows: List<Row>? = null
+    var rows: List<Row> = emptyList()
 )
