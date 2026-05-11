@@ -10,11 +10,16 @@ import javax.xml.transform.sax.SAXSource
 import javax.xml.transform.sax.SAXTransformerFactory
 import javax.xml.transform.stream.StreamResult
 
-class XmlFormatter : ResponseFormatter {
+class XmlFormatter :
+    ResponseFormatter {
 
     override fun format(
         response: String
     ): String {
+
+        if (response.isBlank()) {
+            return response
+        }
 
         return try {
 
@@ -71,7 +76,7 @@ class XmlFormatter : ResponseFormatter {
 
             Logger.e(
                 TAG,
-                e.message,
+                e.message ?: "XML formatting error",
                 e
             )
 
