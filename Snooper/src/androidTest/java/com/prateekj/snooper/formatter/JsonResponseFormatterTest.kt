@@ -1,6 +1,5 @@
 package com.prateekj.snooper.formatter
 
-
 import com.prateekj.snooper.utils.TestUtilities.readFrom
 import org.hamcrest.CoreMatchers.`is`
 import org.junit.Assert.assertThat
@@ -8,34 +7,74 @@ import org.junit.Test
 
 class JsonResponseFormatterTest {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnFormattedJsonObject() {
-    val formatter = JsonResponseFormatter()
-    val formattedResponse = formatter.format(readFrom("person_details_raw_response.json"))
-    val expectedResponse = readFrom("person_details_formatted_response.json")
+    @Test
+    @Throws(Exception::class)
+    fun shouldReturnFormattedJsonObject() {
 
-    assertThat(formattedResponse, `is`<String>(expectedResponse))
-  }
+        val formatter =
+            JsonResponseFormatter()
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnFormattedJsonArray() {
-    val formatter = JsonResponseFormatter()
-    val formattedResponse = formatter.format(readFrom("person_details_raw_array_response.json"))
-    val expectedResponse = readFrom("person_details_formatted_array_response.json")
+        val formattedResponse =
+            formatter.format(
+                readFrom(
+                    "person_details_raw_response.json"
+                )
+            )
 
-    assertThat(formattedResponse, `is`<String>(expectedResponse))
-  }
+        val expectedResponse =
+            readFrom(
+                "person_details_formatted_response.json"
+            )
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnSameResponseWhenExceptionOccurs() {
-    val formatter = JsonResponseFormatter()
-    val invalidJSON = "{\"value\":\"Invalid JSON\", \"value\"}"
-    val formattedResponse = formatter.format(invalidJSON)
+        assertThat(
+            formattedResponse,
+            `is`(expectedResponse)
+        )
+    }
 
-    assertThat(formattedResponse, `is`(invalidJSON))
-  }
+    @Test
+    @Throws(Exception::class)
+    fun shouldReturnFormattedJsonArray() {
 
+        val formatter =
+            JsonResponseFormatter()
+
+        val formattedResponse =
+            formatter.format(
+                readFrom(
+                    "person_details_raw_array_response.json"
+                )
+            )
+
+        val expectedResponse =
+            readFrom(
+                "person_details_formatted_array_response.json"
+            )
+
+        assertThat(
+            formattedResponse,
+            `is`(expectedResponse)
+        )
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun shouldReturnSameResponseWhenExceptionOccurs() {
+
+        val formatter =
+            JsonResponseFormatter()
+
+        val invalidJson =
+            "{\"value\":\"Invalid JSON\", \"value\"}"
+
+        val formattedResponse =
+            formatter.format(
+                invalidJson
+            )
+
+        assertThat(
+            formattedResponse,
+            `is`(invalidJson)
+        )
+    }
 }
