@@ -60,22 +60,6 @@ class SnooperDbHelper private constructor(
         // no-op
     }
 
-    override fun setWriteAheadLoggingEnabled(
-        enabled: Boolean
-    ) {
-
-        if (!enabled) {
-
-            throw UnsupportedOperationException(
-                "Write ahead logging is required."
-            )
-        }
-
-        super.setWriteAheadLoggingEnabled(
-            true
-        )
-    }
-
     companion object {
 
         private const val DATABASE_VERSION =
