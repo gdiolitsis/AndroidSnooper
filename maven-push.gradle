@@ -47,7 +47,7 @@ afterEvaluate {
 
             release(MavenPublication) {
 
-                from components.release
+                from components["release"]
 
                 groupId = GROUP
 
