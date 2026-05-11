@@ -21,19 +21,19 @@ buildscript {
 
         // deployment properties
         NEXUS_USERNAME =
-            System.getenv("NEXUS_USERNAME")
+                System.getenv("NEXUS_USERNAME")
 
         NEXUS_PASSWORD =
-            System.getenv("NEXUS_PASSWORD")
+                System.getenv("NEXUS_PASSWORD")
 
         SNAPSHOT_REPOSITORY_URL =
-            "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+                "https://s01.oss.sonatype.org/content/repositories/snapshots/"
 
         VERSION_NAME =
-            snooperVersion
+                snooperVersion
 
         GROUP =
-            "com.github.jainsahab"
+                "com.github.jainsahab"
     }
 
     repositories {
@@ -46,15 +46,15 @@ buildscript {
     dependencies {
 
         classpath(
-            "com.android.tools.build:gradle:8.5.0"
+                "com.android.tools.build:gradle:8.5.0"
         )
 
         classpath(
-            "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+                "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         )
 
         classpath(
-            "org.jacoco:org.jacoco.core:0.8.11"
+                "org.jacoco:org.jacoco.core:0.8.11"
         )
     }
 }
@@ -70,11 +70,11 @@ allprojects {
 }
 
 tasks.register(
-    "clean",
-    Delete
+        "clean",
+        Delete
 ) {
 
     delete(
-        rootProject.buildDir
+            rootProject.buildDir
     )
 }
