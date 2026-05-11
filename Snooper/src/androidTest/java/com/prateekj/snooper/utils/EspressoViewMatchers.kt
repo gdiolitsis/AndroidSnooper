@@ -37,7 +37,7 @@ object EspressoViewMatchers {
                         position
                     ) ?: return false
 
-                return viewHolder.itemView === item
+                return viewHolder.itemView == item
             }
         }
     }
@@ -70,7 +70,7 @@ object EspressoViewMatchers {
                     tableRow.getChildAt(column)
                         ?: return false
 
-                return childView === item
+                return childView == item
             }
         }
     }
@@ -84,7 +84,7 @@ object EspressoViewMatchers {
         ) {
 
             override fun matchesSafely(
-                view: View?
+                view: View
             ): Boolean {
 
                 val recyclerView =
@@ -108,7 +108,7 @@ object EspressoViewMatchers {
         ) {
 
             override fun matchesSafely(
-                view: View?
+                view: View
             ): Boolean {
 
                 val textView =
@@ -146,7 +146,8 @@ object EspressoViewMatchers {
                             end
                         ).toString()
 
-                    if (highlightedText == text &&
+                    if (
+                        highlightedText == text &&
                         span.backgroundColor == expectedColor
                     ) {
 
