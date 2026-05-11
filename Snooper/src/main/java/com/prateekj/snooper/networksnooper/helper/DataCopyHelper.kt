@@ -41,7 +41,7 @@ class DataCopyHelper(
     fun getErrorsForCopy():
             String {
 
-        return httpCallRecord.error ?: ""
+        return httpCallRecord.error.orEmpty()
     }
 
     fun getHeadersForCopy():
@@ -93,8 +93,9 @@ class DataCopyHelper(
                     R.string.request_body_heading
                 )
 
-            builder.append(
-                "$heading\n$formattedRequestData"
+            builder.appendLine(heading)
+            builder.appendLine(
+                formattedRequestData
             )
         }
 
@@ -123,8 +124,9 @@ class DataCopyHelper(
                     R.string.response_body_heading
                 )
 
-            builder.append(
-                "$heading\n$formattedResponseData"
+            builder.appendLine(heading)
+            builder.appendLine(
+                formattedResponseData
             )
         }
 
@@ -149,16 +151,15 @@ class DataCopyHelper(
             return
         }
 
-        builder.append(
-            "\n$heading\n"
-        )
+        builder.appendLine()
+        builder.appendLine(heading)
 
         headers.forEach { header ->
 
-            builder.append(
+            builder.appendLine(
                 "${header.name}: ${
                     toHeaderValues(header)
-                }\n"
+                }"
             )
         }
     }
@@ -179,37 +180,28 @@ class DataCopyHelper(
     ): String {
 
         if (
-            dataToCopy.isNullOrEmpty()
+            dataToCopy.isNullOrBlank()
         ) {
             return ""
         }
 
-        if (
-            contentHeadersPresent(
-                contentTypeHeader
+        val contentType =
+            contentTypeHeader
+                ?.values
+                ?.firstOrNull()
+                ?.value
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?: return dataToCopy
+
+        val formatter =
+            responseFormatterFactory.getFor(
+                contentType
             )
-        ) {
 
-            val formatter =
-                responseFormatterFactory.getFor(
-                    contentTypeHeader!!
-                        .values[0]
-                        .value
-                )
-
-            return formatter.format(
-                dataToCopy
-            )
-        }
-
-        return dataToCopy
-    }
-
-    private fun contentHeadersPresent(
-        contentTypeHeader: HttpHeader?
-    ): Boolean {
-
-        return contentTypeHeader != null &&
-                contentTypeHeader.values.isNotEmpty()
+        return formatter.format(
+            dataToCopy
+        )
     }
 }
