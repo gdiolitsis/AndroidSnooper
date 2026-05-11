@@ -9,6 +9,7 @@ import android.content.Intent.ACTION_SEND
 import android.content.Intent.EXTRA_STREAM
 import android.content.Intent.EXTRA_SUBJECT
 import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -88,9 +89,6 @@ class HttpCallActivity :
         val httpCall =
             repo.findById(httpCallId)
 
-        val fileUtil =
-            FileUtil()
-
         val backgroundTaskExecutor =
             BackgroundTaskExecutor(this)
 
@@ -107,7 +105,7 @@ class HttpCallActivity :
                 dataCopyHelper,
                 httpCall,
                 this,
-                fileUtil,
+                FileUtil(),
                 backgroundTaskExecutor
             )
 
@@ -129,7 +127,7 @@ class HttpCallActivity :
             httpCallRenderer
                 ?: return
 
-        for (tab in renderer.getTabs()) {
+        renderer.getTabs().forEach { tab ->
 
             binding.tabLayout.addTab(
                 binding.tabLayout
@@ -141,13 +139,10 @@ class HttpCallActivity :
         binding.tabLayout.tabGravity =
             TabLayout.GRAVITY_FILL
 
-        val adapter =
+        binding.pager.adapter =
             HttpCallPagerAdapter(
                 supportFragmentManager
             )
-
-        binding.pager.adapter =
-            adapter
 
         binding.pager.addOnPageChangeListener(
             TabLayout.TabLayoutOnPageChangeListener(
@@ -195,7 +190,7 @@ class HttpCallActivity :
         item: MenuItem
     ): Boolean {
 
-        when (item.itemId) {
+        return when (item.itemId) {
 
             R.id.copy_menu -> {
 
@@ -211,18 +206,21 @@ class HttpCallActivity :
                 httpCallPresenter
                     ?.copyHttpCallBody(currentTab)
 
-                return true
+                true
             }
 
             R.id.share_menu -> {
 
                 shareHttpCallData()
 
-                return true
+                true
+            }
+
+            else -> {
+
+                super.onOptionsItemSelected(item)
             }
         }
-
-        return super.onOptionsItemSelected(item)
     }
 
     override fun copyToClipboard(
@@ -250,6 +248,13 @@ class HttpCallActivity :
         val file =
             File(logFilePath)
 
+        if (!file.exists()) {
+
+            showMessageShareNotAvailable()
+
+            return
+        }
+
         val fileUri =
             FileProvider.getUriForFile(
                 this,
@@ -260,10 +265,8 @@ class HttpCallActivity :
         val intent =
             Intent(ACTION_SEND).apply {
 
-                setDataAndType(
-                    fileUri,
+                type =
                     LOGFILE_MIME_TYPE
-                )
 
                 putExtra(
                     EXTRA_SUBJECT,
@@ -303,6 +306,17 @@ class HttpCallActivity :
 
     private fun shareHttpCallData() {
 
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.Q
+        ) {
+
+            httpCallPresenter
+                ?.shareHttpCallBody()
+
+            return
+        }
+
         appPermissionChecker.handlePermission(
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             WRITE_EXTERNAL_STORAGE_REQUEST_CODE,
@@ -330,7 +344,9 @@ class HttpCallActivity :
         return HttpCallFragment().apply {
 
             arguments =
-                Bundle(intent.extras ?: Bundle()).apply {
+                Bundle(
+                    intent.extras ?: Bundle()
+                ).apply {
 
                     putInt(
                         HTTP_CALL_MODE,
@@ -346,7 +362,9 @@ class HttpCallActivity :
         return HttpCallFragment().apply {
 
             arguments =
-                Bundle(intent.extras ?: Bundle()).apply {
+                Bundle(
+                    intent.extras ?: Bundle()
+                ).apply {
 
                     putInt(
                         HTTP_CALL_MODE,
@@ -362,7 +380,9 @@ class HttpCallActivity :
         return HttpHeadersFragment().apply {
 
             arguments =
-                Bundle(intent.extras ?: Bundle())
+                Bundle(
+                    intent.extras ?: Bundle()
+                )
         }
     }
 
@@ -372,7 +392,9 @@ class HttpCallActivity :
         return HttpCallFragment().apply {
 
             arguments =
-                Bundle(intent.extras ?: Bundle()).apply {
+                Bundle(
+                    intent.extras ?: Bundle()
+                ).apply {
 
                     putInt(
                         HTTP_CALL_MODE,
