@@ -26,8 +26,8 @@ class HttpCallFragmentPresenter(
 
     private var mode: Int = 0
 
-    private var formattedBodyLowerCase:
-            String = ""
+    private var formattedBodyLowerCase =
+        ""
 
     fun init(
         viewModel: HttpBodyViewModel,
@@ -36,21 +36,26 @@ class HttpCallFragmentPresenter(
 
         this.mode = mode
 
-        val httpCallRecord =
-            repo.findById(httpCallId)
-
-        val formatter =
-            getFormatter(httpCallRecord)
-
-        val bodyToFormat =
-            getBodyToFormat(httpCallRecord)
-                ?: ""
-
         executor.execute(
             object : BackgroundTask<String> {
 
                 override fun onExecute():
                         String {
+
+                    val httpCallRecord =
+                        repo.findById(
+                            httpCallId
+                        )
+
+                    val formatter =
+                        getFormatter(
+                            httpCallRecord
+                        )
+
+                    val bodyToFormat =
+                        getBodyToFormat(
+                            httpCallRecord
+                        ).orEmpty()
 
                     val formattedBody =
                         formatter.format(
@@ -69,7 +74,9 @@ class HttpCallFragmentPresenter(
                     result: String
                 ) {
 
-                    viewModel.init(result)
+                    viewModel.init(
+                        result
+                    )
 
                     httpCallBodyView
                         .onFormattingDone()
@@ -85,25 +92,40 @@ class HttpCallFragmentPresenter(
         httpCallBodyView
             .removeOldHighlightedSpans()
 
+        val normalizedPattern =
+            pattern.trim()
+
         if (
-            pattern.isEmpty()
+            normalizedPattern.isEmpty()
         ) {
             return
         }
 
+        val lowerPattern =
+            normalizedPattern.lowercase(
+                Locale.getDefault()
+            )
+
         val bounds =
             mutableListOf<Bound>()
 
-        var indexOfKeyword =
-            formattedBodyLowerCase.indexOf(
-                pattern
-            )
+        var startIndex = 0
 
-        while (indexOfKeyword > -1) {
+        while (true) {
+
+            val indexOfKeyword =
+                formattedBodyLowerCase.indexOf(
+                    lowerPattern,
+                    startIndex
+                )
+
+            if (indexOfKeyword < 0) {
+                break
+            }
 
             val rightBound =
                 indexOfKeyword +
-                        pattern.length
+                        lowerPattern.length
 
             bounds.add(
                 Bound(
@@ -112,11 +134,8 @@ class HttpCallFragmentPresenter(
                 )
             )
 
-            indexOfKeyword =
-                formattedBodyLowerCase.indexOf(
-                    pattern,
-                    rightBound
-                )
+            startIndex =
+                rightBound
         }
 
         if (
@@ -135,14 +154,17 @@ class HttpCallFragmentPresenter(
         return when (mode) {
 
             ERROR_MODE -> {
+
                 httpCallRecord.error
             }
 
             REQUEST_MODE -> {
+
                 httpCallRecord.payload
             }
 
             else -> {
+
                 httpCallRecord.responseBody
             }
         }
@@ -156,15 +178,19 @@ class HttpCallFragmentPresenter(
             getContentTypeHeader(
                 httpCallRecord
             )
-                ?: return PlainTextFormatter()
 
         val headerValue =
-            contentTypeHeader.values
-                .firstOrNull()
+            contentTypeHeader
+                ?.values
+                ?.firstOrNull()
+                ?.value
+                ?.takeIf {
+                    it.isNotBlank()
+                }
                 ?: return PlainTextFormatter()
 
         return formatterFactory.getFor(
-            headerValue.value
+            headerValue
         )
     }
 
