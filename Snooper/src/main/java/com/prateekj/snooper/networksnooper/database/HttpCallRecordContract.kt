@@ -78,58 +78,58 @@ class HttpCallRecordContract :
         internal const val HTTP_CALL_RECORD_GET_SORT_BY_DATE =
             """
             SELECT *
-            FROM http_calls
-            ORDER BY date DESC
+            FROM $HTTP_CALL_RECORD_TABLE_NAME
+            ORDER BY $COLUMN_DATE DESC
             """
 
         internal const val HTTP_CALL_RECORD_SEARCH =
             """
             SELECT *
-            FROM http_calls
-            WHERE url LIKE ?
-               OR payload LIKE ?
-               OR responseBody LIKE ?
-               OR error LIKE ?
-            ORDER BY date DESC
+            FROM $HTTP_CALL_RECORD_TABLE_NAME
+            WHERE $COLUMN_URL LIKE ?
+               OR $COLUMN_PAYLOAD LIKE ?
+               OR $COLUMN_RESPONSE_BODY LIKE ?
+               OR $COLUMN_ERROR LIKE ?
+            ORDER BY $COLUMN_DATE DESC
             """
 
         const val HTTP_CALL_RECORD_GET_SORT_BY_DATE_WITH_SIZE =
             """
             SELECT *
-            FROM http_calls
-            ORDER BY date DESC
+            FROM $HTTP_CALL_RECORD_TABLE_NAME
+            ORDER BY $COLUMN_DATE DESC
             LIMIT ?
             """
 
         internal const val HTTP_CALL_RECORD_GET_NEXT_SORT_BY_DATE_WITH_SIZE =
             """
             SELECT *
-            FROM http_calls
+            FROM $HTTP_CALL_RECORD_TABLE_NAME
             WHERE _id < ?
-            ORDER BY date DESC
+            ORDER BY $COLUMN_DATE DESC
             LIMIT ?
             """
 
         internal const val HTTP_CALL_RECORD_GET_BY_ID =
             """
             SELECT *
-            FROM http_calls
+            FROM $HTTP_CALL_RECORD_TABLE_NAME
             WHERE _id = ?
             """
 
         const val HTTP_HEADER_GET_BY_CALL_ID =
             """
             SELECT *
-            FROM header
-            WHERE record_id = ?
-              AND type = ?
+            FROM $HEADER_TABLE_NAME
+            WHERE $COLUMN_HTTP_CALL_RECORD_ID = ?
+              AND $COLUMN_HEADER_TYPE = ?
             """
 
         internal const val HTTP_HEADER_VALUE_GET_BY_HEADER_ID =
             """
             SELECT *
-            FROM header_value
-            WHERE header_id = ?
+            FROM $HEADER_VALUE_TABLE_NAME
+            WHERE $COLUMN_HEADER_ID = ?
             """
 
         // =====================================================
@@ -138,44 +138,44 @@ class HttpCallRecordContract :
 
         const val HTTP_CALL_RECORD_CREATE_TABLE =
             """
-            CREATE TABLE IF NOT EXISTS http_calls (
+            CREATE TABLE IF NOT EXISTS $HTTP_CALL_RECORD_TABLE_NAME (
                 _id INTEGER PRIMARY KEY AUTOINCREMENT,
-                url TEXT,
-                payload TEXT,
-                responseBody TEXT,
-                error TEXT,
-                method VARCHAR(10),
-                statusText VARCHAR(10),
-                statusCode INTEGER,
-                date DOUBLE
+                $COLUMN_URL TEXT,
+                $COLUMN_PAYLOAD TEXT,
+                $COLUMN_RESPONSE_BODY TEXT,
+                $COLUMN_ERROR TEXT,
+                $COLUMN_METHOD VARCHAR(10),
+                $COLUMN_STATUSTEXT VARCHAR(10),
+                $COLUMN_STATUSCODE INTEGER,
+                $COLUMN_DATE DOUBLE
             )
             """
 
         const val HEADER_CREATE_TABLE =
             """
-            CREATE TABLE IF NOT EXISTS header (
+            CREATE TABLE IF NOT EXISTS $HEADER_TABLE_NAME (
                 _id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type VARCHAR(3),
-                name VARCHAR(255),
-                record_id INTEGER,
+                $COLUMN_HEADER_TYPE VARCHAR(3),
+                $COLUMN_HEADER_NAME VARCHAR(255),
+                $COLUMN_HTTP_CALL_RECORD_ID INTEGER,
                 CONSTRAINT chk_header_type
-                    CHECK (type IN ('req', 'res')),
+                    CHECK ($COLUMN_HEADER_TYPE IN ('req', 'res')),
                 CONSTRAINT fk_http_call_header
-                    FOREIGN KEY (record_id)
-                    REFERENCES http_calls(_id)
+                    FOREIGN KEY ($COLUMN_HTTP_CALL_RECORD_ID)
+                    REFERENCES $HTTP_CALL_RECORD_TABLE_NAME(_id)
                     ON DELETE CASCADE
             )
             """
 
         const val HEADER_VALUE_CREATE_TABLE =
             """
-            CREATE TABLE IF NOT EXISTS header_value (
+            CREATE TABLE IF NOT EXISTS $HEADER_VALUE_TABLE_NAME (
                 _id INTEGER PRIMARY KEY AUTOINCREMENT,
-                value VARCHAR(255),
-                header_id INTEGER,
+                $COLUMN_HEADER_VALUE VARCHAR(255),
+                $COLUMN_HEADER_ID INTEGER,
                 CONSTRAINT fk_header_value
-                    FOREIGN KEY (header_id)
-                    REFERENCES header(_id)
+                    FOREIGN KEY ($COLUMN_HEADER_ID)
+                    REFERENCES $HEADER_TABLE_NAME(_id)
                     ON DELETE CASCADE
             )
             """
