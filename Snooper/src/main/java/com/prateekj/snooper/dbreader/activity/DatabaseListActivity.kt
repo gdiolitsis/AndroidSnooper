@@ -21,11 +21,14 @@ class DatabaseListActivity :
     DbReaderCallback,
     DbEventListener {
 
-    private lateinit var binding: ActivityDbReaderBinding
+    private lateinit var binding:
+            ActivityDbReaderBinding
 
-    private lateinit var adapter: DatabaseAdapter
+    private lateinit var adapter:
+            DatabaseAdapter
 
-    private lateinit var databaseReader: DatabaseReader
+    private lateinit var databaseReader:
+            DatabaseReader
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -34,7 +37,9 @@ class DatabaseListActivity :
         super.onCreate(savedInstanceState)
 
         binding =
-            ActivityDbReaderBinding.inflate(layoutInflater)
+            ActivityDbReaderBinding.inflate(
+                layoutInflater
+            )
 
         setContentView(
             binding.root
@@ -52,12 +57,14 @@ class DatabaseListActivity :
                 DatabaseDataReader()
             )
 
-        databaseReader.fetchApplicationDatabases(this)
+        databaseReader.fetchApplicationDatabases(
+            this
+        )
     }
 
     override fun onDbFetchStarted() {
 
-        binding.embeddedLoader.root.visibility =
+        binding.embeddedLoader.visibility =
             VISIBLE
     }
 
@@ -65,7 +72,7 @@ class DatabaseListActivity :
         databases: List<Database>
     ) {
 
-        binding.embeddedLoader.root.visibility =
+        binding.embeddedLoader.visibility =
             GONE
 
         adapter =
@@ -111,12 +118,16 @@ class DatabaseListActivity :
                 )
             }
 
-        startActivity(dbViewActivity)
+        startActivity(
+            dbViewActivity
+        )
     }
 
     private fun initViews() {
 
-        setSupportActionBar(binding.toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(false)
