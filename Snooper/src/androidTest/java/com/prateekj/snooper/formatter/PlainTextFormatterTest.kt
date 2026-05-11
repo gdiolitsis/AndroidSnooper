@@ -23,7 +23,9 @@ class PlainTextFormatterTest {
             )
 
         val formattedResponse =
-            formatter.format(rawString)
+            formatter.format(
+                rawString
+            )
 
         val expectedResponse =
             readFrom(
