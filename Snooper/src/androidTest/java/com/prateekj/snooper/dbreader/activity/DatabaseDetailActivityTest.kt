@@ -2,6 +2,7 @@ package com.prateekj.snooper.dbreader.activity
 
 import android.content.Intent
 import android.view.View
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -13,7 +14,6 @@ import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.rules.ActivityScenarioRule
-import androidx.test.platform.app.InstrumentationRegistry
 import com.prateekj.snooper.R
 import com.prateekj.snooper.dbreader.activity.DatabaseDetailActivity.Companion.TABLE_NAME
 import com.prateekj.snooper.dbreader.activity.DatabaseListActivity.Companion.DB_PATH
@@ -37,7 +37,10 @@ class DatabaseDetailActivityTest {
     @get:Rule
     var activityRule =
         ActivityScenarioRule(
-            DatabaseDetailActivity::class.java
+            Intent(
+                ApplicationProvider.getApplicationContext(),
+                DatabaseDetailActivity::class.java
+            )
         )
 
     @Before
@@ -57,32 +60,33 @@ class DatabaseDetailActivityTest {
     fun shouldRenderDatabaseInformation() {
 
         val context =
-            InstrumentationRegistry
-                .getInstrumentation()
-                .targetContext
+            ApplicationProvider.getApplicationContext<android.content.Context>()
 
         val dbPath =
             "${testDbRule.dbDirectory}/test.db"
 
-        val intent = Intent(
-            context,
-            DatabaseDetailActivity::class.java
-        ).apply {
+        val intent =
+            Intent(
+                context,
+                DatabaseDetailActivity::class.java
+            ).apply {
 
-            putExtra(
-                DatabaseDetailActivity.DB_PATH,
-                dbPath
-            )
+                putExtra(
+                    DatabaseDetailActivity.DB_PATH,
+                    dbPath
+                )
 
-            putExtra(
-                DatabaseListActivity.DB_NAME,
-                "test.db"
-            )
-        }
+                putExtra(
+                    DatabaseListActivity.DB_NAME,
+                    "test.db"
+                )
+            }
 
         activityRule.scenario.onActivity {
 
-            it.intent.putExtras(intent)
+            it.intent.putExtras(
+                intent
+            )
         }
 
         onView(
@@ -150,7 +154,9 @@ class DatabaseDetailActivityTest {
                 R.id.table_list,
                 0
             )
-        ).perform(click())
+        ).perform(
+            click()
+        )
 
         intended(
 
