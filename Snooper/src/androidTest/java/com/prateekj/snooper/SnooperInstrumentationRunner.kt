@@ -6,19 +6,32 @@ import androidx.test.runner.AndroidJUnitRunner
 
 class SnooperInstrumentationRunner : AndroidJUnitRunner() {
 
-  var application: Application? = null
+    lateinit var application: Application
 
-  @Throws(
-    InstantiationException::class,
-    IllegalAccessException::class,
-    ClassNotFoundException::class
-  )
-  override fun newApplication(cl: ClassLoader, className: String, context: Context): Application {
-    return super.newApplication(cl, TestApplication::class.java.name, context)
-  }
+    @Throws(
+        InstantiationException::class,
+        IllegalAccessException::class,
+        ClassNotFoundException::class
+    )
+    override fun newApplication(
+        cl: ClassLoader,
+        className: String,
+        context: Context
+    ): Application {
 
-  override fun callApplicationOnCreate(app: Application) {
-    this.application = app
-    super.callApplicationOnCreate(app)
-  }
+        return super.newApplication(
+            cl,
+            TestApplication::class.java.name,
+            context
+        )
+    }
+
+    override fun callApplicationOnCreate(
+        app: Application
+    ) {
+
+        application = app
+
+        super.callApplicationOnCreate(app)
+    }
 }
