@@ -84,7 +84,7 @@ class TableDetailActivity :
 
     override fun onTableFetchStarted() {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             VISIBLE
     }
 
@@ -92,7 +92,7 @@ class TableDetailActivity :
         table: Table
     ) {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         updateView(table)
