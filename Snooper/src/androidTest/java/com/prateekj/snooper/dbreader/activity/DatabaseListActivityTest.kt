@@ -5,6 +5,7 @@ import android.view.View
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
@@ -17,6 +18,8 @@ import com.prateekj.snooper.dbreader.activity.DatabaseListActivity.Companion.DB_
 import com.prateekj.snooper.rules.TestDbRule
 import com.prateekj.snooper.utils.EspressoViewMatchers.withRecyclerView
 import org.hamcrest.core.AllOf.allOf
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -34,6 +37,18 @@ class DatabaseListActivityTest {
         ActivityScenarioRule(
             DatabaseListActivity::class.java
         )
+
+    @Before
+    fun setupIntents() {
+
+        Intents.init()
+    }
+
+    @After
+    fun releaseIntents() {
+
+        Intents.release()
+    }
 
     @Test
     @Throws(Exception::class)
