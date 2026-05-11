@@ -1,56 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.prateekj.snooper">
+    package="com.prateekj.snooper">
 
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-  <application>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
-    <provider
-      android:name=".android.misc.SnooperFileProvider"
-      android:authorities="${applicationId}.snooper.provider"
-      android:exported="false"
-      android:grantUriPermissions="true">
-      <meta-data
-        android:name="android.support.FILE_PROVIDER_PATHS"
-        android:resource="@xml/provider_paths" />
-    </provider>
+    <application>
 
-    <activity
-      android:name=".networksnooper.activity.HttpCallListActivity"
-      android:label="@string/title_activity_http_call_list"
-      android:taskAffinity="@string/snooper_affinity"
-      android:windowSoftInputMode="adjustResize"
-      android:theme="@style/SnooperTheme.NoActionBar"/>
+        <provider
+            android:name=".android.misc.SnooperFileProvider"
+            android:authorities="${applicationId}.snooper.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
 
-    <activity
-      android:name=".networksnooper.activity.HttpCallActivity"
-      android:label="@string/title_http_call_activity"
-      android:taskAffinity="@string/snooper_affinity"
-      android:windowSoftInputMode="adjustResize"
-      android:theme="@style/SnooperTheme.NoActionBar"/>
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
 
-    <activity
-      android:name=".networksnooper.activity.HttpCallSearchActivity"
-      android:label="@string/search_title"
-      android:taskAffinity="@string/snooper_affinity"
-      android:windowSoftInputMode="adjustResize"
-      android:theme="@style/SnooperTheme.NoActionBar"/>
-    <activity
-      android:name=".dbreader.activity.DatabaseListActivity"
-      android:label="@string/title_db_reader_activity"
-      android:taskAffinity="@string/snooper_affinity"
-      android:theme="@style/SnooperTheme.NoActionBar"/>
-    <activity
-      android:name=".dbreader.activity.DatabaseDetailActivity"
-      android:label="@string/title_db_view_activity"
-      android:taskAffinity="@string/snooper_affinity"
-      android:theme="@style/SnooperTheme.NoActionBar"/>
-    <activity
-      android:name=".dbreader.activity.TableDetailActivity"
-      android:label="@string/title_table_view_activity"
-      android:taskAffinity="@string/snooper_affinity"
-      android:theme="@style/SnooperTheme.NoActionBar"/>
+        <activity
+            android:name=".networksnooper.activity.HttpCallListActivity"
+            android:label="@string/title_activity_http_call_list"
+            android:taskAffinity="@string/snooper_affinity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false"
+            android:theme="@style/SnooperTheme.NoActionBar" />
 
-  </application>
+        <activity
+            android:name=".networksnooper.activity.HttpCallActivity"
+            android:label="@string/title_http_call_activity"
+            android:taskAffinity="@string/snooper_affinity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false"
+            android:theme="@style/SnooperTheme.NoActionBar" />
+
+        <activity
+            android:name=".networksnooper.activity.HttpCallSearchActivity"
+            android:label="@string/search_title"
+            android:taskAffinity="@string/snooper_affinity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false"
+            android:theme="@style/SnooperTheme.NoActionBar" />
+
+        <activity
+            android:name=".dbreader.activity.DatabaseListActivity"
+            android:label="@string/title_db_reader_activity"
+            android:taskAffinity="@string/snooper_affinity"
+            android:exported="false"
+            android:theme="@style/SnooperTheme.NoActionBar" />
+
+        <activity
+            android:name=".dbreader.activity.DatabaseDetailActivity"
+            android:label="@string/title_db_view_activity"
+            android:taskAffinity="@string/snooper_affinity"
+            android:exported="false"
+            android:theme="@style/SnooperTheme.NoActionBar" />
+
+        <activity
+            android:name=".dbreader.activity.TableDetailActivity"
+            android:label="@string/title_table_view_activity"
+            android:taskAffinity="@string/snooper_affinity"
+            android:exported="false"
+            android:theme="@style/SnooperTheme.NoActionBar" />
+
+    </application>
 
 </manifest>
