@@ -13,7 +13,9 @@ class TableAdapter(
     class TableViewHolder(
         private val binding: TableItemBinding,
         private val tableEventListener: TableEventListener
-    ) : RecyclerView.ViewHolder(binding.root) {
+    ) : RecyclerView.ViewHolder(
+        binding.root
+    ) {
 
         fun bind(
             tableName: String,
@@ -42,7 +44,9 @@ class TableAdapter(
 
         val binding =
             TableItemBinding.inflate(
-                LayoutInflater.from(parent.context),
+                LayoutInflater.from(
+                    parent.context
+                ),
                 parent,
                 false
             )
