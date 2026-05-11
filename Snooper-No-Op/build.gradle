@@ -5,8 +5,9 @@ apply from: '../Publish.gradle'
 
 android {
 
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    namespace "com.prateekj.snooper.noop"
 
+    compileSdkVersion rootProject.ext.compileSdkVersion
     buildFeatures {
         viewBinding true
     }
