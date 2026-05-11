@@ -1,8 +1,8 @@
 name: AndroidSnooper CI
 
 on:
-
   push:
+  workflow_dispatch:
     branches:
       - '**'
 
