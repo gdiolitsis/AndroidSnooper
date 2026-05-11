@@ -82,7 +82,7 @@ class DatabaseDetailActivity :
 
     override fun onDbFetchStarted() {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             VISIBLE
     }
 
@@ -90,7 +90,7 @@ class DatabaseDetailActivity :
         databases: Database
     ) {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         updateDbView(databases)
