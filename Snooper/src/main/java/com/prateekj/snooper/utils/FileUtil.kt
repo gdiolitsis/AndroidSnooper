@@ -2,7 +2,6 @@ package com.prateekj.snooper.utils
 
 import android.content.Context
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.io.OutputStreamWriter
 
@@ -17,23 +16,33 @@ class FileUtil(
 
         return try {
 
+            val safeFileName =
+                sanitizeFileName(fileName)
+
             val file =
                 File(
                     context.cacheDir,
-                    fileName
+                    safeFileName
                 )
 
-            if (file.exists()) {
-                file.delete()
+            if (
+                file.exists() &&
+                !file.delete()
+            ) {
+
+                Logger.e(
+                    TAG,
+                    "Failed to delete existing file"
+                )
+
+                return ""
             }
 
-            file.createNewFile()
-
-            FileOutputStream(file).use { fos ->
+            file.outputStream().use { fos ->
 
                 OutputStreamWriter(fos).use { writer ->
 
-                    writer.append(
+                    writer.write(
                         content.toString()
                     )
 
@@ -53,6 +62,16 @@ class FileUtil(
 
             ""
         }
+    }
+
+    private fun sanitizeFileName(
+        fileName: String
+    ): String {
+
+        return fileName.replace(
+            Regex("[^a-zA-Z0-9._-]"),
+            "_"
+        )
     }
 
     companion object {
