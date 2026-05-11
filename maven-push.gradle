@@ -39,17 +39,23 @@ def getRepositoryPassword() {
             : ""
 }
 
+// -------------------------------------------------
+// SOURCES JAR
+// -------------------------------------------------
+tasks.register(
+        "androidSourcesJar",
+        Jar
+) {
+
+    archiveClassifier.set("sources")
+}
+
+// -------------------------------------------------
+// AFTER EVALUATE
+// -------------------------------------------------
 afterEvaluate {
 
-    // -------------------------------------------------
-    // SOURCES JAR
-    // -------------------------------------------------
-    tasks.register(
-            "androidSourcesJar",
-            Jar
-    ) {
-
-        archiveClassifier.set("sources")
+    tasks.named("androidSourcesJar") {
 
         from android.sourceSets.main.java.srcDirs
     }
