@@ -3,17 +3,57 @@ package com.prateekj.snooper.utils
 import android.util.Log
 
 object Logger {
-  private const val SNOOPER_DEBUGGER_TAG = "AndroidSnooper"
 
-  fun d(tag: String, message: String?) {
-    Log.d(SNOOPER_DEBUGGER_TAG + tag, message)
-  }
+    private const val SNOOPER_DEBUGGER_TAG =
+        "AndroidSnooper"
 
-  fun e(tag: String, message: String?, exception: Throwable) {
-    Log.e(SNOOPER_DEBUGGER_TAG + tag, message, exception)
-  }
+    fun d(
+        tag: String,
+        message: String?
+    ) {
 
-  fun e(tag: String, message: String?) {
-    Log.e(SNOOPER_DEBUGGER_TAG + tag, message)
-  }
+        if (message.isNullOrBlank()) {
+            return
+        }
+
+        Log.d(
+            buildTag(tag),
+            message
+        )
+    }
+
+    fun e(
+        tag: String,
+        message: String?,
+        exception: Throwable
+    ) {
+
+        Log.e(
+            buildTag(tag),
+            message.orEmpty(),
+            exception
+        )
+    }
+
+    fun e(
+        tag: String,
+        message: String?
+    ) {
+
+        Log.e(
+            buildTag(tag),
+            message.orEmpty()
+        )
+    }
+
+    private fun buildTag(
+        tag: String
+    ): String {
+
+        return "${SNOOPER_DEBUGGER_TAG}_$tag"
+            .take(MAX_TAG_LENGTH)
+    }
+
+    private const val MAX_TAG_LENGTH =
+        23
 }
