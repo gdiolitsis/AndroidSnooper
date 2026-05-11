@@ -6,38 +6,72 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import kotlin.math.sqrt
 
-class ShakeDetector(private val onShakeListener: OnShakeListener) : SensorEventListener {
-  private var mShakeTimestamp: Long = 0
+class ShakeDetector(
+    private val onShakeListener: OnShakeListener
+) : SensorEventListener {
 
-  override fun onSensorChanged(event: SensorEvent) {
-    val x = event.values[0]
-    val y = event.values[1]
-    val z = event.values[2]
+    private var shakeTimestamp: Long = 0L
 
-    val gX = x / SensorManager.GRAVITY_EARTH
-    val gY = y / SensorManager.GRAVITY_EARTH
-    val gZ = z / SensorManager.GRAVITY_EARTH
+    override fun onSensorChanged(
+        event: SensorEvent?
+    ) {
 
-    // gForce will be close to 1 when there is no movement.
-    val gForce = sqrt((gX * gX + gY * gY + gZ * gZ).toDouble()).toFloat()
+        event ?: return
 
-    if (gForce > SHAKE_THRESHOLD_GRAVITY) {
-      val now = System.currentTimeMillis()
-      // ignore shake events too close to each other (500ms)
-      if (mShakeTimestamp + SHAKE_SLOP_TIME_MS > now) {
-        return
-      }
-      mShakeTimestamp = now
-      this.onShakeListener.onShake()
+        if (event.values.size < 3) {
+            return
+        }
+
+        val x = event.values[0]
+        val y = event.values[1]
+        val z = event.values[2]
+
+        val gX =
+            x / SensorManager.GRAVITY_EARTH
+
+        val gY =
+            y / SensorManager.GRAVITY_EARTH
+
+        val gZ =
+            z / SensorManager.GRAVITY_EARTH
+
+        val gForce =
+            sqrt(
+                (
+                    gX * gX +
+                    gY * gY +
+                    gZ * gZ
+                ).toDouble()
+            ).toFloat()
+
+        if (gForce > SHAKE_THRESHOLD_GRAVITY) {
+
+            val now =
+                System.currentTimeMillis()
+
+            if (shakeTimestamp + SHAKE_SLOP_TIME_MS > now) {
+                return
+            }
+
+            shakeTimestamp = now
+
+            onShakeListener.onShake()
+        }
     }
-  }
 
-  override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+    override fun onAccuracyChanged(
+        sensor: Sensor?,
+        accuracy: Int
+    ) {
+        // no-op
+    }
 
-  }
+    companion object {
 
-  companion object {
-    private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
-    private const val SHAKE_SLOP_TIME_MS = 500
-  }
+        private const val SHAKE_THRESHOLD_GRAVITY =
+            2.7f
+
+        private const val SHAKE_SLOP_TIME_MS =
+            500L
+    }
 }
