@@ -22,9 +22,11 @@ class TableDetailActivity :
     SnooperBaseActivity(),
     TableViewCallback {
 
-    private lateinit var binding: ActivityTableViewBinding
+    private lateinit var binding:
+            ActivityTableViewBinding
 
-    private lateinit var databaseReader: DatabaseReader
+    private lateinit var databaseReader:
+            DatabaseReader
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -152,7 +154,9 @@ class TableDetailActivity :
             Typeface.BOLD
         )
 
-        columnRow.addView(serialNoCell)
+        columnRow.addView(
+            serialNoCell
+        )
 
         val columns =
             table.columns ?: emptyList()
@@ -181,7 +185,9 @@ class TableDetailActivity :
                     )
                 }
 
-            columnRow.addView(columnView)
+            columnRow.addView(
+                columnView
+            )
         }
 
         binding.tableLayout.addView(
@@ -206,7 +212,9 @@ class TableDetailActivity :
         for (cellValue in data) {
 
             row.addView(
-                getCellView(cellValue)
+                getCellView(
+                    cellValue ?: ""
+                )
             )
         }
 
@@ -232,7 +240,8 @@ class TableDetailActivity :
                     R.drawable.table_cell_background
                 )
 
-            text = cellValue
+            text =
+                cellValue
         }
     }
 }
