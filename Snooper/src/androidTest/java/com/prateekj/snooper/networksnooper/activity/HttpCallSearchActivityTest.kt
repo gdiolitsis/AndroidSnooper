@@ -51,7 +51,8 @@ class HttpCallSearchActivityTest {
             HttpCallSearchActivity::class.java
         )
 
-    private lateinit var snooperRepo: SnooperRepo
+    private lateinit var snooperRepo:
+            SnooperRepo
 
     @Before
     @Throws(Exception::class)
@@ -291,10 +292,15 @@ class HttpCallSearchActivityTest {
 
                 .build()
 
-        httpCall.date = date
+        val datedHttpCall =
+            httpCall.copy(
+                date = date
+            )
 
         return snooperRepo.save(
-            HttpCallRecord.from(httpCall)
+            HttpCallRecord.from(
+                datedHttpCall
+            )
         )
     }
 }
