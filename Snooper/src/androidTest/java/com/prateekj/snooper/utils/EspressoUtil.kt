@@ -44,7 +44,7 @@ object EspressoUtil {
             message
         )
 
-        throw RuntimeException(message)
+        throw AssertionError(message)
     }
 
     private fun sleep() {
