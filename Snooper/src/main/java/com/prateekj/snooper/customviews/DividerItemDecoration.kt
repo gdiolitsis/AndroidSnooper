@@ -35,7 +35,7 @@ class DividerItemDecoration(
 
         require(
             orientation == HORIZONTAL ||
-            orientation == VERTICAL
+                    orientation == VERTICAL
         ) {
             "Invalid orientation"
         }
@@ -43,11 +43,17 @@ class DividerItemDecoration(
         this.orientation = orientation
     }
 
-    override fun onDrawOver(
+    override fun onDraw(
         canvas: Canvas,
         parent: RecyclerView,
         state: RecyclerView.State
     ) {
+
+        super.onDraw(
+            canvas,
+            parent,
+            state
+        )
 
         val drawable =
             divider ?: return
