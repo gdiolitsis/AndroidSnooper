@@ -1,5 +1,8 @@
 package com.prateekj.snooper.formatter
 
-interface ResponseFormatter {
-    fun format(response: String): String
+fun interface ResponseFormatter {
+
+    fun format(
+        response: String
+    ): String
 }
