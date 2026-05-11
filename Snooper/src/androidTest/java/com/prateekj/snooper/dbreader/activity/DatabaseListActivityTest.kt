@@ -1,6 +1,5 @@
 package com.prateekj.snooper.dbreader.activity
 
-import android.content.Intent
 import android.view.View
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -17,7 +16,7 @@ import com.prateekj.snooper.dbreader.activity.DatabaseListActivity.Companion.DB_
 import com.prateekj.snooper.dbreader.activity.DatabaseListActivity.Companion.DB_PATH
 import com.prateekj.snooper.rules.TestDbRule
 import com.prateekj.snooper.utils.EspressoViewMatchers.withRecyclerView
-import org.hamcrest.core.AllOf.allOf
+import org.hamcrest.CoreMatchers.allOf
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -88,7 +87,7 @@ class DatabaseListActivityTest {
 
         intended(
 
-            allOf<Intent>(
+            allOf(
 
                 hasComponent(
                     DatabaseDetailActivity::class.java.name
