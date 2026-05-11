@@ -14,7 +14,7 @@ import android.view.ViewGroup
 import android.widget.TextView.BufferType.SPANNABLE
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.SearchView.OnQueryTextListener
-import androidx.core.view.MenuItemCompat
+import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.core.widget.NestedScrollView.OnScrollChangeListener
 import androidx.fragment.app.Fragment
@@ -32,156 +32,360 @@ import com.prateekj.snooper.utils.Logger
 import kotlinx.android.synthetic.main.fragment_response_body.*
 import kotlin.math.min
 
-class HttpCallFragment : Fragment(), HttpCallBodyView, OnQueryTextListener, OnScrollChangeListener {
-  private var mode: Int = 0
-  private lateinit var viewModel: HttpBodyViewModel
-  private var presenter: HttpCallFragmentPresenter? = null
-  private var lastBoundHighlightedIndex = 0
-  private var bounds: List<Bound>? = null
-  private var ythPositionOfLastHighlightedBound: Int = 0
+class HttpCallFragment :
+    Fragment(),
+    HttpCallBodyView,
+    OnQueryTextListener,
+    OnScrollChangeListener {
 
-  override fun onCreateView(
-    inflater: LayoutInflater,
-    container: ViewGroup?,
-    savedInstanceState: Bundle?
-  ): View? {
-    super.onCreateView(inflater, container, savedInstanceState)
-    val view = inflater.inflate(R.layout.fragment_response_body, container, false)
-    viewModel = HttpBodyViewModel()
-    val repo = SnooperRepo(activity!!)
-    val httpCallId = arguments!!.getLong(HTTP_CALL_ID)
-    mode = arguments!!.getInt(HTTP_CALL_MODE)
-    val taskExecutor = BackgroundTaskExecutor(this.activity!!)
-    presenter = HttpCallFragmentPresenter(
-      repo,
-      httpCallId,
-      this,
-      ResponseFormatterFactory(),
-      taskExecutor
-    )
-    setHasOptionsMenu(true)
-    return view
-  }
+    private var mode = 0
 
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    super.onViewCreated(view, savedInstanceState)
-    changeLoaderVisibility(View.VISIBLE)
-    presenter!!.init(viewModel, mode)
-    scrollView!!.setOnScrollChangeListener(this)
-  }
+    private lateinit var viewModel:
+            HttpBodyViewModel
 
-  override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-    val searchMenu = menu.findItem(R.id.search_menu)
-    searchMenu.isVisible = true
-    (searchMenu.actionView as SearchView).setOnQueryTextListener(this)
-    super.onCreateOptionsMenu(menu, inflater)
-  }
+    private var presenter:
+            HttpCallFragmentPresenter? = null
 
-  override fun onFormattingDone() {
-    val spannableStringBuilder = SpannableStringBuilder(viewModel.formattedBody)
-    payload_text!!.setText(spannableStringBuilder, SPANNABLE)
-    changeLoaderVisibility(GONE)
-  }
+    private var lastBoundHighlightedIndex =
+        0
 
-  private fun changeLoaderVisibility(visible: Int) {
-    embedded_loader.visibility = visible
-  }
+    private var bounds:
+            List<Bound>? = null
 
-  override fun highlightBounds(bounds: List<Bound>) {
-    this.bounds = bounds
-    Logger.d(HttpCallFragment::class.java.simpleName, "Total size: " + bounds.size)
-    highlightStringFromBounds(
-      bounds.subList(
-        lastBoundHighlightedIndex,
-        min(BOUNDS_HIGHLIGHT_SET_SIZE, bounds.size)
-      )
-    )
-    scrollTillYOffset(getYthPositionOfBoundInBody(bounds[0]))
-  }
+    private var ythPositionOfLastHighlightedBound =
+        0
 
-  override fun removeOldHighlightedSpans() {
-    val spannableString = payload_text!!.text as Spannable
-    val backgroundSpans =
-      spannableString.getSpans(0, spannableString.length, BackgroundColorSpan::class.java)
-    for (span in backgroundSpans) {
-      spannableString.removeSpan(span)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+
+        val view =
+            inflater.inflate(
+                R.layout.fragment_response_body,
+                container,
+                false
+            )
+
+        viewModel =
+            HttpBodyViewModel()
+
+        val repo =
+            SnooperRepo(
+                requireActivity()
+            )
+
+        val httpCallId =
+            requireArguments()
+                .getLong(HTTP_CALL_ID)
+
+        mode =
+            requireArguments()
+                .getInt(HTTP_CALL_MODE)
+
+        presenter =
+            HttpCallFragmentPresenter(
+                repo,
+                httpCallId,
+                this,
+                ResponseFormatterFactory(),
+                BackgroundTaskExecutor(
+                    requireActivity()
+                )
+            )
+
+        setHasOptionsMenu(true)
+
+        return view
     }
-  }
 
-  private fun scrollTillYOffset(yOffset: Int) {
-    scrollView!!.post { scrollView!!.scrollTo(0, yOffset) }
-  }
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?
+    ) {
 
-  override fun onQueryTextSubmit(query: String): Boolean {
-    return false
-  }
-
-  override fun onQueryTextChange(newText: String): Boolean {
-    lastBoundHighlightedIndex = 0
-    presenter!!.searchInBody(newText.toLowerCase())
-    return true
-  }
-
-  override fun onScrollChange(
-    v: NestedScrollView,
-    scrollX: Int,
-    scrollY: Int,
-    oldScrollX: Int,
-    oldScrollY: Int
-  ) {
-    if (hasBoundsToHighlight() && needToHighlightNextSetOfBounds(scrollY)) {
-      val calculatedToIndex = lastBoundHighlightedIndex + BOUNDS_HIGHLIGHT_SET_SIZE
-      highlightStringFromBounds(
-        bounds!!.subList(
-          lastBoundHighlightedIndex + 1,
-          min(calculatedToIndex, bounds!!.size)
+        super.onViewCreated(
+            view,
+            savedInstanceState
         )
-      )
+
+        changeLoaderVisibility(
+            View.VISIBLE
+        )
+
+        presenter?.init(
+            viewModel,
+            mode
+        )
+
+        scrollView?.setOnScrollChangeListener(
+            this
+        )
     }
-  }
 
-  private fun getYthPositionOfBoundInBody(bound: Bound): Int {
-    val lineNumber = getLineNumber(bound.left)
-    return payload_text!!.layout.getLineTop(lineNumber)
-  }
+    override fun onCreateOptionsMenu(
+        menu: Menu,
+        inflater: MenuInflater
+    ) {
 
-  private fun getLineNumber(indexOfFirstOccurrenceWord: Int): Int {
-    return payload_text!!.layout.getLineForOffset(indexOfFirstOccurrenceWord)
-  }
+        val searchMenu =
+            menu.findItem(
+                R.id.search_menu
+            )
 
-  private fun highlightStringFromBounds(bounds: List<Bound>) {
-    val text = payload_text!!.text as Spannable
-    payload_text!!.postDelayed(getHighlightAction(text, bounds), 5)
-  }
+        searchMenu.isVisible = true
 
-  private fun getHighlightAction(text: Spannable, boundsCurrentSet: List<Bound>): Runnable {
-    return Runnable {
-      for (bound in boundsCurrentSet) {
-        text.setSpan(
-          BackgroundColorSpan(resources.getColor(R.color.snooper_text_highlight_color)),
-          bound.left,
-          bound.right,
-          Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        (
+            searchMenu.actionView
+                    as SearchView
+            ).setOnQueryTextListener(this)
+
+        super.onCreateOptionsMenu(
+            menu,
+            inflater
         )
-        if (boundsCurrentSet.last() == bound) {
-          ythPositionOfLastHighlightedBound = getYthPositionOfBoundInBody(bound)
-          lastBoundHighlightedIndex = bounds!!.indexOf(bound)
+    }
+
+    override fun onFormattingDone() {
+
+        val spannable =
+            SpannableStringBuilder(
+                viewModel.formattedBody
+            )
+
+        payload_text?.setText(
+            spannable,
+            SPANNABLE
+        )
+
+        changeLoaderVisibility(GONE)
+    }
+
+    private fun changeLoaderVisibility(
+        visibility: Int
+    ) {
+
+        embedded_loader?.visibility =
+            visibility
+    }
+
+    override fun highlightBounds(
+        bounds: List<Bound>
+    ) {
+
+        this.bounds = bounds
+
+        Logger.d(
+            HttpCallFragment::class.java.simpleName,
+            "Total size: ${bounds.size}"
+        )
+
+        highlightStringFromBounds(
+            bounds.subList(
+                lastBoundHighlightedIndex,
+                min(
+                    BOUNDS_HIGHLIGHT_SET_SIZE,
+                    bounds.size
+                )
+            )
+        )
+
+        scrollTillYOffset(
+            getYthPositionOfBoundInBody(
+                bounds[0]
+            )
+        )
+    }
+
+    override fun removeOldHighlightedSpans() {
+
+        val spannable =
+            payload_text?.text
+                    as? Spannable
+                    ?: return
+
+        val spans =
+            spannable.getSpans(
+                0,
+                spannable.length,
+                BackgroundColorSpan::class.java
+            )
+
+        spans.forEach {
+            spannable.removeSpan(it)
         }
-      }
     }
-  }
 
+    private fun scrollTillYOffset(
+        yOffset: Int
+    ) {
 
-  private fun needToHighlightNextSetOfBounds(scrollY: Int): Boolean {
-    return ythPositionOfLastHighlightedBound - scrollY < NEXT_SET_HIGHLIGHT_SCROLL_LINE_BUFFER
-  }
+        scrollView?.post {
+            scrollView?.scrollTo(
+                0,
+                yOffset
+            )
+        }
+    }
 
-  private fun hasBoundsToHighlight(): Boolean {
-    return bounds != null && lastBoundHighlightedIndex < bounds!!.size - 1
-  }
+    override fun onQueryTextSubmit(
+        query: String?
+    ): Boolean {
 
-  companion object {
-    const val NEXT_SET_HIGHLIGHT_SCROLL_LINE_BUFFER = 20
-    const val BOUNDS_HIGHLIGHT_SET_SIZE = 50
-  }
+        return false
+    }
+
+    override fun onQueryTextChange(
+        newText: String?
+    ): Boolean {
+
+        lastBoundHighlightedIndex = 0
+
+        presenter?.searchInBody(
+            newText
+                ?.lowercase()
+                ?: ""
+        )
+
+        return true
+    }
+
+    override fun onScrollChange(
+        v: NestedScrollView,
+        scrollX: Int,
+        scrollY: Int,
+        oldScrollX: Int,
+        oldScrollY: Int
+    ) {
+
+        if (
+            hasBoundsToHighlight()
+            &&
+            needToHighlightNextSetOfBounds(
+                scrollY
+            )
+        ) {
+
+            val calculatedToIndex =
+                lastBoundHighlightedIndex +
+                        BOUNDS_HIGHLIGHT_SET_SIZE
+
+            highlightStringFromBounds(
+                bounds!!.subList(
+                    lastBoundHighlightedIndex + 1,
+                    min(
+                        calculatedToIndex,
+                        bounds!!.size
+                    )
+                )
+            )
+        }
+    }
+
+    private fun getYthPositionOfBoundInBody(
+        bound: Bound
+    ): Int {
+
+        val lineNumber =
+            getLineNumber(bound.left)
+
+        return payload_text
+            ?.layout
+            ?.getLineTop(lineNumber)
+            ?: 0
+    }
+
+    private fun getLineNumber(
+        offset: Int
+    ): Int {
+
+        return payload_text
+            ?.layout
+            ?.getLineForOffset(offset)
+            ?: 0
+    }
+
+    private fun highlightStringFromBounds(
+        bounds: List<Bound>
+    ) {
+
+        val text =
+            payload_text?.text
+                    as? Spannable
+                    ?: return
+
+        payload_text?.postDelayed(
+            getHighlightAction(
+                text,
+                bounds
+            ),
+            5
+        )
+    }
+
+    private fun getHighlightAction(
+        text: Spannable,
+        boundsCurrentSet: List<Bound>
+    ): Runnable {
+
+        return Runnable {
+
+            boundsCurrentSet.forEach { bound ->
+
+                text.setSpan(
+                    BackgroundColorSpan(
+                        ContextCompat.getColor(
+                            requireContext(),
+                            R.color.snooper_text_highlight_color
+                        )
+                    ),
+                    bound.left,
+                    bound.right,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+
+                if (
+                    boundsCurrentSet.last() == bound
+                ) {
+
+                    ythPositionOfLastHighlightedBound =
+                        getYthPositionOfBoundInBody(
+                            bound
+                        )
+
+                    lastBoundHighlightedIndex =
+                        bounds?.indexOf(bound)
+                            ?: 0
+                }
+            }
+        }
+    }
+
+    private fun needToHighlightNextSetOfBounds(
+        scrollY: Int
+    ): Boolean {
+
+        return (
+            ythPositionOfLastHighlightedBound -
+                    scrollY
+            ) < NEXT_SET_HIGHLIGHT_SCROLL_LINE_BUFFER
+    }
+
+    private fun hasBoundsToHighlight():
+            Boolean {
+
+        return bounds != null &&
+                lastBoundHighlightedIndex <
+                (bounds!!.size - 1)
+    }
+
+    companion object {
+
+        const val NEXT_SET_HIGHLIGHT_SCROLL_LINE_BUFFER =
+            20
+
+        const val BOUNDS_HIGHLIGHT_SET_SIZE =
+            50
+    }
 }
