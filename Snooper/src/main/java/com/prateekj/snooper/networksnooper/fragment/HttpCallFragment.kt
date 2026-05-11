@@ -19,6 +19,7 @@ import androidx.core.widget.NestedScrollView
 import androidx.core.widget.NestedScrollView.OnScrollChangeListener
 import androidx.fragment.app.Fragment
 import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.FragmentResponseBodyBinding
 import com.prateekj.snooper.formatter.ResponseFormatterFactory
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.HttpCallActivity.Companion.HTTP_CALL_ID
@@ -29,7 +30,6 @@ import com.prateekj.snooper.networksnooper.presenter.HttpCallFragmentPresenter
 import com.prateekj.snooper.networksnooper.viewmodel.HttpBodyViewModel
 import com.prateekj.snooper.networksnooper.views.HttpCallBodyView
 import com.prateekj.snooper.utils.Logger
-import kotlinx.android.synthetic.main.fragment_response_body.*
 import kotlin.math.min
 
 class HttpCallFragment :
@@ -37,6 +37,13 @@ class HttpCallFragment :
     HttpCallBodyView,
     OnQueryTextListener,
     OnScrollChangeListener {
+
+    private var _binding:
+            FragmentResponseBodyBinding? = null
+
+    private val binding:
+            FragmentResponseBodyBinding
+        get() = requireNotNull(_binding)
 
     private var mode = 0
 
@@ -61,9 +68,9 @@ class HttpCallFragment :
         savedInstanceState: Bundle?
     ): View {
 
-        val view =
-            inflater.inflate(
-                R.layout.fragment_response_body,
+        _binding =
+            FragmentResponseBodyBinding.inflate(
+                inflater,
                 container,
                 false
             )
@@ -97,7 +104,7 @@ class HttpCallFragment :
 
         setHasOptionsMenu(true)
 
-        return view
+        return binding.root
     }
 
     override fun onViewCreated(
@@ -119,9 +126,18 @@ class HttpCallFragment :
             mode
         )
 
-        scrollView?.setOnScrollChangeListener(
-            this
-        )
+        binding.scrollView
+            .setOnScrollChangeListener(this)
+    }
+
+    override fun onDestroyView() {
+
+        super.onDestroyView()
+
+        binding.scrollView
+            .setOnScrollChangeListener(null)
+
+        _binding = null
     }
 
     override fun onCreateOptionsMenu(
@@ -138,8 +154,8 @@ class HttpCallFragment :
 
         (
             searchMenu.actionView
-                    as SearchView
-            ).setOnQueryTextListener(this)
+                    as? SearchView
+            )?.setOnQueryTextListener(this)
 
         super.onCreateOptionsMenu(
             menu,
@@ -149,12 +165,16 @@ class HttpCallFragment :
 
     override fun onFormattingDone() {
 
+        if (!isAdded || _binding == null) {
+            return
+        }
+
         val spannable =
             SpannableStringBuilder(
                 viewModel.formattedBody
             )
 
-        payload_text?.setText(
+        binding.payloadText.setText(
             spannable,
             SPANNABLE
         )
@@ -166,13 +186,17 @@ class HttpCallFragment :
         visibility: Int
     ) {
 
-        embedded_loader?.visibility =
-            visibility
+        _binding?.embeddedLoader
+            ?.visibility = visibility
     }
 
     override fun highlightBounds(
         bounds: List<Bound>
     ) {
+
+        if (!isAdded || _binding == null) {
+            return
+        }
 
         this.bounds = bounds
 
@@ -180,6 +204,10 @@ class HttpCallFragment :
             HttpCallFragment::class.java.simpleName,
             "Total size: ${bounds.size}"
         )
+
+        if (bounds.isEmpty()) {
+            return
+        }
 
         highlightStringFromBounds(
             bounds.subList(
@@ -201,7 +229,7 @@ class HttpCallFragment :
     override fun removeOldHighlightedSpans() {
 
         val spannable =
-            payload_text?.text
+            binding.payloadText.text
                     as? Spannable
                     ?: return
 
@@ -213,6 +241,7 @@ class HttpCallFragment :
             )
 
         spans.forEach {
+
             spannable.removeSpan(it)
         }
     }
@@ -221,8 +250,9 @@ class HttpCallFragment :
         yOffset: Int
     ) {
 
-        scrollView?.post {
-            scrollView?.scrollTo(
+        binding.scrollView.post {
+
+            binding.scrollView.scrollTo(
                 0,
                 yOffset
             )
@@ -260,8 +290,7 @@ class HttpCallFragment :
     ) {
 
         if (
-            hasBoundsToHighlight()
-            &&
+            hasBoundsToHighlight() &&
             needToHighlightNextSetOfBounds(
                 scrollY
             )
@@ -288,10 +317,12 @@ class HttpCallFragment :
     ): Int {
 
         val lineNumber =
-            getLineNumber(bound.left)
+            getLineNumber(
+                bound.left
+            )
 
-        return payload_text
-            ?.layout
+        return binding.payloadText
+            .layout
             ?.getLineTop(lineNumber)
             ?: 0
     }
@@ -300,8 +331,8 @@ class HttpCallFragment :
         offset: Int
     ): Int {
 
-        return payload_text
-            ?.layout
+        return binding.payloadText
+            .layout
             ?.getLineForOffset(offset)
             ?: 0
     }
@@ -311,11 +342,11 @@ class HttpCallFragment :
     ) {
 
         val text =
-            payload_text?.text
+            binding.payloadText.text
                     as? Spannable
                     ?: return
 
-        payload_text?.postDelayed(
+        binding.payloadText.postDelayed(
             getHighlightAction(
                 text,
                 bounds
@@ -330,6 +361,10 @@ class HttpCallFragment :
     ): Runnable {
 
         return Runnable {
+
+            if (!isAdded || _binding == null) {
+                return@Runnable
+            }
 
             boundsCurrentSet.forEach { bound ->
 
