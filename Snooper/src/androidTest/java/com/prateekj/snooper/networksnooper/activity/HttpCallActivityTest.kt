@@ -52,7 +52,8 @@ import org.junit.Test
 class HttpCallActivityTest {
 
     @get:Rule
-    var grantPermissionRule: GrantPermissionRule =
+    var grantPermissionRule:
+            GrantPermissionRule =
         GrantPermissionRule.grant(
             WRITE_EXTERNAL_STORAGE
         )
@@ -71,7 +72,8 @@ class HttpCallActivityTest {
             HttpCallActivity::class.java
         )
 
-    private lateinit var snooperRepo: SnooperRepo
+    private lateinit var snooperRepo:
+            SnooperRepo
 
     private val responseHeaders =
         mapOf(
@@ -137,20 +139,22 @@ class HttpCallActivityTest {
                 requestPayload
             )
 
-        val intent = Intent(
-            InstrumentationRegistry
-                .getInstrumentation()
-                .targetContext,
-            HttpCallActivity::class.java
-        ).apply {
+        val intent =
+            Intent(
+                InstrumentationRegistry
+                    .getInstrumentation()
+                    .targetContext,
+                HttpCallActivity::class.java
+            ).apply {
 
-            putExtra(
-                HTTP_CALL_ID,
-                callId
-            )
-        }
+                putExtra(
+                    HTTP_CALL_ID,
+                    callId
+                )
+            }
 
         activityRule.scenario.onActivity {
+
             it.intent.putExtras(intent)
         }
 
@@ -288,7 +292,8 @@ class HttpCallActivityTest {
         }
     }
 
-    private fun clipBoardText(): String {
+    private fun clipBoardText():
+            String {
 
         val clipboard =
             InstrumentationRegistry
@@ -299,7 +304,8 @@ class HttpCallActivityTest {
                 ) as ClipboardManager
 
         val lastItemIndex =
-            clipboard.primaryClip!!.itemCount - 1
+            clipboard.primaryClip!!
+                .itemCount - 1
 
         return clipboard
             .primaryClip!!
@@ -338,18 +344,22 @@ class HttpCallActivityTest {
 
                 .build()
 
-        httpCall.date =
-            getDate(
-                2017,
-                5,
-                2,
-                11,
-                22,
-                33
+        val datedHttpCall =
+            httpCall.copy(
+                date = getDate(
+                    2017,
+                    5,
+                    2,
+                    11,
+                    22,
+                    33
+                )
             )
 
         return snooperRepo.save(
-            HttpCallRecord.from(httpCall)
+            HttpCallRecord.from(
+                datedHttpCall
+            )
         )
     }
 
