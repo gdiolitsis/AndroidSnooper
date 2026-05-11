@@ -12,7 +12,8 @@ class HttpCallListPresenter(
             SnooperRepo
 ) : HttpCallListClickListener {
 
-    private var lastCallId: Long = 0
+    private var lastCallId =
+        -1L
 
     fun init() {
 
@@ -32,8 +33,9 @@ class HttpCallListPresenter(
             return
         }
 
-        lastCallId =
-            httpCallRecords.last().id
+        updateLastCallId(
+            httpCallRecords
+        )
 
         httpListView
             .initHttpCallRecordList(
@@ -43,19 +45,19 @@ class HttpCallListPresenter(
 
     fun onNextPageCall() {
 
+        if (lastCallId < 0L) {
+            return
+        }
+
         val httpCallRecords =
             snooperRepo.findAllSortByDateAfter(
                 lastCallId,
                 PAGE_SIZE
             )
 
-        if (
-            httpCallRecords.isNotEmpty()
-        ) {
-
-            lastCallId =
-                httpCallRecords.last().id
-        }
+        updateLastCallId(
+            httpCallRecords
+        )
 
         httpListView
             .appendRecordList(
@@ -66,6 +68,10 @@ class HttpCallListPresenter(
     override fun onClick(
         httpCall: HttpCallRecord
     ) {
+
+        if (httpCall.id <= 0L) {
+            return
+        }
 
         httpListView
             .navigateToResponseBody(
@@ -89,12 +95,29 @@ class HttpCallListPresenter(
 
         snooperRepo.deleteAll()
 
+        lastCallId = -1L
+
         httpListView
             .updateListViewAfterDelete()
     }
 
+    private fun updateLastCallId(
+        httpCallRecords:
+                List<HttpCallRecord>
+    ) {
+
+        if (
+            httpCallRecords.isNotEmpty()
+        ) {
+
+            lastCallId =
+                httpCallRecords.last().id
+        }
+    }
+
     companion object {
 
-        const val PAGE_SIZE = 20
+        const val PAGE_SIZE =
+            20
     }
 }
