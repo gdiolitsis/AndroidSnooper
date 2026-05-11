@@ -1,5 +1,6 @@
 package com.prateekj.snooper.customviews
 
-interface PageAddedListener {
-  fun onPageAdded()
+fun interface PageAddedListener {
+
+    fun onPageAdded()
 }
