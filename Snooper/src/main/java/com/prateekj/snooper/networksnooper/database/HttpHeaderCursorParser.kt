@@ -13,19 +13,23 @@ class HttpHeaderCursorParser :
         cursor: Cursor
     ): HttpHeader {
 
+        val idIndex =
+            cursor.getColumnIndexOrThrow(
+                _ID
+            )
+
+        val nameIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_HEADER_NAME
+            )
+
         return HttpHeader().apply {
 
             id =
-                cursor.getInt(
-                    cursor.getColumnIndexOrThrow(_ID)
-                )
+                cursor.getInt(idIndex)
 
             name =
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_HEADER_NAME
-                    )
-                )
+                cursor.getString(nameIndex)
         }
     }
 }
