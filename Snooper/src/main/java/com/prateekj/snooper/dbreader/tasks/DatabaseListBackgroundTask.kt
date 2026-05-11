@@ -18,22 +18,26 @@ class DatabaseListBackgroundTask(
                 .databaseList()
 
         if (
-            !hasDatabases(applicationDatabases)
+            applicationDatabases.isNullOrEmpty()
         ) {
 
             return emptyList()
         }
 
         return applicationDatabases
-            .filter {
 
-                it.endsWith(".db") &&
-                    DATABASE_NAME != it
+            .filter { dbName ->
+
+                dbName.endsWith(".db") &&
+                        dbName != DATABASE_NAME
             }
+
             .map { dbName ->
 
                 val databasePath =
-                    context.getDatabasePath(dbName)
+                    context.getDatabasePath(
+                        dbName
+                    )
 
                 Database(
                     name = databasePath.name,
@@ -42,18 +46,13 @@ class DatabaseListBackgroundTask(
             }
     }
 
-    private fun hasDatabases(
-        applicationDatabases: Array<String>?
-    ): Boolean {
-
-        return !applicationDatabases.isNullOrEmpty()
-    }
-
     override fun onResult(
         result: List<Database>
     ) {
 
         dbReaderCallback
-            .onApplicationDbFetchCompleted(result)
+            .onApplicationDbFetchCompleted(
+                result
+            )
     }
 }
