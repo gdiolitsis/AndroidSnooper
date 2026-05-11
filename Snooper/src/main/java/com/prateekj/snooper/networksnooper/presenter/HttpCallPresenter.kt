@@ -3,6 +3,7 @@ package com.prateekj.snooper.networksnooper.presenter
 import com.prateekj.snooper.infra.BackgroundTask
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.HttpCallTab
+import com.prateekj.snooper.networksnooper.activity.HttpCallTab.ERROR
 import com.prateekj.snooper.networksnooper.activity.HttpCallTab.HEADERS
 import com.prateekj.snooper.networksnooper.activity.HttpCallTab.REQUEST
 import com.prateekj.snooper.networksnooper.activity.HttpCallTab.RESPONSE
@@ -11,6 +12,7 @@ import com.prateekj.snooper.networksnooper.model.HttpCallRecord
 import com.prateekj.snooper.networksnooper.views.HttpCallView
 import com.prateekj.snooper.utils.FileUtil
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale.US
 
 class HttpCallPresenter(
@@ -36,10 +38,11 @@ class HttpCallPresenter(
                     US
                 )
 
-            val date =
+            val safeDate =
                 httpCallRecord.date
+                    ?: Date()
 
-            return "${dateFormat.format(date)}.txt"
+            return "${dateFormat.format(safeDate)}.txt"
         }
 
     fun copyHttpCallBody(
@@ -51,13 +54,27 @@ class HttpCallPresenter(
                 httpCallTab
             )
 
-        view.copyToClipboard(text)
+        if (text.isNotBlank()) {
+
+            view.copyToClipboard(
+                text
+            )
+        }
     }
 
     fun shareHttpCallBody() {
 
         val completeHttpCallData =
             dataCopyHelper.getHttpCallData()
+
+        if (
+            completeHttpCallData.isBlank()
+        ) {
+
+            view.showMessageShareNotAvailable()
+
+            return
+        }
 
         val fileName =
             logFileName
@@ -68,10 +85,17 @@ class HttpCallPresenter(
                 override fun onExecute():
                         String {
 
-                    return fileUtil.createLogFile(
-                        completeHttpCallData,
-                        fileName
-                    )
+                    return try {
+
+                        fileUtil.createLogFile(
+                            completeHttpCallData,
+                            fileName
+                        )
+
+                    } catch (_: Exception) {
+
+                        ""
+                    }
                 }
 
                 override fun onResult(
@@ -79,10 +103,16 @@ class HttpCallPresenter(
                 ) {
 
                     if (
-                        result.isNotEmpty()
+                        result.isNotBlank()
                     ) {
 
-                        view.shareData(result)
+                        view.shareData(
+                            result
+                        )
+
+                    } else {
+
+                        view.showMessageShareNotAvailable()
                     }
                 }
             }
@@ -118,7 +148,7 @@ class HttpCallPresenter(
                     .getHeadersForCopy()
             }
 
-            else -> {
+            ERROR -> {
 
                 dataCopyHelper
                     .getErrorsForCopy()
