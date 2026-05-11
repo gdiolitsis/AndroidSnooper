@@ -1,1 +1,9 @@
-include ':Snooper', ':Snooper-Spring', ':Snooper-Okhttp', ':Snooper-No-Op', ':Snooper-Spring-No-Op', ':Snooper-Okhttp-No-Op', ':TestApp'
+include ':Snooper'
+include ':Snooper-Okhttp'
+include ':Snooper-No-Op'
+include ':Snooper-Okhttp-No-Op'
+include ':TestApp'
+
+// TEMP DISABLED (dead Spring dependency)
+// include ':Snooper-Spring'
+// include ':Snooper-Spring-No-Op'
