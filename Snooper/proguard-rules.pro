@@ -1,17 +1,42 @@
-# Add project specific ProGuard rules here.
-# By default, the flags in this file are appended to flags specified
-# in /usr/local/opt/android-sdk/tools/proguard/proguard-android.txt
-# You can edit the include path and order by changing the proguardFiles
-# directive in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# --------------------------------------------------
+# AndroidSnooper Core Proguard Rules
+# --------------------------------------------------
 
-# Add any project specific keep options here:
+# Keep Kotlin metadata
+-keep class kotlin.Metadata { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep Snooper public API
+-keep class com.prateekj.snooper.** { *; }
+
+# Keep network models
+-keep class com.prateekj.snooper.networksnooper.model.** { *; }
+
+# Keep interceptors
+-keep class com.prateekj.snooper.okhttp.** { *; }
+
+# Keep Spring support
+-keep class org.springframework.http.client.** { *; }
+
+# OkHttp / Okio
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Spring Android
+-dontwarn org.springframework.**
+
+# Mockk / tests
+-dontwarn io.mockk.**
+
+# Keep annotations
+-keepattributes *Annotation*
+
+# Keep debug information
+-keepattributes SourceFile,LineNumberTable
+
+# Avoid aggressive stripping
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Prevent warning spam
+-ignorewarnings
