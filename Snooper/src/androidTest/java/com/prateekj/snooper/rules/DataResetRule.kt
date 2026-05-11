@@ -1,8 +1,6 @@
 package com.prateekj.snooper.rules
 
-
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.prateekj.snooper.database.SnooperDbHelper
 import com.prateekj.snooper.networksnooper.database.HttpCallRecordContract.Companion.HEADER_TABLE_NAME
 import com.prateekj.snooper.networksnooper.database.HttpCallRecordContract.Companion.HEADER_VALUE_TABLE_NAME
@@ -13,28 +11,52 @@ import org.junit.runners.model.Statement
 
 class DataResetRule : TestRule {
 
-  private val snooperDbHelper: SnooperDbHelper =
-    SnooperDbHelper.getInstance(getInstrumentation().targetContext)
+    private val snooperDbHelper: SnooperDbHelper =
+        SnooperDbHelper.getInstance(
+            InstrumentationRegistry
+                .getInstrumentation()
+                .targetContext
+        )
 
-  override fun apply(base: Statement, description: Description): Statement {
-    return object : Statement() {
-      @Throws(Throwable::class)
-      override fun evaluate() {
-        try {
-          base.evaluate()
-        } finally {
-          val database = snooperDbHelper.writableDatabase
-          val tableToDelete = listOf(
-            HEADER_VALUE_TABLE_NAME,
-            HEADER_TABLE_NAME,
-            HTTP_CALL_RECORD_TABLE_NAME
-          )
-          for (table in tableToDelete) {
-            database.delete(table, null, null)
-          }
-          database.close()
+    override fun apply(
+        base: Statement,
+        description: Description
+    ): Statement {
+
+        return object : Statement() {
+
+            @Throws(Throwable::class)
+            override fun evaluate() {
+
+                try {
+
+                    base.evaluate()
+
+                } finally {
+
+                    val database =
+                        snooperDbHelper
+                            .writableDatabase
+
+                    val tablesToDelete =
+                        listOf(
+                            HEADER_VALUE_TABLE_NAME,
+                            HEADER_TABLE_NAME,
+                            HTTP_CALL_RECORD_TABLE_NAME
+                        )
+
+                    for (table in tablesToDelete) {
+
+                        database.delete(
+                            table,
+                            null,
+                            null
+                        )
+                    }
+
+                    database.close()
+                }
+            }
         }
-      }
     }
-  }
 }
