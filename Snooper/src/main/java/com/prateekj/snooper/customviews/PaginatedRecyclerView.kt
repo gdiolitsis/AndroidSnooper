@@ -106,9 +106,9 @@ class PaginatedRecyclerView :
 
         return firstVisibleItemPosition >= 0 &&
                 (
-                    firstVisibleItemPosition +
-                    visibleItemCount
-                ) >= (totalItemCount - 5)
+                        firstVisibleItemPosition +
+                                visibleItemCount
+                        ) >= (totalItemCount - 5)
     }
 
     override fun onPageAdded() {
