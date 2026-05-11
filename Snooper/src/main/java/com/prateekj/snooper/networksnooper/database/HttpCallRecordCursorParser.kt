@@ -21,70 +21,85 @@ class HttpCallRecordCursorParser :
         cursor: Cursor
     ): HttpCallRecord {
 
+        val idIndex =
+            cursor.getColumnIndexOrThrow(_ID)
+
+        val urlIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_URL
+            )
+
+        val payloadIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_PAYLOAD
+            )
+
+        val responseBodyIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_RESPONSE_BODY
+            )
+
+        val methodIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_METHOD
+            )
+
+        val statusCodeIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_STATUSCODE
+            )
+
+        val statusTextIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_STATUSTEXT
+            )
+
+        val dateIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_DATE
+            )
+
+        val errorIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_ERROR
+            )
+
         return HttpCallRecord().apply {
 
             id =
-                cursor.getLong(
-                    cursor.getColumnIndexOrThrow(_ID)
-                )
+                cursor.getLong(idIndex)
 
             url =
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_URL
-                    )
-                )
+                cursor.getString(urlIndex)
 
             payload =
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_PAYLOAD
-                    )
-                )
+                cursor.getString(payloadIndex)
 
             responseBody =
                 cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_RESPONSE_BODY
-                    )
+                    responseBodyIndex
                 )
 
             method =
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_METHOD
-                    )
-                )
+                cursor.getString(methodIndex)
 
             statusCode =
                 cursor.getInt(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_STATUSCODE
-                    )
+                    statusCodeIndex
                 )
 
             statusText =
                 cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_STATUSTEXT
-                    )
+                    statusTextIndex
                 )
 
             date =
                 Date(
-                    cursor.getLong(
-                        cursor.getColumnIndexOrThrow(
-                            COLUMN_DATE
-                        )
-                    )
+                    cursor.getLong(dateIndex)
                 )
 
             error =
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_ERROR
-                    )
-                )
+                cursor.getString(errorIndex)
         }
     }
 }
