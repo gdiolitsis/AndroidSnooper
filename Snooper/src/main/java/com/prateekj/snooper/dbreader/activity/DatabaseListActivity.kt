@@ -64,7 +64,7 @@ class DatabaseListActivity :
 
     override fun onDbFetchStarted() {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             VISIBLE
     }
 
@@ -72,7 +72,7 @@ class DatabaseListActivity :
         databases: List<Database>
     ) {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         adapter =
