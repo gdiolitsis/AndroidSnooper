@@ -1,16 +1,18 @@
 apply plugin: 'jacoco'
 
 jacoco {
-    toolVersion = "0.8.6"
+    toolVersion = "0.8.11"
 }
 
 def excludes = [
-        // data binding
+
+        // databinding
         'android/databinding/**/*.class',
         '**/android/databinding/*Binding.class',
         '**/android/databinding/*',
         '**/androidx/databinding/*',
         '**/BR.*',
+
         // android
         '**/R.class',
         '**/R$*.class',
@@ -18,122 +20,114 @@ def excludes = [
         '**/Manifest*.*',
         '**/*Test*.*',
         'android/**/*.*',
-        // butterKnife
-        '**/*$ViewInjector*.*',
-        '**/*$ViewBinder*.*',
-        // dagger
-        '**/*_MembersInjector.class',
-        '**/Dagger*Component.class',
-        '**/Dagger*Component$Builder.class',
-        '**/*Module_*Factory.class',
-        '**/di/module/*',
-        '**/*_Factory*.*',
-        '**/*Module*.*',
-        '**/*Dagger*.*',
-        '**/*Hilt*.*',
-        // kotlin
-        '**/*MapperImpl*.*',
-        '**/*$ViewInjector*.*',
-        '**/*$ViewBinder*.*',
-        '**/BuildConfig.*',
-        '**/*Component*.*',
-        '**/*BR*.*',
-        '**/Manifest*.*',
-        '**/*$Lambda$*.*',
-        '**/*Companion*.*',
-        '**/*Module*.*',
-        '**/*Dagger*.*',
-        '**/*Hilt*.*',
-        '**/*MembersInjector*.*',
+
+        // dagger / hilt
         '**/*_MembersInjector.class',
         '**/*_Factory*.*',
         '**/*_Provide*Factory*.*',
+        '**/*Dagger*.*',
+        '**/*Hilt*.*',
+        '**/*Module*.*',
+
+        // kotlin
+        '**/*$Lambda$*.*',
+        '**/*Companion*.*',
         '**/*Extensions*.*',
-        // sealed and data classes
+
+        // generated
+        '**/*MapperImpl*.*',
+
+        // sealed/data
         '**/*$Result.*',
         '**/*$Result$*.*'
 ]
 
+tasks.withType(Test).configureEach {
 
-tasks.withType(Test) {
     jacoco.includeNoLocationClasses = true
+
     jacoco.excludes = ['jdk.internal.*']
-    // see related issue https://github.com/gradle/gradle/issues/5184#issuecomment-457865951
 }
 
-project.afterEvaluate {
-    (android.hasProperty('applicationVariants')
-            ? android.'applicationVariants'
-            : android.'libraryVariants')
-            .all { variant ->
-                def variantName = variant.name
-                def unitTestTask = "test${variantName.capitalize()}UnitTest"
-                def androidTestCoverageTask = "create${variantName.capitalize()}CoverageReport"
+afterEvaluate {
 
-                tasks.create(name: "jacoco${variantName.capitalize()}TestReport", type: JacocoReport, dependsOn: [
-                        "$unitTestTask",
-                        "$androidTestCoverageTask"
-                ]) {
-                    group = "Reporting"
-                    description = "Generate Jacoco coverage reports for the ${variantName.capitalize()} build"
+    def variants =
+            android.hasProperty('applicationVariants')
+                    ? android.applicationVariants
+                    : android.libraryVariants
 
-                    reports {
-                        html.enabled = true
-                        xml.enabled = true
-                        csv.enabled = true
-                    }
+    variants.all { variant ->
 
-                    def javaClasses = fileTree(dir: variant.javaCompileProvider.get().destinationDir,
-                            excludes: excludes)
-                    def kotlinClasses = fileTree(dir: "${buildDir}/tmp/kotlin-classes/${variantName}",
-                            excludes: excludes)
+        def variantName =
+                variant.name
 
-                    classDirectories.setFrom(files([
-                            javaClasses,
-                            kotlinClasses
-                    ]))
+        def capitalized =
+                variantName.capitalize()
 
-                    def variantSourceSets = variant.sourceSets.java.srcDirs.collect { it.path }.flatten()
-                    sourceDirectories.setFrom(project.files(variantSourceSets))
+        def unitTestTask =
+                "test${capitalized}UnitTest"
 
-                    def androidTestsData = fileTree(dir: "${buildDir}/outputs/code_coverage/${variantName}AndroidTest/connected/", includes: ["**/*.ec"])
-                    executionData(files([
-                            "$buildDir/jacoco/${unitTestTask}.exec",
-                            androidTestsData
-                    ]))
-                }
-            }
-}
+        tasks.register(
+                "jacoco${capitalized}TestReport",
+                JacocoReport
+        ) {
 
-project.afterEvaluate {
-    def allVariants = android.hasProperty('applicationVariants')
-            ? android.'applicationVariants'
-            : android.'libraryVariants'
-    allVariants.all { variant ->
-        def variantName = variant.name
+            dependsOn(
+                    unitTestTask
+            )
 
-        tasks.create(name: "generateCi${variantName.capitalize()}TestReports", type: JacocoReport) {
-            group = "Reporting"
-            description = "Generate Jacoco coverage reports on CI"
+            group =
+                    "Reporting"
+
+            description =
+                    "Generate Jacoco reports for ${capitalized}"
 
             reports {
-                html.enabled = true
-                xml.enabled = true
-                csv.enabled = true
+
+                html.required.set(true)
+
+                xml.required.set(true)
+
+                csv.required.set(false)
             }
 
-            def kotlinClasses = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug", excludes: excludes)
-            classDirectories.setFrom(files([
-                    kotlinClasses
-            ]))
+            def javaClasses =
+                    fileTree(
+                            dir: variant.javaCompileProvider.get().destinationDirectory.asFile.get(),
+                            excludes: excludes
+                    )
 
-            def variantSourceSets = variant.sourceSets.java.srcDirs.collect { it.path }.flatten()
-            sourceDirectories.setFrom(project.files(variantSourceSets))
+            def kotlinClasses =
+                    fileTree(
+                            dir: "${buildDir}/tmp/kotlin-classes/${variantName}",
+                            excludes: excludes
+                    )
 
-            def codeCoverageFiles = fileTree(dir: "${buildDir}", includes: ["**/*.ec", "**/*.exec"])
-            executionData(files([
-                    codeCoverageFiles
-            ]))
+            classDirectories.setFrom(
+                    files(
+                            javaClasses,
+                            kotlinClasses
+                    )
+            )
+
+            sourceDirectories.setFrom(
+                    files(
+                            variant.sourceSets.collect {
+                                it.java.srcDirs
+                            }
+                    )
+            )
+
+            executionData.setFrom(
+                    fileTree(
+                            dir: buildDir,
+                            includes: [
+                                    "jacoco/${unitTestTask}.exec",
+                                    "outputs/unit_test_code_coverage/${variantName}UnitTest/*.exec",
+                                    "**/*.ec"
+                            ]
+                    )
+            )
         }
     }
 }
