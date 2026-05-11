@@ -61,13 +61,7 @@ class HttpHeaderAdapter private constructor(
                         as HeaderListItemBinding
             }
 
-        val view =
-            binding.root
-
-        if (view.tag == null) {
-
-            view.tag = binding
-        }
+        binding.root.tag = binding
 
         val viewModel =
             getItem(position)
@@ -78,7 +72,7 @@ class HttpHeaderAdapter private constructor(
         binding.headerValue.text =
             viewModel.headerValues()
 
-        return view
+        return binding.root
     }
 
     companion object {
