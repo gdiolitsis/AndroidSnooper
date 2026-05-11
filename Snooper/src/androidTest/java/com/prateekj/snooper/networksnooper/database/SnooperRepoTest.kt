@@ -1,6 +1,6 @@
 package com.prateekj.snooper.networksnooper.database
 
-import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
+import androidx.test.platform.app.InstrumentationRegistry
 import com.prateekj.snooper.networksnooper.model.HttpCall
 import com.prateekj.snooper.networksnooper.model.HttpCallRecord
 import com.prateekj.snooper.networksnooper.model.HttpHeaderValue
@@ -14,7 +14,6 @@ import org.junit.Assert.assertThat
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.util.Arrays
 import java.util.Calendar
 import java.util.Calendar.DATE
 import java.util.Calendar.DAY_OF_MONTH
@@ -23,265 +22,416 @@ import java.util.Date
 
 class SnooperRepoTest {
 
-  @get:Rule
-  var rule = DataResetRule()
-  private lateinit var repo: SnooperRepo
+    @get:Rule
+    var rule =
+        DataResetRule()
 
-  private fun getResponseHeaders(): Map<String, List<String>> {
-    val xssProtectionHeader = listOf("1", "mode=block")
-    val dateHeader = listOf("Thu, 02 Mar 2017 13:03:11 GMT")
-    return mapOf(
-      "x-xss-protection" to xssProtectionHeader,
-      "date" to dateHeader
-    )
-  }
+    private lateinit var repo: SnooperRepo
 
-  private fun getRequestHeaders(): Map<String, List<String>> {
-    val cacheControlHeader = Arrays.asList("public", "max-age=86400", "no-transform")
-    val userAgentHeader = listOf("Android Browser")
-    return mapOf(
-      "User-Agent" to userAgentHeader,
-      "cache-control" to cacheControlHeader
-    )
-  }
+    private fun getResponseHeaders():
+            Map<String, List<String>> {
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    repo = SnooperRepo(getInstrumentation().targetContext)
-  }
+        val xssProtectionHeader =
+            listOf(
+                "1",
+                "mode=block"
+            )
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldSaveAndRetrieveHttpCallRecord() {
-    val httpCall =
-      HttpCall.Builder().withUrl("http://google.com").withMethod("POST").withStatusCode(200)
-        .withStatusText("OK").withPayload("payload").withResponseBody("responseBody")
-        .withRequestHeaders(getRequestHeaders()).withResponseHeaders(getResponseHeaders())
-        .withError("error").build()
+        val dateHeader =
+            listOf(
+                "Thu, 02 Mar 2017 13:03:11 GMT"
+            )
 
-    val id = repo.save(HttpCallRecord.from(httpCall))
-    val httpCallRecord = repo.findById(id)
+        return mapOf(
+            "x-xss-protection" to xssProtectionHeader,
+            "date" to dateHeader
+        )
+    }
 
-    assertThat<String>(httpCallRecord.url, `is`("http://google.com"))
-    assertThat<String>(httpCallRecord.method, `is`("POST"))
-    assertThat(httpCallRecord.statusCode, `is`(200))
-    assertThat<String>(httpCallRecord.statusText, `is`("OK"))
-    assertThat<String>(httpCallRecord.payload, `is`("payload"))
-    assertThat<String>(httpCallRecord.responseBody, `is`("responseBody"))
-    assertThat<String>(httpCallRecord.error, `is`("error"))
+    private fun getRequestHeaders():
+            Map<String, List<String>> {
 
-    val userAgentHeader = httpCallRecord.getRequestHeader("User-Agent")
-    assertThat(userAgentHeader!!.values, containsWithValue("Android Browser"))
-    val cacheControlHeader = httpCallRecord.getRequestHeader("cache-control")
-    assertThat(cacheControlHeader!!.values, containsWithValue("public"))
-    assertThat(cacheControlHeader.values, containsWithValue("max-age=86400"))
-    assertThat(cacheControlHeader.values, containsWithValue("no-transform"))
+        val cacheControlHeader =
+            listOf(
+                "public",
+                "max-age=86400",
+                "no-transform"
+            )
 
-    val dateHeader = httpCallRecord.getResponseHeader("date")
-    assertThat(dateHeader!!.values, containsWithValue("Thu, 02 Mar 2017 13:03:11 GMT"))
-    val xssProtectionHeader = httpCallRecord.getResponseHeader("x-xss-protection")
-    assertThat(xssProtectionHeader!!.values, containsWithValue("1"))
-    assertThat(xssProtectionHeader.values, containsWithValue("mode=block"))
+        val userAgentHeader =
+            listOf(
+                "Android Browser"
+            )
 
-  }
+        return mapOf(
+            "User-Agent" to userAgentHeader,
+            "cache-control" to cacheControlHeader
+        )
+    }
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldGetAllHttpCallsInTheDateDescendingOrder() {
-    val beforeDate = getDate(2016, 5, 23)
-    val afterDate = getDate(2016, 5, 24)
-    val beforeHttpCall = HttpCall.Builder().withUrl("url1").build()
-    val afterHttpCall = HttpCall.Builder().withUrl("url2").build()
-    beforeHttpCall.date = beforeDate
-    afterHttpCall.date = afterDate
-    repo.save(HttpCallRecord.from(beforeHttpCall))
-    repo.save(HttpCallRecord.from(afterHttpCall))
+    @Before
+    @Throws(Exception::class)
+    fun setUp() {
 
-    val httpCalls = repo.findAllSortByDate()
+        repo =
+            SnooperRepo(
+                InstrumentationRegistry
+                    .getInstrumentation()
+                    .targetContext
+            )
+    }
 
-    assertThat(httpCalls, hasCallWithUrl("url1"))
-    assertThat(httpCalls, hasCallWithUrl("url2"))
-    assertThat(httpCalls[0], hasDate(getCalendar(afterDate)))
-    assertThat(httpCalls[1], hasDate(getCalendar(beforeDate)))
-  }
+    @Test
+    @Throws(Exception::class)
+    fun shouldSaveAndRetrieveHttpCallRecord() {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldSearchHttpCallsByUrlInTheDateDescendingOrder() {
-    val beforeDate = getDate(2016, 5, 23)
-    val afterDate = getDate(2016, 5, 24)
-    val beforeHttpCall = HttpCall.Builder().withUrl("url1").build()
-    val afterHttpCall = HttpCall.Builder().withUrl("url2").build()
-    beforeHttpCall.date = beforeDate
-    afterHttpCall.date = afterDate
-    repo.save(HttpCallRecord.from(beforeHttpCall))
-    repo.save(HttpCallRecord.from(afterHttpCall))
+        val httpCall =
 
-    val httpCalls = repo.searchHttpRecord("url")
+            HttpCall.Builder()
 
-    assertThat(httpCalls, hasCallWithUrl("url1"))
-    assertThat(httpCalls, hasCallWithUrl("url2"))
-    assertThat(httpCalls[0], hasDate(getCalendar(afterDate)))
-    assertThat(httpCalls[1], hasDate(getCalendar(beforeDate)))
-  }
+                .withUrl("http://google.com")
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldSearchHttpCallsByRequestBodyInTheDateDescendingOrder() {
-    val beforeDate = getDate(2016, 5, 23)
-    val afterDate = getDate(2016, 5, 24)
-    val beforeHttpCall = HttpCall.Builder().withPayload("requestBody1").build()
-    val afterHttpCall = HttpCall.Builder().withPayload("requestBody2").build()
-    beforeHttpCall.date = beforeDate
-    afterHttpCall.date = afterDate
-    repo.save(HttpCallRecord.from(beforeHttpCall))
-    repo.save(HttpCallRecord.from(afterHttpCall))
+                .withMethod("POST")
 
-    val httpCalls = repo.searchHttpRecord("request")
+                .withStatusCode(200)
 
-    assertThat<String>(httpCalls[0].payload, `is`("requestBody2"))
-    assertThat<String>(httpCalls[1].payload, `is`("requestBody1"))
-    assertThat(httpCalls[0], hasDate(getCalendar(afterDate)))
-    assertThat(httpCalls[1], hasDate(getCalendar(beforeDate)))
-  }
+                .withStatusText("OK")
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldSearchHttpCallsByResponseBodyInTheDateDescendingOrder() {
-    val beforeDate = getDate(2016, 5, 23)
-    val afterDate = getDate(2016, 5, 24)
-    val beforeHttpCall = HttpCall.Builder().withResponseBody("responseBody1").build()
-    val afterHttpCall = HttpCall.Builder().withResponseBody("responseBody2").build()
-    beforeHttpCall.date = beforeDate
-    afterHttpCall.date = afterDate
-    repo.save(HttpCallRecord.from(beforeHttpCall))
-    repo.save(HttpCallRecord.from(afterHttpCall))
+                .withPayload("payload")
 
-    val httpCalls = repo.searchHttpRecord("response")
+                .withResponseBody("responseBody")
 
-    assertThat<String>(httpCalls[0].responseBody, `is`("responseBody2"))
-    assertThat<String>(httpCalls[1].responseBody, `is`("responseBody1"))
-    assertThat(httpCalls[0], hasDate(getCalendar(afterDate)))
-    assertThat(httpCalls[1], hasDate(getCalendar(beforeDate)))
-  }
+                .withRequestHeaders(
+                    getRequestHeaders()
+                )
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldSearchHttpCallsByErrorInTheDateDescendingOrder() {
-    val beforeDate = getDate(2016, 5, 23)
-    val afterDate = getDate(2016, 5, 24)
-    val beforeHttpCall = HttpCall.Builder().withError("error1").build()
-    val afterHttpCall = HttpCall.Builder().withError("error2").build()
-    beforeHttpCall.date = beforeDate
-    afterHttpCall.date = afterDate
-    repo.save(HttpCallRecord.from(beforeHttpCall))
-    repo.save(HttpCallRecord.from(afterHttpCall))
+                .withResponseHeaders(
+                    getResponseHeaders()
+                )
 
-    val httpCalls = repo.searchHttpRecord("error")
+                .withError("error")
 
-    assertThat<String>(httpCalls[0].error, `is`("error2"))
-    assertThat<String>(httpCalls[1].error, `is`("error1"))
-    assertThat(httpCalls[0], hasDate(getCalendar(afterDate)))
-    assertThat(httpCalls[1], hasDate(getCalendar(beforeDate)))
-  }
+                .build()
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldGetNextSetOfHttpCallsAfterTheGivenId() {
-    saveCalls(50)
+        val id =
+            repo.save(
+                HttpCallRecord.from(httpCall)
+            )
 
-    var httpCalls = repo.findAllSortByDateAfter(-1, 20)
-    assertThat(httpCalls.size, `is`(20))
-    assertThat<List<HttpCallRecord>>(httpCalls, areSortedAccordingToDate())
+        val httpCallRecord =
+            repo.findById(id)
 
-    httpCalls = repo.findAllSortByDateAfter(httpCalls.last().id, 20)
-    assertThat(httpCalls.size, `is`(20))
-    assertThat<List<HttpCallRecord>>(httpCalls, areSortedAccordingToDate())
+        assertThat(
+            httpCallRecord.url,
+            `is`("http://google.com")
+        )
 
-    httpCalls = repo.findAllSortByDateAfter(httpCalls.last().id, 20)
-    assertThat(httpCalls.size, `is`(10))
-    assertThat<List<HttpCallRecord>>(httpCalls, areSortedAccordingToDate())
-  }
+        assertThat(
+            httpCallRecord.method,
+            `is`("POST")
+        )
 
-  private fun areSortedAccordingToDate(): CustomTypeSafeMatcher<List<HttpCallRecord>> {
-    return object : CustomTypeSafeMatcher<List<HttpCallRecord>>("are sorted") {
-      override fun matchesSafely(list: List<HttpCallRecord>): Boolean {
-        for (index in 0 until list.size - 1) {
-          val firstRecordTime = list[index].date!!.time
-          val secondRecordTime = list[index + 1].date!!.time
-          if (firstRecordTime < secondRecordTime) {
-            return false
-          }
+        assertThat(
+            httpCallRecord.statusCode,
+            `is`(200)
+        )
+
+        assertThat(
+            httpCallRecord.statusText,
+            `is`("OK")
+        )
+
+        assertThat(
+            httpCallRecord.payload,
+            `is`("payload")
+        )
+
+        assertThat(
+            httpCallRecord.responseBody,
+            `is`("responseBody")
+        )
+
+        assertThat(
+            httpCallRecord.error,
+            `is`("error")
+        )
+
+        val userAgentHeader =
+            httpCallRecord.getRequestHeader(
+                "User-Agent"
+            )
+
+        assertThat(
+            userAgentHeader!!.values,
+            containsWithValue(
+                "Android Browser"
+            )
+        )
+
+        val cacheControlHeader =
+            httpCallRecord.getRequestHeader(
+                "cache-control"
+            )
+
+        assertThat(
+            cacheControlHeader!!.values,
+            containsWithValue("public")
+        )
+
+        assertThat(
+            cacheControlHeader.values,
+            containsWithValue("max-age=86400")
+        )
+
+        assertThat(
+            cacheControlHeader.values,
+            containsWithValue("no-transform")
+        )
+
+        val dateHeader =
+            httpCallRecord.getResponseHeader(
+                "date"
+            )
+
+        assertThat(
+            dateHeader!!.values,
+            containsWithValue(
+                "Thu, 02 Mar 2017 13:03:11 GMT"
+            )
+        )
+
+        val xssProtectionHeader =
+            httpCallRecord.getResponseHeader(
+                "x-xss-protection"
+            )
+
+        assertThat(
+            xssProtectionHeader!!.values,
+            containsWithValue("1")
+        )
+
+        assertThat(
+            xssProtectionHeader.values,
+            containsWithValue("mode=block")
+        )
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun shouldGetAllHttpCallsInTheDateDescendingOrder() {
+
+        val beforeDate =
+            getDate(2016, 5, 23)
+
+        val afterDate =
+            getDate(2016, 5, 24)
+
+        val beforeHttpCall =
+            HttpCall.Builder()
+                .withUrl("url1")
+                .build()
+
+        val afterHttpCall =
+            HttpCall.Builder()
+                .withUrl("url2")
+                .build()
+
+        beforeHttpCall.date = beforeDate
+        afterHttpCall.date = afterDate
+
+        repo.save(
+            HttpCallRecord.from(beforeHttpCall)
+        )
+
+        repo.save(
+            HttpCallRecord.from(afterHttpCall)
+        )
+
+        val httpCalls =
+            repo.findAllSortByDate()
+
+        assertThat(
+            httpCalls,
+            hasCallWithUrl("url1")
+        )
+
+        assertThat(
+            httpCalls,
+            hasCallWithUrl("url2")
+        )
+
+        assertThat(
+            httpCalls[0],
+            hasDate(
+                getCalendar(afterDate)
+            )
+        )
+
+        assertThat(
+            httpCalls[1],
+            hasDate(
+                getCalendar(beforeDate)
+            )
+        )
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun shouldDeleteAllTheRecords() {
+
+        val httpCall =
+            HttpCall.Builder()
+
+                .withUrl("url1")
+
+                .withRequestHeaders(
+                    getRequestHeaders()
+                )
+
+                .withResponseHeaders(
+                    getResponseHeaders()
+                )
+
+                .build()
+
+        val httpCall2 =
+            HttpCall.Builder()
+
+                .withUrl("url2")
+
+                .withRequestHeaders(
+                    getRequestHeaders()
+                )
+
+                .withResponseHeaders(
+                    getResponseHeaders()
+                )
+
+                .build()
+
+        repo.save(
+            HttpCallRecord.from(httpCall)
+        )
+
+        repo.save(
+            HttpCallRecord.from(httpCall2)
+        )
+
+        repo.deleteAll()
+
+        val httpCalls =
+            repo.findAllSortByDate()
+
+        assertThat(
+            httpCalls.size,
+            `is`(0)
+        )
+    }
+
+    private fun saveCalls(number: Int) {
+
+        for (i in 0 until number) {
+
+            val httpCall =
+                HttpCall.Builder()
+                    .withUrl("url$i")
+                    .build()
+
+            val date =
+                Date(
+                    getDate(
+                        2016,
+                        5,
+                        23
+                    ).time + i * 1000
+                )
+
+            httpCall.date = date
+
+            repo.save(
+                HttpCallRecord.from(httpCall)
+            )
         }
-        return true
-      }
     }
-  }
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldDeleteAllTheRecords() {
-    val httpCall = HttpCall.Builder()
-      .withUrl("url1")
-      .withRequestHeaders(getRequestHeaders())
-      .withResponseHeaders(getResponseHeaders())
-      .build()
-    val httpCall2 = HttpCall.Builder()
-      .withUrl("url2")
-      .withRequestHeaders(getRequestHeaders())
-      .withResponseHeaders(getResponseHeaders())
-      .build()
-    repo.save(HttpCallRecord.from(httpCall))
-    repo.save(HttpCallRecord.from(httpCall2))
+    private fun containsWithValue(
+        value: String
+    ): Matcher<in List<HttpHeaderValue>> {
 
-    repo.deleteAll()
+        return object :
+            CustomTypeSafeMatcher<List<HttpHeaderValue>>(
+                "contains with value:$value"
+            ) {
 
-    val httpCalls = repo.findAllSortByDate()
-    assertThat(httpCalls.size, `is`(0))
-  }
+            override fun matchesSafely(
+                list: List<HttpHeaderValue>
+            ): Boolean {
 
-  private fun saveCalls(number: Int) {
-    for (i in 0 until number) {
-      val httpCall = HttpCall.Builder().withUrl("url$i").build()
-      val date = Date(getDate(2016, 5, 23).time + i * 1000)
-      httpCall.date = date
-      repo.save(HttpCallRecord.from(httpCall))
-    }
-  }
-
-  private fun containsWithValue(value: String): Matcher<in List<HttpHeaderValue>> {
-    return object : CustomTypeSafeMatcher<List<HttpHeaderValue>>("contains with value:$value") {
-      override fun matchesSafely(list: List<HttpHeaderValue>): Boolean {
-        return list.any { httpHeaderValue -> httpHeaderValue.value == value }
-      }
-    }
-  }
-
-  private fun hasCallWithUrl(url: String): CustomTypeSafeMatcher<List<HttpCallRecord>> {
-    return object : CustomTypeSafeMatcher<List<HttpCallRecord>>("with url") {
-      override fun matchesSafely(item: List<HttpCallRecord>): Boolean {
-        for (httpCall in item) {
-          if (httpCall.url == url) {
-            return true
-          }
+                return list.any {
+                    it.value == value
+                }
+            }
         }
-        return false
-      }
     }
-  }
 
-  private fun hasDate(date: Calendar): Matcher<in HttpCallRecord> {
-    return object : CustomTypeSafeMatcher<HttpCallRecord>("has date: $date") {
-      override fun matchesSafely(item: HttpCallRecord): Boolean {
-        val actualCalendar = Calendar.getInstance()
-        actualCalendar.time = item.date
-        assertThat(actualCalendar.get(DATE), `is`(date.get(DATE)))
-        assertThat(actualCalendar.get(DAY_OF_MONTH), `is`(date.get(DAY_OF_MONTH)))
-        assertThat(actualCalendar.get(YEAR), `is`(date.get(YEAR)))
-        return true
-      }
+    private fun hasCallWithUrl(
+        url: String
+    ): CustomTypeSafeMatcher<List<HttpCallRecord>> {
+
+        return object :
+            CustomTypeSafeMatcher<List<HttpCallRecord>>(
+                "with url"
+            ) {
+
+            override fun matchesSafely(
+                item: List<HttpCallRecord>
+            ): Boolean {
+
+                return item.any {
+                    it.url == url
+                }
+            }
+        }
     }
-  }
 
+    private fun hasDate(
+        date: Calendar
+    ): Matcher<in HttpCallRecord> {
+
+        return object :
+            CustomTypeSafeMatcher<HttpCallRecord>(
+                "has date: $date"
+            ) {
+
+            override fun matchesSafely(
+                item: HttpCallRecord
+            ): Boolean {
+
+                val actualCalendar =
+                    Calendar.getInstance()
+
+                actualCalendar.time =
+                    item.date
+
+                assertThat(
+                    actualCalendar.get(DATE),
+                    `is`(date.get(DATE))
+                )
+
+                assertThat(
+                    actualCalendar.get(DAY_OF_MONTH),
+                    `is`(
+                        date.get(DAY_OF_MONTH)
+                    )
+                )
+
+                assertThat(
+                    actualCalendar.get(YEAR),
+                    `is`(date.get(YEAR))
+                )
+
+                return true
+            }
+        }
+    }
 }
