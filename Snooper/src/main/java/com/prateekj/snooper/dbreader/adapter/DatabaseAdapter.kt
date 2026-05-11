@@ -14,7 +14,9 @@ class DatabaseAdapter(
     class DbViewHolder(
         private val binding: DbCardItemBinding,
         private val dbEventListener: DbEventListener
-    ) : RecyclerView.ViewHolder(binding.root) {
+    ) : RecyclerView.ViewHolder(
+        binding.root
+    ) {
 
         fun bind(
             db: Database
@@ -28,7 +30,9 @@ class DatabaseAdapter(
 
             binding.root.setOnClickListener {
 
-                dbEventListener.onDatabaseClick(db)
+                dbEventListener.onDatabaseClick(
+                    db
+                )
             }
         }
     }
@@ -40,7 +44,9 @@ class DatabaseAdapter(
 
         val binding =
             DbCardItemBinding.inflate(
-                LayoutInflater.from(parent.context),
+                LayoutInflater.from(
+                    parent.context
+                ),
                 parent,
                 false
             )
