@@ -115,7 +115,7 @@ class HttpCallSearchActivity :
         httpCallRecords: List<HttpCallRecord>
     ) {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         binding.noResultsFoundContainer.visibility =
@@ -138,7 +138,7 @@ class HttpCallSearchActivity :
         keyword: String
     ) {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         binding.list.visibility =
@@ -156,7 +156,7 @@ class HttpCallSearchActivity :
 
     override fun hideSearchResultsView() {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         binding.list.visibility =
@@ -168,13 +168,13 @@ class HttpCallSearchActivity :
 
     override fun showLoader() {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             VISIBLE
     }
 
     override fun hideLoader() {
 
-        binding.embeddedLoader.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
     }
 
