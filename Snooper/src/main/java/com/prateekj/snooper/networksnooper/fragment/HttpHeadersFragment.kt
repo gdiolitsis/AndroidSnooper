@@ -5,16 +5,21 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.FragmentHeadersBinding
 import com.prateekj.snooper.networksnooper.activity.HttpCallActivity.Companion.HTTP_CALL_ID
 import com.prateekj.snooper.networksnooper.adapter.HttpHeaderAdapter
 import com.prateekj.snooper.networksnooper.database.SnooperRepo
 import com.prateekj.snooper.networksnooper.viewmodel.HttpCallViewModel
-import kotlinx.android.synthetic.main.fragment_headers.view.*
-import kotlinx.android.synthetic.main.http_call_general_detail.view.*
 
 class HttpHeadersFragment :
     Fragment() {
+
+    private var _binding:
+            FragmentHeadersBinding? = null
+
+    private val binding:
+            FragmentHeadersBinding
+        get() = requireNotNull(_binding)
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -22,12 +27,25 @@ class HttpHeadersFragment :
         savedInstanceState: Bundle?
     ): View {
 
-        val view =
-            inflater.inflate(
-                R.layout.fragment_headers,
+        _binding =
+            FragmentHeadersBinding.inflate(
+                inflater,
                 container,
                 false
             )
+
+        return binding.root
+    }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?
+    ) {
+
+        super.onViewCreated(
+            view,
+            savedInstanceState
+        )
 
         val repo =
             SnooperRepo(
@@ -46,43 +64,54 @@ class HttpHeadersFragment :
                 httpCallRecord
             )
 
-        view.url.text =
+        binding.url.text =
             viewModel.url
 
-        view.method.text =
+        binding.method.text =
             viewModel.method
 
-        view.status_code.text =
+        binding.statusCode.text =
             viewModel.statusCode
 
-        view.status_text.text =
+        binding.statusText.text =
             viewModel.statusText
 
-        view.time_stamp.text =
+        binding.timeStamp.text =
             viewModel.timeStamp
 
-        view.response_info_container.visibility =
+        binding.responseInfoContainer.visibility =
             viewModel.responseInfoVisibility
 
-        view.error_text.visibility =
+        binding.errorText.visibility =
             viewModel.failedTextVisibility
 
-        view.response_header_list.adapter =
+        binding.responseHeaderList.adapter =
             HttpHeaderAdapter.newInstance(
                 viewModel.responseHeaders
             )
 
-        view.request_header_list.adapter =
+        binding.requestHeaderList.adapter =
             HttpHeaderAdapter.newInstance(
                 viewModel.requestHeaders
             )
 
-        view.response_header_container.visibility =
+        binding.responseHeaderContainer.visibility =
             viewModel.responseHeaderVisibility
 
-        view.request_header_container.visibility =
+        binding.requestHeaderContainer.visibility =
             viewModel.requestHeaderVisibility
+    }
 
-        return view
+    override fun onDestroyView() {
+
+        super.onDestroyView()
+
+        binding.responseHeaderList.adapter =
+            null
+
+        binding.requestHeaderList.adapter =
+            null
+
+        _binding = null
     }
 }
