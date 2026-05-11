@@ -6,7 +6,7 @@ import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.prateekj.snooper.R
+import com.prateekj.snooper.databinding.ActivityDbReaderBinding
 import com.prateekj.snooper.dbreader.DatabaseDataReader
 import com.prateekj.snooper.dbreader.DatabaseReader
 import com.prateekj.snooper.dbreader.adapter.DatabaseAdapter
@@ -15,12 +15,13 @@ import com.prateekj.snooper.dbreader.model.Database
 import com.prateekj.snooper.dbreader.view.DbReaderCallback
 import com.prateekj.snooper.infra.BackgroundTaskExecutor
 import com.prateekj.snooper.networksnooper.activity.SnooperBaseActivity
-import kotlinx.android.synthetic.main.activity_db_reader.*
 
 class DatabaseListActivity :
     SnooperBaseActivity(),
     DbReaderCallback,
     DbEventListener {
+
+    private lateinit var binding: ActivityDbReaderBinding
 
     private lateinit var adapter: DatabaseAdapter
 
@@ -32,8 +33,11 @@ class DatabaseListActivity :
 
         super.onCreate(savedInstanceState)
 
+        binding =
+            ActivityDbReaderBinding.inflate(layoutInflater)
+
         setContentView(
-            R.layout.activity_db_reader
+            binding.root
         )
 
         initViews()
@@ -53,7 +57,7 @@ class DatabaseListActivity :
 
     override fun onDbFetchStarted() {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.root.visibility =
             VISIBLE
     }
 
@@ -61,7 +65,7 @@ class DatabaseListActivity :
         databases: List<Database>
     ) {
 
-        embedded_loader?.visibility =
+        binding.embeddedLoader.root.visibility =
             GONE
 
         adapter =
@@ -73,7 +77,7 @@ class DatabaseListActivity :
         val layoutManager =
             LinearLayoutManager(this)
 
-        db_list?.apply {
+        binding.dbList.apply {
 
             this.layoutManager =
                 layoutManager
@@ -112,7 +116,7 @@ class DatabaseListActivity :
 
     private fun initViews() {
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(binding.toolbar)
 
         supportActionBar
             ?.setDisplayHomeAsUpEnabled(false)
