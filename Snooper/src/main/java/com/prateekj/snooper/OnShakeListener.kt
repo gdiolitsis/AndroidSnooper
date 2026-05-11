@@ -1,5 +1,6 @@
 package com.prateekj.snooper
 
-interface OnShakeListener {
-  fun onShake()
+fun interface OnShakeListener {
+
+    fun onShake()
 }
