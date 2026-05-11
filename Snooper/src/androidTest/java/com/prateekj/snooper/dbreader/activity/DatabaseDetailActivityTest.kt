@@ -5,6 +5,7 @@ import android.view.View
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
@@ -19,6 +20,8 @@ import com.prateekj.snooper.dbreader.activity.DatabaseListActivity.Companion.DB_
 import com.prateekj.snooper.rules.TestDbRule
 import com.prateekj.snooper.utils.EspressoViewMatchers.withRecyclerView
 import org.hamcrest.CoreMatchers.allOf
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -36,6 +39,18 @@ class DatabaseDetailActivityTest {
         ActivityScenarioRule(
             DatabaseDetailActivity::class.java
         )
+
+    @Before
+    fun setupIntents() {
+
+        Intents.init()
+    }
+
+    @After
+    fun releaseIntents() {
+
+        Intents.release()
+    }
 
     @Test
     @Throws(Exception::class)
@@ -70,19 +85,21 @@ class DatabaseDetailActivityTest {
             it.intent.putExtras(intent)
         }
 
-        onView(withId(R.id.db_name))
-            .check(
-                matches(
-                    withText("test.db")
-                )
+        onView(
+            withId(R.id.db_name)
+        ).check(
+            matches(
+                withText("test.db")
             )
+        )
 
-        onView(withId(R.id.db_version))
-            .check(
-                matches(
-                    withText("0")
-                )
+        onView(
+            withId(R.id.db_version)
+        ).check(
+            matches(
+                withText("0")
             )
+        )
 
         onView(
             withRecyclerView(
