@@ -1,11 +1,15 @@
 package com.prateekj.snooper.networksnooper.viewmodel
 
-class HttpBodyViewModel {
+data class HttpBodyViewModel(
 
-    var formattedBody: String? = null
-        private set
+    var formattedBody: String = ""
+) {
 
-    fun init(formattedBody: String) {
-        this.formattedBody = formattedBody
+    fun init(
+        formattedBody: String
+    ) {
+
+        this.formattedBody =
+            formattedBody
     }
 }
