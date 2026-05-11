@@ -7,6 +7,7 @@ import com.prateekj.snooper.R
 import com.prateekj.snooper.networksnooper.model.HttpCallRecord
 import com.prateekj.snooper.networksnooper.model.HttpHeader
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale.US
 
 class HttpCallViewModel(
@@ -14,17 +15,21 @@ class HttpCallViewModel(
             HttpCallRecord
 ) {
 
-    val url: String? =
-        httpCall.url
+    val url: String =
+        httpCall.url.orEmpty()
 
-    val method: String? =
-        httpCall.method
+    val method: String =
+        httpCall.method.orEmpty()
 
     val statusCode: String =
-        httpCall.statusCode.toString()
+        if (httpCall.statusCode > 0) {
+            httpCall.statusCode.toString()
+        } else {
+            "-"
+        }
 
-    val statusText: String? =
-        httpCall.statusText
+    val statusText: String =
+        httpCall.statusText.orEmpty()
 
     val requestHeaders:
             List<HttpHeader> =
@@ -45,64 +50,97 @@ class HttpCallViewModel(
                     US
                 )
 
-            return dateFormat.format(
+            val safeDate =
                 httpCall.date
+                    ?: Date(0)
+
+            return dateFormat.format(
+                safeDate
             )
         }
 
-    val responseInfoVisibility: Int =
-        if (httpCall.hasError()) {
-            GONE
-        } else {
-            VISIBLE
+    val responseInfoVisibility: Int
+        get() {
+
+            return if (
+                httpCall.hasError()
+            ) {
+
+                GONE
+
+            } else {
+
+                VISIBLE
+            }
         }
 
-    val failedTextVisibility: Int =
-        if (httpCall.hasError()) {
-            VISIBLE
-        } else {
-            GONE
+    val failedTextVisibility: Int
+        get() {
+
+            return if (
+                httpCall.hasError()
+            ) {
+
+                VISIBLE
+
+            } else {
+
+                GONE
+            }
         }
 
-    val responseHeaderVisibility: Int =
-        if (
-            hasHeaders(
-                httpCall.responseHeaders
-            )
-        ) {
-            VISIBLE
-        } else {
-            GONE
+    val responseHeaderVisibility: Int
+        get() {
+
+            return if (
+                hasHeaders(
+                    responseHeaders
+                )
+            ) {
+
+                VISIBLE
+
+            } else {
+
+                GONE
+            }
         }
 
-    val requestHeaderVisibility: Int =
-        if (
-            hasHeaders(
-                httpCall.requestHeaders
-            )
-        ) {
-            VISIBLE
-        } else {
-            GONE
+    val requestHeaderVisibility: Int
+        get() {
+
+            return if (
+                hasHeaders(
+                    requestHeaders
+                )
+            ) {
+
+                VISIBLE
+
+            } else {
+
+                GONE
+            }
         }
 
     @ColorRes
     fun getStatusColor():
             Int {
 
-        val statusCode =
+        val code =
             httpCall.statusCode
 
         return when {
 
-            statusCode in
+            code in
                     RANGE_START_HTTP_OK..
                     RANGE_END_HTTP_OK -> {
 
                 R.color.snooper_green
             }
 
-            statusCode <=
+            code in
+                    RANGE_START_HTTP_REDIRECTION..
                     RANGE_END_HTTP_REDIRECTION -> {
 
                 R.color.snooper_yellow
@@ -116,10 +154,10 @@ class HttpCallViewModel(
     }
 
     private fun hasHeaders(
-        headers: List<HttpHeader>?
+        headers: List<HttpHeader>
     ): Boolean {
 
-        return !headers.isNullOrEmpty()
+        return headers.isNotEmpty()
     }
 
     companion object {
@@ -132,6 +170,9 @@ class HttpCallViewModel(
 
         private const val RANGE_END_HTTP_OK =
             299
+
+        private const val RANGE_START_HTTP_REDIRECTION =
+            300
 
         private const val RANGE_END_HTTP_REDIRECTION =
             399
