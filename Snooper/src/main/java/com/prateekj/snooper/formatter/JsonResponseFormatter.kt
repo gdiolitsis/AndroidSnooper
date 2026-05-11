@@ -6,11 +6,16 @@ import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
 
-class JsonResponseFormatter : ResponseFormatter {
+class JsonResponseFormatter :
+    ResponseFormatter {
 
     override fun format(
         response: String
     ): String {
+
+        if (response.isBlank()) {
+            return response
+        }
 
         return try {
 
@@ -44,7 +49,17 @@ class JsonResponseFormatter : ResponseFormatter {
 
             Logger.e(
                 TAG,
-                e.message,
+                e.message ?: "JSON formatting error",
+                e
+            )
+
+            response
+
+        } catch (e: Exception) {
+
+            Logger.e(
+                TAG,
+                e.message ?: "Unknown formatting error",
                 e
             )
 
