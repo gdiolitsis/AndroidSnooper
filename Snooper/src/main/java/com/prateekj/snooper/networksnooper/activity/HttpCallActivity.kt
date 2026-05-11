@@ -34,157 +34,383 @@ import com.prateekj.snooper.utils.FileUtil
 import kotlinx.android.synthetic.main.activity_http_call_detail.*
 import java.io.File
 
-class HttpCallActivity : SnooperBaseActivity(), HttpCallView {
-  private var httpCallPresenter: HttpCallPresenter? = null
-  private var httpCallRenderer: HttpCallRenderer? = null
+class HttpCallActivity :
+    SnooperBaseActivity(),
+    HttpCallView {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_http_call_detail)
-    setSupportActionBar(toolbar)
-    supportActionBar!!.setDisplayHomeAsUpEnabled(true)
-    val httpCallId = intent.getLongExtra(HTTP_CALL_ID, 0)
-    val fileUtil = FileUtil()
-    val repo = SnooperRepo(this)
-    val backgroundTaskExecutor = BackgroundTaskExecutor(this)
-    val dataCopyHelper =
-      DataCopyHelper(repo.findById(httpCallId), ResponseFormatterFactory(), resources)
-    httpCallPresenter = HttpCallPresenter(
-      dataCopyHelper,
-      repo.findById(httpCallId),
-      this,
-      fileUtil,
-      backgroundTaskExecutor
-    )
-    val hasError = repo.findById(httpCallId).error != null
-    httpCallRenderer = HttpCallRenderer(this, hasError)
-    setupUi()
-  }
+    private var httpCallPresenter:
+            HttpCallPresenter? = null
 
-  private fun setupUi() {
-    for (tab in httpCallRenderer!!.getTabs()) {
-      tab_layout.addTab(tab_layout.newTab().setText(tab.tabTitle))
-    }
-    tab_layout.tabGravity = TabLayout.GRAVITY_FILL
-    val adapter = HttpCallPagerAdapter(supportFragmentManager)
-    pager!!.adapter = adapter
-    pager!!.addOnPageChangeListener(TabLayout.TabLayoutOnPageChangeListener(tab_layout))
-    tab_layout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-      override fun onTabSelected(tab: Tab) {
-        pager!!.currentItem = tab.position
-      }
+    private var httpCallRenderer:
+            HttpCallRenderer? = null
 
-      override fun onTabUnselected(tab: Tab) {
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
-      }
+        super.onCreate(savedInstanceState)
 
-      override fun onTabReselected(tab: Tab) {
+        setContentView(
+            R.layout.activity_http_call_detail
+        )
 
-      }
-    })
-  }
+        setSupportActionBar(toolbar)
 
-  override fun onCreateOptionsMenu(menu: Menu): Boolean {
-    menuInflater.inflate(R.menu.http_call_menu, menu)
-    return true
-  }
+        supportActionBar
+            ?.setDisplayHomeAsUpEnabled(true)
 
-  override fun onOptionsItemSelected(item: MenuItem): Boolean {
-    if (item.itemId == R.id.copy_menu) {
-      val currentTab = httpCallRenderer!!.getTabs()[pager!!.currentItem]
-      httpCallPresenter!!.copyHttpCallBody(currentTab)
-      return true
-    } else if (item.itemId == R.id.share_menu) {
-      shareHttpCallData()
-    }
-    return super.onOptionsItemSelected(item)
-  }
+        val httpCallId =
+            intent.getLongExtra(
+                HTTP_CALL_ID,
+                0L
+            )
 
-  override fun copyToClipboard(data: String) {
-    val clipboard = this.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText("Copied", data)
-    clipboard.primaryClip = clip
-  }
+        if (httpCallId <= 0L) {
 
-  override fun shareData(logFilePath: String) {
-    val file = File(logFilePath)
-    val fileUri =
-      FileProvider.getUriForFile(this, applicationContext.packageName + ".snooper.provider", file)
-    val intent = Intent(ACTION_SEND)
-    intent.setDataAndType(fileUri, LOGFILE_MIME_TYPE)
-    intent.putExtra(EXTRA_SUBJECT, getString(R.string.mail_subject_share_logs))
-    intent.putExtra(EXTRA_STREAM, fileUri)
-    intent.addFlags(FLAG_GRANT_READ_URI_PERMISSION)
-    val j = Intent.createChooser(intent, getString(R.string.chooser_title_share_logs))
-    startActivity(j)
-  }
+            finish()
 
-  override fun showMessageShareNotAvailable() {
-    Toast.makeText(this, R.string.permission_not_granted, Toast.LENGTH_SHORT).show()
-  }
-
-  private fun shareHttpCallData() {
-    appPermissionChecker.handlePermission(
-      Manifest.permission.WRITE_EXTERNAL_STORAGE,
-      WRITE_EXTERNAL_STORAGE_REQUEST_CODE,
-      object : AppPermissionChecker.PermissionRequestCallBack {
-        override fun permissionGranted() {
-          httpCallPresenter!!.shareHttpCallBody()
+            return
         }
 
-        override fun permissionDenied() {
-          httpCallPresenter!!.onPermissionDenied()
+        val repo =
+            SnooperRepo(this)
+
+        val httpCall =
+            repo.findById(httpCallId)
+
+        val fileUtil =
+            FileUtil()
+
+        val backgroundTaskExecutor =
+            BackgroundTaskExecutor(this)
+
+        val dataCopyHelper =
+            DataCopyHelper(
+                httpCall,
+                ResponseFormatterFactory(),
+                resources
+            )
+
+        httpCallPresenter =
+            HttpCallPresenter(
+                dataCopyHelper,
+                httpCall,
+                this,
+                fileUtil,
+                backgroundTaskExecutor
+            )
+
+        val hasError =
+            !httpCall.error.isNullOrBlank()
+
+        httpCallRenderer =
+            HttpCallRenderer(
+                this,
+                hasError
+            )
+
+        setupUi()
+    }
+
+    private fun setupUi() {
+
+        val renderer =
+            httpCallRenderer
+                ?: return
+
+        for (tab in renderer.getTabs()) {
+
+            tab_layout.addTab(
+                tab_layout.newTab()
+                    .setText(tab.tabTitle)
+            )
         }
-      })
-  }
 
-  override fun getResponseBodyFragment(): Fragment {
-    val fragment = HttpCallFragment()
-    val extras = intent.extras
-    extras!!.putInt(HTTP_CALL_MODE, RESPONSE_MODE)
-    fragment.arguments = extras
-    return fragment
-  }
+        tab_layout.tabGravity =
+            TabLayout.GRAVITY_FILL
 
-  override fun getRequestBodyFragment(): Fragment {
-    val fragment = HttpCallFragment()
-    val extras = intent.extras
-    extras!!.putInt(HTTP_CALL_MODE, REQUEST_MODE)
-    fragment.arguments = extras
-    return fragment
-  }
+        val adapter =
+            HttpCallPagerAdapter(
+                supportFragmentManager
+            )
 
-  override fun getHeadersFragment(): Fragment {
-    val fragment = HttpHeadersFragment()
-    fragment.arguments = intent.extras
-    return fragment
-  }
+        pager?.adapter =
+            adapter
 
-  override fun getExceptionFragment(): Fragment {
-    val fragment = HttpCallFragment()
-    val extras = intent.extras
-    extras!!.putInt(HTTP_CALL_MODE, ERROR_MODE)
-    fragment.arguments = extras
-    return fragment
-  }
+        pager?.addOnPageChangeListener(
+            TabLayout.TabLayoutOnPageChangeListener(
+                tab_layout
+            )
+        )
 
-  private inner class HttpCallPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
-    override fun getItem(position: Int): Fragment {
-      return httpCallRenderer!!.getFragment(position)
+        tab_layout.addOnTabSelectedListener(
+            object : TabLayout.OnTabSelectedListener {
+
+                override fun onTabSelected(
+                    tab: Tab
+                ) {
+
+                    pager?.currentItem =
+                        tab.position
+                }
+
+                override fun onTabUnselected(
+                    tab: Tab
+                ) {
+                }
+
+                override fun onTabReselected(
+                    tab: Tab
+                ) {
+                }
+            }
+        )
     }
 
-    override fun getCount(): Int {
-      return httpCallRenderer!!.getTabs().size
-    }
-  }
+    override fun onCreateOptionsMenu(
+        menu: Menu
+    ): Boolean {
 
-  companion object {
-    const val HTTP_CALL_ID = "HTTP_CALL_ID"
-    const val HTTP_CALL_MODE = "HTTP_CALL_MODE"
-    const val REQUEST_MODE = 1
-    const val RESPONSE_MODE = 2
-    const val ERROR_MODE = 3
-    const val WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 1
-    private const val LOGFILE_MIME_TYPE = "*/*"
-  }
+        menuInflater.inflate(
+            R.menu.http_call_menu,
+            menu
+        )
+
+        return true
+    }
+
+    override fun onOptionsItemSelected(
+        item: MenuItem
+    ): Boolean {
+
+        when (item.itemId) {
+
+            R.id.copy_menu -> {
+
+                val renderer =
+                    httpCallRenderer
+                        ?: return true
+
+                val currentTab =
+                    renderer.getTabs()[
+                        pager?.currentItem ?: 0
+                    ]
+
+                httpCallPresenter
+                    ?.copyHttpCallBody(currentTab)
+
+                return true
+            }
+
+            R.id.share_menu -> {
+
+                shareHttpCallData()
+
+                return true
+            }
+        }
+
+        return super.onOptionsItemSelected(item)
+    }
+
+    override fun copyToClipboard(
+        data: String
+    ) {
+
+        val clipboard =
+            getSystemService(
+                Context.CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        val clip =
+            ClipData.newPlainText(
+                "Copied",
+                data
+            )
+
+        clipboard.setPrimaryClip(clip)
+    }
+
+    override fun shareData(
+        logFilePath: String
+    ) {
+
+        val file =
+            File(logFilePath)
+
+        val fileUri =
+            FileProvider.getUriForFile(
+                this,
+                "$packageName.snooper.provider",
+                file
+            )
+
+        val intent =
+            Intent(ACTION_SEND).apply {
+
+                setDataAndType(
+                    fileUri,
+                    LOGFILE_MIME_TYPE
+                )
+
+                putExtra(
+                    EXTRA_SUBJECT,
+                    getString(
+                        R.string.mail_subject_share_logs
+                    )
+                )
+
+                putExtra(
+                    EXTRA_STREAM,
+                    fileUri
+                )
+
+                addFlags(
+                    FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                getString(
+                    R.string.chooser_title_share_logs
+                )
+            )
+        )
+    }
+
+    override fun showMessageShareNotAvailable() {
+
+        Toast.makeText(
+            this,
+            R.string.permission_not_granted,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun shareHttpCallData() {
+
+        appPermissionChecker.handlePermission(
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            WRITE_EXTERNAL_STORAGE_REQUEST_CODE,
+            object : AppPermissionChecker.PermissionRequestCallBack {
+
+                override fun permissionGranted() {
+
+                    httpCallPresenter
+                        ?.shareHttpCallBody()
+                }
+
+                override fun permissionDenied() {
+
+                    httpCallPresenter
+                        ?.onPermissionDenied()
+                }
+            }
+        )
+    }
+
+    override fun getResponseBodyFragment(): Fragment {
+
+        return HttpCallFragment().apply {
+
+            arguments =
+                Bundle(intent.extras ?: Bundle()).apply {
+
+                    putInt(
+                        HTTP_CALL_MODE,
+                        RESPONSE_MODE
+                    )
+                }
+        }
+    }
+
+    override fun getRequestBodyFragment(): Fragment {
+
+        return HttpCallFragment().apply {
+
+            arguments =
+                Bundle(intent.extras ?: Bundle()).apply {
+
+                    putInt(
+                        HTTP_CALL_MODE,
+                        REQUEST_MODE
+                    )
+                }
+        }
+    }
+
+    override fun getHeadersFragment(): Fragment {
+
+        return HttpHeadersFragment().apply {
+
+            arguments =
+                Bundle(intent.extras ?: Bundle())
+        }
+    }
+
+    override fun getExceptionFragment(): Fragment {
+
+        return HttpCallFragment().apply {
+
+            arguments =
+                Bundle(intent.extras ?: Bundle()).apply {
+
+                    putInt(
+                        HTTP_CALL_MODE,
+                        ERROR_MODE
+                    )
+                }
+        }
+    }
+
+    private inner class HttpCallPagerAdapter(
+        fm: FragmentManager
+    ) : FragmentStatePagerAdapter(
+        fm,
+        BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT
+    ) {
+
+        override fun getItem(
+            position: Int
+        ): Fragment {
+
+            return httpCallRenderer
+                ?.getFragment(position)
+                ?: Fragment()
+        }
+
+        override fun getCount(): Int {
+
+            return httpCallRenderer
+                ?.getTabs()
+                ?.size
+                ?: 0
+        }
+    }
+
+    companion object {
+
+        const val HTTP_CALL_ID =
+            "HTTP_CALL_ID"
+
+        const val HTTP_CALL_MODE =
+            "HTTP_CALL_MODE"
+
+        const val REQUEST_MODE =
+            1
+
+        const val RESPONSE_MODE =
+            2
+
+        const val ERROR_MODE =
+            3
+
+        const val WRITE_EXTERNAL_STORAGE_REQUEST_CODE =
+            1
+
+        private const val LOGFILE_MIME_TYPE =
+            "*/*"
+    }
 }
