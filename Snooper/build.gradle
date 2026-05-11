@@ -1,84 +1,159 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+
 apply from: '../jacoco.gradle'
 apply from: '../Publish.gradle'
 
 android {
+
     compileSdkVersion rootProject.ext.compileSdkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
+
+    buildFeatures {
+        viewBinding true
+    }
+
     group "com.github.jainsahab"
     version snooperVersion
 
     defaultConfig {
+
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+
         versionCode 1
         versionName snooperVersion
-        testInstrumentationRunner "com.prateekj.snooper.SnooperInstrumentationRunner"
+
+        testInstrumentationRunner(
+                "com.prateekj.snooper.SnooperInstrumentationRunner"
+        )
+
         multiDexEnabled true
+
+        consumerProguardFiles(
+                'consumer-rules.pro'
+        )
     }
+
     buildTypes {
+
         release {
+
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-        debug {
-            testCoverageEnabled true
+
+            proguardFiles(
+                    getDefaultProguardFile(
+                            'proguard-android-optimize.txt'
+                    ),
+                    'proguard-rules.pro'
+            )
         }
 
+        debug {
+
+            testCoverageEnabled true
+        }
     }
 
     sourceSets {
-        String sharedTestDir = 'src/sharedTestDataHelpers/java'
-        String sharedTestAssetDir = 'src/sharedTestDataHelpers/assets'
+
+        String sharedTestDir =
+                'src/sharedTestDataHelpers/java'
+
+        String sharedTestAssetDir =
+                'src/sharedTestDataHelpers/assets'
+
         test {
-            java.srcDir sharedTestDir
-            assets.srcDir sharedTestAssetDir
+
+            java.srcDir(sharedTestDir)
+
+            assets.srcDir(sharedTestAssetDir)
         }
+
         androidTest {
-            java.srcDir sharedTestDir
-            assets.srcDir sharedTestAssetDir
+
+            java.srcDir(sharedTestDir)
+
+            assets.srcDir(sharedTestAssetDir)
         }
     }
 
     testOptions {
+
         unitTests.all {
+
             jacoco {
+
                 includeNoLocationClasses = true
+
                 excludes = ['jdk.internal.*']
             }
         }
     }
 
+    compileOptions {
+
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+
+        jvmTarget = '1.8'
+    }
+
     packagingOptions {
-        exclude 'META-INF/notice.txt'
-        exclude 'META-INF/license.txt'
-        exclude 'META-INF/LICENSE.txt'
-        exclude 'META-INF/NOTICE.txt'
-        exclude 'META-INF/ASL2.0'
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/NOTICE'
-        exclude 'LICENSE.txt'
+
+        resources {
+
+            excludes += [
+
+                    'META-INF/notice.txt',
+                    'META-INF/license.txt',
+                    'META-INF/LICENSE.txt',
+                    'META-INF/NOTICE.txt',
+                    'META-INF/ASL2.0',
+                    'META-INF/LICENSE',
+                    'META-INF/NOTICE',
+                    'LICENSE.txt'
+            ]
+        }
     }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'com.google.android.material:material:1.2.1'
-    implementation 'androidx.appcompat:appcompat:1.2.0'
-    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
-    implementation 'androidx.recyclerview:recyclerview:1.1.0'
+
+    implementation fileTree(
+            dir: 'libs',
+            include: ['*.jar']
+    )
+
+    implementation 'com.google.android.material:material:1.12.0'
+
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+
     implementation 'androidx.cardview:cardview:1.0.0'
-    implementation "androidx.core:core-ktx:1.3.2"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    testImplementation 'junit:junit:4.12'
-    testImplementation "io.mockk:mockk:1.9.3"
-    androidTestImplementation 'androidx.test:runner:1.1.0'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
-    androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.1.0'
-    androidTestImplementation 'androidx.test.espresso:espresso-intents:3.1.0'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+
+    implementation "androidx.core:core-ktx:1.13.1"
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    testImplementation 'junit:junit:4.13.2'
+
+    testImplementation "io.mockk:mockk:1.13.11"
+
+    androidTestImplementation 'androidx.test:runner:1.6.1'
+
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+
+    androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.6.1'
+
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:3.6.1'
+
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
 }
 
 apply from: '../maven-push.gradle'
