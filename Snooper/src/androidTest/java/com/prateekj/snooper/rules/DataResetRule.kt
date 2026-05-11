@@ -11,7 +11,8 @@ import org.junit.runners.model.Statement
 
 class DataResetRule : TestRule {
 
-    private val snooperDbHelper: SnooperDbHelper =
+    private val snooperDbHelper:
+            SnooperDbHelper =
         SnooperDbHelper.getInstance(
             InstrumentationRegistry
                 .getInstrumentation()
@@ -45,16 +46,29 @@ class DataResetRule : TestRule {
                             HTTP_CALL_RECORD_TABLE_NAME
                         )
 
-                    for (table in tablesToDelete) {
+                    database.beginTransaction()
 
-                        database.delete(
-                            table,
-                            null,
-                            null
-                        )
+                    try {
+
+                        for (table in tablesToDelete) {
+
+                            database.delete(
+                                table,
+                                null,
+                                null
+                            )
+                        }
+
+                        database.setTransactionSuccessful()
+
+                    } finally {
+
+                        database.endTransaction()
+
+                        if (database.isOpen) {
+                            database.close()
+                        }
                     }
-
-                    database.close()
                 }
             }
         }
