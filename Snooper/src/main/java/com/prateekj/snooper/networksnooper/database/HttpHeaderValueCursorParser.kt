@@ -13,20 +13,24 @@ class HttpHeaderValueCursorParser :
         cursor: Cursor
     ): HttpHeaderValue {
 
+        val idIndex =
+            cursor.getColumnIndexOrThrow(
+                _ID
+            )
+
+        val valueIndex =
+            cursor.getColumnIndexOrThrow(
+                COLUMN_HEADER_VALUE
+            )
+
         return HttpHeaderValue().apply {
 
             setId(
-                cursor.getInt(
-                    cursor.getColumnIndexOrThrow(_ID)
-                )
+                cursor.getInt(idIndex)
             )
 
             value =
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        COLUMN_HEADER_VALUE
-                    )
-                )
+                cursor.getString(valueIndex)
         }
     }
 }
