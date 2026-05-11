@@ -6,89 +6,225 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThat
 import org.junit.Before
 import org.junit.Test
-import java.util.Arrays
 
 class HttpCallRecordTest {
-  private var httpCallRecord: HttpCallRecord? = null
 
-  @Before
-  @Throws(Exception::class)
-  fun setUp() {
-    val url = "https://ajax.googleapis.com/ajax/services/search/web?v=1.0"
-    val responseBody = "responseBody"
-    val requestBody = "requestBody"
-    httpCallRecord = HttpCallRecord.from(
-      HttpCall.Builder()
-        .withUrl(url)
-        .withMethod("POST")
-        .withPayload(requestBody)
-        .withResponseBody(responseBody)
-        .withStatusCode(200)
-        .withStatusText("OK")
-        .withRequestHeaders(getRequestHeaders())
-        .withResponseHeaders(getResponseHeaders())
-        .build()
-    )
-    assertNotNull(httpCallRecord!!.date)
-  }
+    private lateinit var httpCallRecord:
+            HttpCallRecord
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnRequestHeaderByGivenName() {
-    val requestHeader = httpCallRecord!!.getRequestHeader("User-Agent")
-    assertThat(requestHeader!!.values[0].value, `is`("Android Browser"))
-  }
+    @Before
+    fun setUp() {
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnRequestHeaderByGivenNameByIgnoringCase() {
-    val requestHeader = httpCallRecord!!.getRequestHeader("USER-AGENT")
-    assertThat(requestHeader!!.values[0].value, `is`("Android Browser"))
-  }
+        val url =
+            "https://ajax.googleapis.com/ajax/services/search/web?v=1.0"
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnNullWhenHeaderByGivenNameNotFound() {
-    val requestHeader = httpCallRecord!!.getRequestHeader("Invalid Name")
-    assertNull(requestHeader)
-  }
+        val responseBody =
+            "responseBody"
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnResponseHeaderByGivenName() {
-    val responseHeader = httpCallRecord!!.getResponseHeader("date")
-    assertThat(responseHeader!!.values[0].value, `is`("Thu, 02 Mar 2017 13:03:11 GMT"))
-  }
+        val requestBody =
+            "requestBody"
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnResponseHeaderByGivenNameByIgnoringCase() {
-    val responseHeader = httpCallRecord!!.getResponseHeader("DATE")
-    assertThat(responseHeader!!.values[0].value, `is`("Thu, 02 Mar 2017 13:03:11 GMT"))
-  }
+        httpCallRecord =
+            HttpCallRecord.from(
+                HttpCall.Builder()
+                    .withUrl(url)
+                    .withMethod("POST")
+                    .withPayload(requestBody)
+                    .withResponseBody(responseBody)
+                    .withStatusCode(200)
+                    .withStatusText("OK")
+                    .withRequestHeaders(
+                        getRequestHeaders()
+                    )
+                    .withResponseHeaders(
+                        getResponseHeaders()
+                    )
+                    .build()
+            )
 
-  @Test
-  @Throws(Exception::class)
-  fun shouldReturnNullWhenResponseHeaderByGivenNameNotFound() {
-    val responseHeader = httpCallRecord!!.getResponseHeader("Invalid Name")
-    assertNull(responseHeader)
-  }
+        assertNotNull(
+            httpCallRecord.date
+        )
+    }
 
-  private fun getResponseHeaders(): Map<String, List<String>> {
-    val xssProtectionHeader = listOf("1", "mode=block")
-    val dateHeader = listOf("Thu, 02 Mar 2017 13:03:11 GMT")
-    return mapOf(
-      "x-xss-protection" to xssProtectionHeader,
-      "date" to dateHeader
-    )
-  }
+    @Test
+    fun shouldReturnRequestHeaderByGivenName() {
 
-  private fun getRequestHeaders(): Map<String, List<String>> {
-    val cacheControlHeader = Arrays.asList("public", "max-age=86400", "no-transform")
-    val userAgentHeader = listOf("Android Browser")
-    return mapOf(
-      "User-Agent" to userAgentHeader,
-      "cache-control" to cacheControlHeader
-    )
-  }
+        val requestHeader =
+            httpCallRecord.getRequestHeader(
+                "User-Agent"
+            )
+
+        assertNotNull(
+            requestHeader
+        )
+
+        assertThat(
+            requestHeader!!
+                .values[0]
+                .value,
+            `is`("Android Browser")
+        )
+    }
+
+    @Test
+    fun shouldReturnRequestHeaderByGivenNameByIgnoringCase() {
+
+        val requestHeader =
+            httpCallRecord.getRequestHeader(
+                "USER-AGENT"
+            )
+
+        assertNotNull(
+            requestHeader
+        )
+
+        assertThat(
+            requestHeader!!
+                .values[0]
+                .value,
+            `is`("Android Browser")
+        )
+    }
+
+    @Test
+    fun shouldReturnNullWhenHeaderByGivenNameNotFound() {
+
+        val requestHeader =
+            httpCallRecord.getRequestHeader(
+                "Invalid Name"
+            )
+
+        assertNull(
+            requestHeader
+        )
+    }
+
+    @Test
+    fun shouldReturnResponseHeaderByGivenName() {
+
+        val responseHeader =
+            httpCallRecord.getResponseHeader(
+                "date"
+            )
+
+        assertNotNull(
+            responseHeader
+        )
+
+        assertThat(
+            responseHeader!!
+                .values[0]
+                .value,
+            `is`(
+                "Thu, 02 Mar 2017 13:03:11 GMT"
+            )
+        )
+    }
+
+    @Test
+    fun shouldReturnResponseHeaderByGivenNameByIgnoringCase() {
+
+        val responseHeader =
+            httpCallRecord.getResponseHeader(
+                "DATE"
+            )
+
+        assertNotNull(
+            responseHeader
+        )
+
+        assertThat(
+            responseHeader!!
+                .values[0]
+                .value,
+            `is`(
+                "Thu, 02 Mar 2017 13:03:11 GMT"
+            )
+        )
+    }
+
+    @Test
+    fun shouldReturnNullWhenResponseHeaderByGivenNameNotFound() {
+
+        val responseHeader =
+            httpCallRecord.getResponseHeader(
+                "Invalid Name"
+            )
+
+        assertNull(
+            responseHeader
+        )
+    }
+
+    @Test
+    fun shouldReturnFalseWhenErrorIsNull() {
+
+        httpCallRecord.error =
+            null
+
+        assertThat(
+            httpCallRecord.hasError(),
+            `is`(false)
+        )
+    }
+
+    @Test
+    fun shouldReturnTrueWhenErrorExists() {
+
+        httpCallRecord.error =
+            "Network Error"
+
+        assertThat(
+            httpCallRecord.hasError(),
+            `is`(true)
+        )
+    }
+
+    private fun getResponseHeaders():
+            Map<String, List<String>> {
+
+        val xssProtectionHeader =
+            listOf(
+                "1",
+                "mode=block"
+            )
+
+        val dateHeader =
+            listOf(
+                "Thu, 02 Mar 2017 13:03:11 GMT"
+            )
+
+        return mapOf(
+            "x-xss-protection" to
+                xssProtectionHeader,
+
+            "date" to
+                dateHeader
+        )
+    }
+
+    private fun getRequestHeaders():
+            Map<String, List<String>> {
+
+        val cacheControlHeader =
+            listOf(
+                "public",
+                "max-age=86400",
+                "no-transform"
+            )
+
+        val userAgentHeader =
+            listOf(
+                "Android Browser"
+            )
+
+        return mapOf(
+            "User-Agent" to
+                userAgentHeader,
+
+            "cache-control" to
+                cacheControlHeader
+        )
+    }
 }
