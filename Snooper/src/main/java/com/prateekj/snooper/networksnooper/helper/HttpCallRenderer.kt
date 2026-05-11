@@ -15,10 +15,10 @@ class HttpCallRenderer(
             Boolean
 ) {
 
-    fun getTabs():
-            List<HttpCallTab> {
+    private val tabs:
+            List<HttpCallTab> by lazy {
 
-        return if (hasError) {
+        if (hasError) {
 
             listOf(
                 ERROR,
@@ -36,35 +36,47 @@ class HttpCallRenderer(
         }
     }
 
+    fun getTabs():
+            List<HttpCallTab> {
+
+        return tabs
+    }
+
     fun getFragment(
         position: Int
     ): Fragment {
 
-        return when {
+        return when (
+            tabs.getOrNull(position)
+        ) {
 
-            hasError &&
-            position == 0 -> {
+            ERROR -> {
 
                 httpCallView
                     .getExceptionFragment()
             }
 
-            position == 0 -> {
+            RESPONSE -> {
 
                 httpCallView
                     .getResponseBodyFragment()
             }
 
-            position == 1 -> {
+            REQUEST -> {
 
                 httpCallView
                     .getRequestBodyFragment()
             }
 
-            else -> {
+            HEADERS -> {
 
                 httpCallView
                     .getHeadersFragment()
+            }
+
+            null -> {
+
+                Fragment()
             }
         }
     }
