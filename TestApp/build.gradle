@@ -3,9 +3,12 @@ apply plugin: 'kotlin-android'
 
 android {
 
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    namespace "com.github.jainsahab"
+
+    compileSdk rootProject.ext.compileSdkVersion
 
     buildFeatures {
+
         viewBinding true
     }
 
@@ -13,16 +16,19 @@ android {
 
         applicationId "com.github.jainsahab"
 
-        minSdkVersion 16
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdk 16
+
+        targetSdk rootProject.ext.targetSdkVersion
 
         versionCode 1
+
         versionName "1.0"
 
         multiDexEnabled true
 
-        testInstrumentationRunner
+        testInstrumentationRunner(
                 "androidx.test.runner.AndroidJUnitRunner"
+        )
     }
 
     buildTypes {
@@ -43,11 +49,31 @@ android {
     compileOptions {
 
         sourceCompatibility JavaVersion.VERSION_1_8
+
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
+
         jvmTarget = '1.8'
+    }
+
+    packaging {
+
+        resources {
+
+            excludes += [
+
+                    'META-INF/notice.txt',
+                    'META-INF/license.txt',
+                    'META-INF/LICENSE.txt',
+                    'META-INF/NOTICE.txt',
+                    'META-INF/ASL2.0',
+                    'META-INF/LICENSE',
+                    'META-INF/NOTICE',
+                    'LICENSE.txt'
+            ]
+        }
     }
 }
 
@@ -58,26 +84,27 @@ dependencies {
             include: ['*.jar']
     )
 
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
 
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.google.android.material:material:1.12.0'
 
-    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.core:core-ktx:1.13.1'
 
     implementation 'androidx.multidex:multidex:2.0.1'
 
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
     implementation project(path: ':Snooper-Okhttp')
+
     implementation project(path: ':Snooper')
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     testImplementation 'junit:junit:4.13.2'
 
-    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:runner:1.6.1'
 
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
