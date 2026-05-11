@@ -39,6 +39,7 @@ class HttpCallListActivity :
     private lateinit var repo:
             SnooperRepo
 
+    @Volatile
     private var allPagesLoaded =
         false
 
@@ -80,21 +81,28 @@ class HttpCallListActivity :
 
     private fun setupRecyclerView() {
 
-        binding.list.layoutManager =
-            LinearLayoutManager(this)
+        binding.list.apply {
 
-        binding.list.itemAnimator =
-            DefaultItemAnimator()
+            layoutManager =
+                LinearLayoutManager(
+                    this@HttpCallListActivity
+                )
 
-        binding.list.addItemDecoration(
-            DividerItemDecoration(
-                this,
-                DividerItemDecoration.VERTICAL,
-                R.drawable.grey_divider
+            itemAnimator =
+                DefaultItemAnimator()
+
+            addItemDecoration(
+                DividerItemDecoration(
+                    this@HttpCallListActivity,
+                    DividerItemDecoration.VERTICAL,
+                    R.drawable.grey_divider
+                )
             )
-        )
 
-        binding.list.setNextPageListener(this)
+            setNextPageListener(
+                this@HttpCallListActivity
+            )
+        }
     }
 
     override fun onCreateOptionsMenu(
@@ -141,6 +149,7 @@ class HttpCallListActivity :
             }
 
             else -> {
+
                 super.onOptionsItemSelected(item)
             }
         }
@@ -235,15 +244,41 @@ class HttpCallListActivity :
             freshData
         )
 
-        httpCallListAdapter.notifyDataSetChanged()
+        binding.list.post {
+
+            httpCallListAdapter.notifyDataSetChanged()
+        }
 
         allPagesLoaded =
             freshData.size < PAGE_SIZE
+
+        noCallsFound =
+            freshData.isEmpty()
+
+        invalidateOptionsMenu()
+
+        if (freshData.isEmpty()) {
+
+            renderNoCallsFoundView()
+
+        } else {
+
+            binding.httpCallListContainer.visibility =
+                VISIBLE
+
+            binding.noCallsFoundContainer.visibility =
+                GONE
+        }
     }
 
     override fun initHttpCallRecordList(
         httpCallRecords: List<HttpCallRecord>
     ) {
+
+        noCallsFound =
+            httpCallRecords.isEmpty()
+
+        invalidateOptionsMenu()
 
         httpCallListAdapter =
             HttpCallListAdapter(
@@ -299,7 +334,10 @@ class HttpCallListActivity :
 
     override fun requestNextPage() {
 
-        presenter.onNextPageCall()
+        if (!allPagesLoaded) {
+
+            presenter.onNextPageCall()
+        }
     }
 
     override fun areAllPagesLoaded():
