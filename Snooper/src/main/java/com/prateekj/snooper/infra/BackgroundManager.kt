@@ -13,6 +13,7 @@ class BackgroundManager private constructor(
     application: Application
 ) : ActivityLifecycleCallbacks {
 
+    @Volatile
     private var isInBackground =
         true
 
@@ -20,7 +21,9 @@ class BackgroundManager private constructor(
         CopyOnWriteArrayList<Listener>()
 
     private val backgroundDelayHandler =
-        Handler(Looper.getMainLooper())
+        Handler(
+            Looper.getMainLooper()
+        )
 
     private var backgroundTransition:
             Runnable? = null
@@ -43,7 +46,9 @@ class BackgroundManager private constructor(
         listener: Listener
     ) {
 
-        if (!listeners.contains(listener)) {
+        if (
+            !listeners.contains(listener)
+        ) {
 
             listeners.add(listener)
         }
@@ -62,7 +67,8 @@ class BackgroundManager private constructor(
 
         backgroundTransition?.let {
 
-            backgroundDelayHandler.removeCallbacks(it)
+            backgroundDelayHandler
+                .removeCallbacks(it)
 
             backgroundTransition = null
         }
@@ -78,6 +84,39 @@ class BackgroundManager private constructor(
                 "Application went to foreground"
             )
         }
+    }
+
+    override fun onActivityPaused(
+        activity: Activity
+    ) {
+
+        if (
+            isInBackground ||
+            backgroundTransition != null
+        ) {
+
+            return
+        }
+
+        backgroundTransition =
+            Runnable {
+
+                isInBackground = true
+
+                backgroundTransition = null
+
+                notifyOnBecameBackground()
+
+                Logger.d(
+                    TAG,
+                    "Application went to background"
+                )
+            }
+
+        backgroundDelayHandler.postDelayed(
+            backgroundTransition!!,
+            BACKGROUND_DELAY
+        )
     }
 
     private fun notifyOnBecameForeground() {
@@ -96,37 +135,6 @@ class BackgroundManager private constructor(
                     e
                 )
             }
-        }
-    }
-
-    override fun onActivityPaused(
-        activity: Activity
-    ) {
-
-        if (
-            !isInBackground &&
-            backgroundTransition == null
-        ) {
-
-            backgroundTransition =
-                Runnable {
-
-                    isInBackground = true
-
-                    backgroundTransition = null
-
-                    notifyOnBecameBackground()
-
-                    Logger.d(
-                        TAG,
-                        "Application went to background"
-                    )
-                }
-
-            backgroundDelayHandler.postDelayed(
-                backgroundTransition!!,
-                BACKGROUND_DELAY
-            )
         }
     }
 
