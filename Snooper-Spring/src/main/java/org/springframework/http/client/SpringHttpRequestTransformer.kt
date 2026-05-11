@@ -36,6 +36,24 @@ class SpringHttpRequestTransformer {
             ""
         }
 
+        val statusCode = try {
+
+            httpResponse.statusCode.value()
+
+        } catch (_: Throwable) {
+
+            -1
+        }
+
+        val statusText = try {
+
+            httpResponse.statusCode.reasonPhrase
+
+        } catch (_: Throwable) {
+
+            ""
+        }
+
         return HttpCall.Builder()
 
             .withUrl(
@@ -55,11 +73,11 @@ class SpringHttpRequestTransformer {
             )
 
             .withStatusCode(
-                httpResponse.rawStatusCode
+                statusCode
             )
 
             .withStatusText(
-                httpResponse.statusCode.reasonPhrase
+                statusText
             )
 
             .withRequestHeaders(
