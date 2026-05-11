@@ -24,18 +24,19 @@ class TableDetailActivityTest {
     @Throws(Exception::class)
     fun shouldRenderDataOfTable() {
 
-        val intent = Intent().apply {
+        val intent =
+            Intent().apply {
 
-            putExtra(
-                DatabaseDetailActivity.TABLE_NAME,
-                "person"
-            )
+                putExtra(
+                    DatabaseDetailActivity.TABLE_NAME,
+                    "person"
+                )
 
-            putExtra(
-                DatabaseDetailActivity.DB_PATH,
-                "${testDbRule.dbDirectory}/test.db"
-            )
-        }
+                putExtra(
+                    DatabaseDetailActivity.DB_PATH,
+                    "${testDbRule.dbDirectory}/test.db"
+                )
+            }
 
         ActivityScenario.launch<TableDetailActivity>(
             intent
