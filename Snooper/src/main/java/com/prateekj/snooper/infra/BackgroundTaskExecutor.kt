@@ -1,7 +1,9 @@
 package com.prateekj.snooper.infra
 
 import android.app.Activity
+import android.os.Build
 import java.lang.ref.WeakReference
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class BackgroundTaskExecutor(
@@ -11,7 +13,8 @@ class BackgroundTaskExecutor(
     private val activityRef =
         WeakReference(activity)
 
-    private val executor =
+    private val executor:
+            ExecutorService =
         Executors.newCachedThreadPool()
 
     fun <E> execute(
@@ -39,9 +42,22 @@ class BackgroundTaskExecutor(
             activityRef.get()
                 ?: return
 
+        val isDestroyed =
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.JELLY_BEAN_MR1
+            ) {
+
+                activity.isDestroyed
+
+            } else {
+
+                false
+            }
+
         if (
             activity.isFinishing ||
-            activity.isDestroyed
+            isDestroyed
         ) {
 
             return
@@ -49,7 +65,9 @@ class BackgroundTaskExecutor(
 
         activity.runOnUiThread {
 
-            backgroundTask.onResult(result)
+            backgroundTask.onResult(
+                result
+            )
         }
     }
 }
