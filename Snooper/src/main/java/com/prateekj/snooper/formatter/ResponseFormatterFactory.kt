@@ -5,17 +5,23 @@ import java.util.Locale
 class ResponseFormatterFactory {
 
     fun getFor(
-        data: String
+        data: String?
     ): ResponseFormatter {
+
+        val normalizedData =
+            data
+                ?.trim()
+                ?.lowercase(Locale.US)
+                ?: ""
 
         return when {
 
-            isXmlType(data) -> {
+            isXmlType(normalizedData) -> {
 
                 XmlFormatter()
             }
 
-            isJsonType(data) -> {
+            isJsonType(normalizedData) -> {
 
                 JsonResponseFormatter()
             }
@@ -31,17 +37,13 @@ class ResponseFormatterFactory {
         data: String
     ): Boolean {
 
-        return data.lowercase(
-            Locale.US
-        ).contains("xml")
+        return data.contains("xml")
     }
 
     private fun isJsonType(
         data: String
     ): Boolean {
 
-        return data.lowercase(
-            Locale.US
-        ).contains("json")
+        return data.contains("json")
     }
 }
