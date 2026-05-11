@@ -50,10 +50,6 @@ class SpringHttpRequestTransformerTest {
         } returns OK
 
         every {
-            httpResponse.rawStatusCode
-        } returns 200
-
-        every {
             httpResponse.headers
         } returns httpHeaders
 
@@ -82,11 +78,20 @@ class SpringHttpRequestTransformerTest {
                 httpResponse
             )
 
-        assertThat(httpCall.method, `is`("POST"))
+        assertThat(
+            httpCall.method,
+            `is`("POST")
+        )
 
-        assertThat(httpCall.payload, `is`(requestBody))
+        assertThat(
+            httpCall.payload,
+            `is`(requestBody)
+        )
 
-        assertThat(httpCall.url, `is`(url))
+        assertThat(
+            httpCall.url,
+            `is`(url)
+        )
 
         assertThat(
             httpCall.responseBody,
@@ -168,7 +173,10 @@ class SpringHttpRequestTransformerTest {
                 ioException
             )
 
-        assertThat(httpCall.method, `is`("POST"))
+        assertThat(
+            httpCall.method,
+            `is`("POST")
+        )
 
         assertThat(
             httpCall.payload,
