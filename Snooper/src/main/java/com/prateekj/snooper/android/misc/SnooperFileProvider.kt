@@ -1,3 +1,5 @@
 package com.prateekj.snooper.android.misc
 
-class SnooperFileProvider : androidx.core.content.FileProvider()
+import androidx.core.content.FileProvider
+
+class SnooperFileProvider : FileProvider()
