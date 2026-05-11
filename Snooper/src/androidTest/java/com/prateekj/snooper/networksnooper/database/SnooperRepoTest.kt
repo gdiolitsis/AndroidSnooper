@@ -26,7 +26,8 @@ class SnooperRepoTest {
     var rule =
         DataResetRule()
 
-    private lateinit var repo: SnooperRepo
+    private lateinit var repo:
+            SnooperRepo
 
     private fun getResponseHeaders():
             Map<String, List<String>> {
@@ -230,14 +231,17 @@ class SnooperRepoTest {
             HttpCall.Builder()
                 .withUrl("url1")
                 .build()
+                .copy(
+                    date = beforeDate
+                )
 
         val afterHttpCall =
             HttpCall.Builder()
                 .withUrl("url2")
                 .build()
-
-        beforeHttpCall.date = beforeDate
-        afterHttpCall.date = afterDate
+                .copy(
+                    date = afterDate
+                )
 
         repo.save(
             HttpCallRecord.from(beforeHttpCall)
@@ -336,17 +340,15 @@ class SnooperRepoTest {
                 HttpCall.Builder()
                     .withUrl("url$i")
                     .build()
-
-            val date =
-                Date(
-                    getDate(
-                        2016,
-                        5,
-                        23
-                    ).time + i * 1000
-                )
-
-            httpCall.date = date
+                    .copy(
+                        date = Date(
+                            getDate(
+                                2016,
+                                5,
+                                23
+                            ).time + i * 1000
+                        )
+                    )
 
             repo.save(
                 HttpCallRecord.from(httpCall)
