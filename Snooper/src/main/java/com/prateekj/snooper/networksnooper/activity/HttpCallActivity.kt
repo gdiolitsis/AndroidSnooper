@@ -94,18 +94,17 @@ class HttpCallActivity :
 
         val dataCopyHelper =
             DataCopyHelper(
-                this,
-                httpCall,
-                ResponseFormatterFactory(),
-                resources
-            )
+    httpCall,
+    ResponseFormatterFactory(),
+    resources
+)
 
         httpCallPresenter =
             HttpCallPresenter(
                 dataCopyHelper,
                 httpCall,
                 this,
-                FileUtil(),
+                FileUtil(this),
                 backgroundTaskExecutor
             )
 
