@@ -10,7 +10,7 @@ class AppPermissionChecker(
     private val activity: Activity
 ) {
 
-    private var permissionRequestCode: Int =
+    private var permissionRequestCode =
         0
 
     private var callBack:
@@ -29,33 +29,33 @@ class AppPermissionChecker(
             callBack
 
         if (
-            Build.VERSION.SDK_INT >=
+            Build.VERSION.SDK_INT <
             Build.VERSION_CODES.M
         ) {
 
-            val permissionGranted =
-                ContextCompat.checkSelfPermission(
-                    activity,
-                    permission
-                ) == PackageManager.PERMISSION_GRANTED
+            callBack.permissionGranted()
 
-            if (!permissionGranted) {
+            return
+        }
 
-                ActivityCompat.requestPermissions(
-                    activity,
-                    arrayOf(permission),
-                    permissionRequestCode
-                )
+        val permissionGranted =
+            ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) == PackageManager.PERMISSION_GRANTED
 
-            } else {
-
-                callBack.permissionGranted()
-            }
-
-        } else {
+        if (permissionGranted) {
 
             callBack.permissionGranted()
+
+            return
         }
+
+        ActivityCompat.requestPermissions(
+            activity,
+            arrayOf(permission),
+            permissionRequestCode
+        )
     }
 
     fun handlePermissionResult(
@@ -64,10 +64,17 @@ class AppPermissionChecker(
         grantResults: IntArray
     ) {
 
+        if (
+            requestCode != permissionRequestCode
+        ) {
+
+            return
+        }
+
         val granted =
-            requestCode == permissionRequestCode &&
-                grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            grantResults.isNotEmpty() &&
+                    grantResults[0] ==
+                    PackageManager.PERMISSION_GRANTED
 
         if (granted) {
 
