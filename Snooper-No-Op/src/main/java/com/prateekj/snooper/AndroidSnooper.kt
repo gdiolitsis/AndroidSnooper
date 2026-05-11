@@ -1,33 +1,46 @@
 package com.prateekj.snooper
 
 import android.app.Application
-
 import com.prateekj.snooper.networksnooper.model.HttpCall
-
 import java.io.IOException
 
-class AndroidSnooper private constructor() {
+class AndroidSnooper private constructor(
+    private val application: Application
+) {
 
-  @Throws(IOException::class)
-  fun record(httpCall: HttpCall) {
-  }
+    @Throws(IOException::class)
+    fun record(httpCall: HttpCall) {
 
-  companion object {
-    @Volatile
-    private var INSTANCE: AndroidSnooper? = null
-
-    fun init(application: Application): AndroidSnooper {
-      return INSTANCE ?: AndroidSnooper().also {
-        INSTANCE = it
-      }
+        // future persistence / inspector hook
     }
 
-    val instance: AndroidSnooper
-      get() {
-        if (INSTANCE == null) {
-          throw RuntimeException("Android Snooper is not initialized yet")
+    companion object {
+
+        @Volatile
+        private var INSTANCE: AndroidSnooper? = null
+
+        fun init(
+            application: Application
+        ): AndroidSnooper {
+
+            return INSTANCE ?: synchronized(this) {
+
+                INSTANCE ?: AndroidSnooper(
+                    application.applicationContext as Application
+                ).also {
+
+                    INSTANCE = it
+                }
+            }
         }
-        return INSTANCE!!
-      }
-  }
+
+        val instance: AndroidSnooper
+            get() {
+
+                return INSTANCE
+                    ?: throw IllegalStateException(
+                        "AndroidSnooper has not been initialized"
+                    )
+            }
+    }
 }
