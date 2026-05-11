@@ -4,9 +4,11 @@ import android.app.Application
 import android.content.Context
 import androidx.test.runner.AndroidJUnitRunner
 
-class SnooperInstrumentationRunner : AndroidJUnitRunner() {
+class SnooperInstrumentationRunner :
+    AndroidJUnitRunner() {
 
-    lateinit var application: Application
+    lateinit var application:
+            Application
 
     @Throws(
         InstantiationException::class,
@@ -31,6 +33,8 @@ class SnooperInstrumentationRunner : AndroidJUnitRunner() {
     ) {
 
         application = app
+
+        AndroidSnooper.init(app)
 
         super.callApplicationOnCreate(app)
     }
