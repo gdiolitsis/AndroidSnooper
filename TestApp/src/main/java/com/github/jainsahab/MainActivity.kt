@@ -182,46 +182,81 @@ class MainActivity : AppCompatActivity() {
 
         binding.contentMain.openBrowser.setOnClickListener {
 
+            val enteredUrl =
+                binding.contentMain.urlInput
+                    .text
+                    .toString()
+                    .trim()
+
+            val finalUrl =
+                if (enteredUrl.isEmpty()) {
+
+                    "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+
+                } else {
+
+                    enteredUrl
+                }
+
             val request =
-    Request.Builder()
-        .url(
-            "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-        )
-        .build()
+                Request.Builder()
+                    .url(finalUrl)
+                    .build()
 
-okHttpClient
-    .newCall(request)
-    .enqueue(object : Callback {
+            okHttpClient
+                .newCall(request)
+                .enqueue(object : Callback {
 
-        override fun onFailure(
-            call: Call,
-            e: IOException
-        ) {
+                    override fun onFailure(
+                        call: Call,
+                        e: IOException
+                    ) {
 
-            Log.e(
-                "WEBVIEW_PROXY",
-                "error",
-                e
-            )
-        }
+                        Log.e(
+                            "WEBVIEW_PROXY",
+                            "error",
+                            e
+                        )
 
-        override fun onResponse(
-            call: Call,
-            response: Response
-        ) {
+                        runOnUiThread {
 
-            val text =
-                response.body?.string().orEmpty()
+                            binding.contentMain.result.text =
+                                "ERROR:\n${e.message}"
+                        }
+                    }
 
-            runOnUiThread {
+                    override fun onResponse(
+                        call: Call,
+                        response: Response
+                    ) {
 
-                binding.contentMain.result.text =
-                    text
-            }
+                        try {
 
-            response.close()
-        }
-    })
+                            val text =
+                                response.body
+                                    ?.string()
+                                    .orEmpty()
+
+                            runOnUiThread {
+
+                                binding.contentMain.result.text =
+                                    text
+                            }
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "WEBVIEW_PROXY",
+                                "parse error",
+                                t
+                            )
+
+                        } finally {
+
+                            response.close()
+                        }
+                    }
+                })
         }
     }
 
