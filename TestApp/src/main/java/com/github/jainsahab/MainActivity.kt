@@ -202,91 +202,6 @@ binding.contentMain.webview.settings.apply {
                     )
                 }
 
-// =====================================
-// HANDLE SHARE / OPEN WITH
-// =====================================
-
-private fun handleIncomingIntent() {
-
-    try {
-
-        val action =
-            intent?.action
-
-        val type =
-            intent?.type
-
-        // =====================================
-        // SHARE TEXT
-        // =====================================
-
-        if (
-            Intent.ACTION_SEND == action &&
-            type != null
-        ) {
-
-            val sharedText =
-                intent.getStringExtra(
-                    Intent.EXTRA_TEXT
-                )
-
-            if (
-                !sharedText.isNullOrBlank()
-            ) {
-
-                binding.contentMain.urlInput
-                    .setText(sharedText)
-
-                binding.contentMain.webview
-                    .loadUrl(sharedText)
-
-                Log.e(
-                    "SHARE_IMPORT",
-                    sharedText
-                )
-
-                return
-            }
-        }
-
-        // =====================================
-        // OPEN WITH
-        // =====================================
-
-        if (
-            Intent.ACTION_VIEW == action
-        ) {
-
-            val data =
-                intent?.dataString
-
-            if (
-                !data.isNullOrBlank()
-            ) {
-
-                binding.contentMain.urlInput
-                    .setText(data)
-
-                binding.contentMain.webview
-                    .loadUrl(data)
-
-                Log.e(
-                    "VIEW_IMPORT",
-                    data
-                )
-            }
-        }
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "INTENT_HANDLER",
-            "failed",
-            t
-        )
-    }
-}
-
                 override fun onPageFinished(
                     view: WebView?,
                     url: String?
@@ -556,6 +471,92 @@ binding.contentMain.openChrome.setOnClickListener {
             }
         }
     }
+
+    // =====================================
+// HANDLE SHARE / OPEN WITH
+// =====================================
+
+private fun handleIncomingIntent() {
+
+    try {
+
+        val action =
+            intent?.action
+
+        val type =
+            intent?.type
+
+        // =====================================
+        // SHARE TEXT
+        // =====================================
+
+        if (
+            Intent.ACTION_SEND == action &&
+            type != null
+        ) {
+
+            val sharedText =
+                intent.getStringExtra(
+                    Intent.EXTRA_TEXT
+                )
+
+            if (
+                !sharedText.isNullOrBlank()
+            ) {
+
+                binding.contentMain.urlInput
+                    .setText(sharedText)
+
+                binding.contentMain.webview
+                    .loadUrl(sharedText)
+
+                Log.e(
+                    "SHARE_IMPORT",
+                    sharedText
+                )
+
+                return
+            }
+        }
+
+        // =====================================
+        // OPEN WITH
+        // =====================================
+
+        if (
+            Intent.ACTION_VIEW == action
+        ) {
+
+            val data =
+                intent?.dataString
+
+            if (
+                !data.isNullOrBlank()
+            ) {
+
+                binding.contentMain.urlInput
+                    .setText(data)
+
+                binding.contentMain.webview
+                    .loadUrl(data)
+
+                Log.e(
+                    "VIEW_IMPORT",
+                    data
+                )
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "INTENT_HANDLER",
+            "failed",
+            t
+        )
+    }
+}
+
 
     // =====================================
     // DETECT + SAVE URL
