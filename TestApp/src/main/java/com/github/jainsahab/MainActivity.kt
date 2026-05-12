@@ -31,6 +31,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding:
             ActivityMainBinding
 
+    // =====================================
+    // UNIQUE URL CACHE
+    // =====================================
+
+    private val detectedStreams =
+        linkedSetOf<String>()
+
     private val requestBody: JSONObject
         get() {
 
@@ -148,12 +155,20 @@ class MainActivity : AppCompatActivity() {
                         url
                     )
 
-                    if (
+                    val isStream =
                         url.contains(".m3u8") ||
                         url.contains(".mpd") ||
+                        url.contains(".m4s") ||
+                        url.contains(".ts") ||
                         url.contains("playlist") ||
                         url.contains("chunklist")
+
+                    if (
+                        isStream &&
+                        !detectedStreams.contains(url)
                     ) {
+
+                        detectedStreams.add(url)
 
                         runOnUiThread {
 
@@ -185,6 +200,8 @@ class MainActivity : AppCompatActivity() {
             false
 
         binding.contentMain.openBrowser.setOnClickListener {
+
+            detectedStreams.clear()
 
             val enteredUrl =
                 binding.contentMain.urlInput
