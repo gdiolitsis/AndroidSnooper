@@ -94,10 +94,10 @@ class HttpCallActivity :
 
         val dataCopyHelper =
             DataCopyHelper(
-    httpCall,
-    ResponseFormatterFactory(),
-    resources
-)
+                httpCall,
+                ResponseFormatterFactory(),
+                resources
+            )
 
         httpCallPresenter =
             HttpCallPresenter(
@@ -126,7 +126,7 @@ class HttpCallActivity :
             httpCallRenderer
                 ?: return
 
-        renderer.getTabs().forEach { tab ->
+        renderer.tabs().forEach { tab ->
 
             binding.tabLayout.addTab(
                 binding.tabLayout
@@ -198,7 +198,7 @@ class HttpCallActivity :
                         ?: return true
 
                 val currentTab =
-                    renderer.getTabs()[
+                    renderer.tabs()[
                         binding.pager.currentItem
                     ]
 
@@ -422,7 +422,7 @@ class HttpCallActivity :
         override fun getCount(): Int {
 
             return httpCallRenderer
-                ?.getTabs()
+                ?.tabs()
                 ?.size
                 ?: 0
         }
