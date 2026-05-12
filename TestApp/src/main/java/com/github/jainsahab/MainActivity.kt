@@ -512,22 +512,28 @@ binding.contentMain.openPlayer.setOnClickListener {
         .replace(" ", "")
 
     val intent =
-    Intent(
-        Intent.ACTION_VIEW,
-        Uri.parse(cleanUrl)
-    ).apply {
+    Intent(Intent.ACTION_VIEW).apply {
+
+        setDataAndType(
+            Uri.parse(cleanUrl),
+            "*/*"
+        )
 
         addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK
         )
     }
 
-    startActivity(
-        Intent.createChooser(
-            intent,
-            "Open Stream With"
-        )
+intent.addFlags(
+    Intent.FLAG_GRANT_READ_URI_PERMISSION
+)
+
+startActivity(
+    Intent.createChooser(
+        intent,
+        "Open Stream With"
     )
+)
 
 } catch (t: Throwable) {
 
