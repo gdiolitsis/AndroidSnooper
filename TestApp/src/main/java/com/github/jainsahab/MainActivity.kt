@@ -399,6 +399,125 @@ class MainActivity : AppCompatActivity() {
         }
 
         // =====================================
+// OPEN PLAYER
+// =====================================
+
+binding.contentMain.openPlayer.setOnClickListener {
+
+    val url =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
+
+    if (url.isBlank()) {
+        return@setOnClickListener
+    }
+
+    try {
+
+        val lower =
+            url.lowercase()
+
+        val mimeType =
+            when {
+
+                lower.contains(".m3u8") ->
+                    "application/x-mpegURL"
+
+                lower.contains(".mpd") ->
+                    "application/dash+xml"
+
+                lower.contains(".mp4") ->
+                    "video/mp4"
+
+                lower.contains(".ts") ->
+                    "video/mp2t"
+
+                lower.contains(".mp3") ->
+                    "audio/mpeg"
+
+                else ->
+                    "video/*"
+            }
+
+        val intent =
+            Intent(Intent.ACTION_VIEW).apply {
+
+                setDataAndType(
+                    Uri.parse(url),
+                    mimeType
+                )
+
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open Stream With"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "PLAYER_OPEN",
+            "failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// SHARE STREAM
+// =====================================
+
+binding.contentMain.shareStream.setOnClickListener {
+
+    val url =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
+
+    if (url.isBlank()) {
+        return@setOnClickListener
+    }
+
+    try {
+
+        val shareIntent =
+            Intent(Intent.ACTION_SEND).apply {
+
+                type = "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    url
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Share Stream"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SHARE_STREAM",
+            "failed",
+            t
+        )
+    }
+}
+
+        // =====================================
         // FILTER BUTTONS
         // =====================================
 
@@ -525,6 +644,25 @@ class MainActivity : AppCompatActivity() {
 
                 val data =
                     intent?.dataString
+
+              Log.e(
+    "PLAYER_INTENT",
+    "incoming stream -> $data"
+)
+
+if (
+    type?.contains("video") == true ||
+    type?.contains("audio") == true ||
+    data?.contains(".m3u8") == true ||
+    data?.contains(".mpd") == true ||
+    data?.contains(".mp4") == true ||
+    data?.contains(".ts") == true
+) {
+
+    binding.contentMain.result.append(
+        "\n\nPLAYER MODE:\n$data\n"
+    )
+}
 
                 if (
                     !data.isNullOrBlank()
