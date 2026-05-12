@@ -508,33 +508,39 @@ binding.contentMain.openPlayer.setOnClickListener {
             "*/*"
     }
 
-                val intent =
-    Intent(Intent.ACTION_VIEW).apply {
+    val cleanUrl =
+        url
+            .trim()
+            .replace("\n", "")
+            .replace("\r", "")
 
-        data = Uri.parse(url)
+    val intent =
+        Intent(Intent.ACTION_VIEW).apply {
 
-        type = mimeType
+            data = Uri.parse(cleanUrl)
 
-        addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK
+            type = mimeType
+
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+            )
+        }
+
+    startActivity(
+        Intent.createChooser(
+            intent,
+            "Open Stream With"
         )
-    }
+    )
 
-                startActivity(
-                    Intent.createChooser(
-                        intent,
-                        "Open Stream With"
-                    )
-                )
+} catch (t: Throwable) {
 
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "PLAYER_OPEN",
-                    "failed",
-                    t
-                )
-            }
+    Log.e(
+        "PLAYER_OPEN",
+        "failed",
+        t
+    )
+}
         }
 
         .show()
