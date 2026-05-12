@@ -151,7 +151,8 @@ class MainActivity : AppCompatActivity() {
                     if (
                         url.contains(".m3u8") ||
                         url.contains(".mpd") ||
-                        url.contains("playlist")
+                        url.contains("playlist") ||
+                        url.contains("chunklist")
                     ) {
 
                         runOnUiThread {
@@ -180,6 +181,9 @@ class MainActivity : AppCompatActivity() {
         binding.contentMain.webview.settings.domStorageEnabled =
             true
 
+        binding.contentMain.webview.settings.mediaPlaybackRequiresUserGesture =
+            false
+
         binding.contentMain.openBrowser.setOnClickListener {
 
             val enteredUrl =
@@ -191,72 +195,18 @@ class MainActivity : AppCompatActivity() {
             val finalUrl =
                 if (enteredUrl.isEmpty()) {
 
-                    "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+                    "https://hlsjs.video-dev.org/demo/"
 
                 } else {
 
                     enteredUrl
                 }
 
-            val request =
-                Request.Builder()
-                    .url(finalUrl)
-                    .build()
+            binding.contentMain.result.text = ""
 
-            okHttpClient
-                .newCall(request)
-                .enqueue(object : Callback {
-
-                    override fun onFailure(
-                        call: Call,
-                        e: IOException
-                    ) {
-
-                        Log.e(
-                            "WEBVIEW_PROXY",
-                            "error",
-                            e
-                        )
-
-                        runOnUiThread {
-
-                            binding.contentMain.result.text =
-                                "ERROR:\n${e.message}"
-                        }
-                    }
-
-                    override fun onResponse(
-                        call: Call,
-                        response: Response
-                    ) {
-
-                        try {
-
-                            val text =
-                                response.body
-                                    ?.string()
-                                    .orEmpty()
-
-                            runOnUiThread {
-
-                                binding.contentMain.result.text =
-                                    text
-                            }
-
-                        } catch (t: Throwable) {
-
-                            Log.e(
-                                "WEBVIEW_PROXY",
-                                "parse error",
-                                t
-                            )
-
-                        } finally {
-
-                            response.close()
-                        }
-                    }
-                })
+            binding.contentMain.webview.loadUrl(
+                finalUrl
+            )
         }
     }
 
@@ -340,27 +290,96 @@ class MainActivity : AppCompatActivity() {
         view: View
     ) {
 
-        binding.contentMain.openBrowser.setOnClickListener {
+        val request =
+            Request.Builder()
+                .addHeader(
+                    "Accept-Encoding",
+                    "identity"
+                )
+                .addHeader(
+                    "Content-type",
+                    "application/json; charset=utf-8"
+                )
+                .url(
+                    "https://reqres.in/api/users"
+                )
+                .post(
+                    requestBody.toString()
+                        .toRequestBody(
+                            "application/json"
+                                .toMediaType()
+                        )
+                )
+                .build()
 
-    val enteredUrl =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
+        executeRequest(
+            request
+        )
+    }
 
-    val finalUrl =
-        if (enteredUrl.isEmpty()) {
+    private fun executeRequest(
+        request: Request
+    ) {
 
-            "https://hlsjs.video-dev.org/demo/"
+        okHttpClient
+            .newCall(request)
+            .enqueue(
+                object : Callback {
 
-        } else {
+                    override fun onFailure(
+                        call: Call,
+                        e: IOException
+                    ) {
 
-            enteredUrl
-        }
+                        Log.e(
+                            "MAIN",
+                            "failure ${e.message}",
+                            e
+                        )
+                    }
 
-    binding.contentMain.result.text = ""
+                    override fun onResponse(
+                        call: Call,
+                        response: Response
+                    ) {
 
-    binding.contentMain.webview.loadUrl(
-        finalUrl
-    )
+                        try {
+
+                            if (!response.isSuccessful) {
+                                return
+                            }
+
+                            val text =
+                                response.body
+                                    ?.string()
+                                    .orEmpty()
+
+                            runOnUiThread {
+
+                                if (
+                                    !isFinishing &&
+                                    !isDestroyed
+                                ) {
+
+                                    binding.contentMain.result.text =
+                                        text
+                                }
+                            }
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "MAIN",
+                                "response parse error",
+                                t
+                            )
+
+                        } finally {
+
+                            response.close()
+                        }
+                    }
+                }
+            )
+    }
 }
