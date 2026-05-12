@@ -154,10 +154,17 @@ class MainActivity : AppCompatActivity() {
                 url.contains("playlist")
             ) {
 
-                Log.e(
-                    "STREAM_FOUND",
-                    url
-                )
+                runOnUiThread {
+
+    binding.result.append(
+        "\n\nSTREAM:\n$url\n"
+    )
+}
+
+Log.e(
+    "STREAM_FOUND",
+    url
+)
             }
 
             return super.shouldInterceptRequest(
