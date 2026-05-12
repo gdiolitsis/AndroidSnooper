@@ -47,6 +47,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
 
@@ -116,6 +117,9 @@
                 <category
                     android:name="android.intent.category.DEFAULT" />
 
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:mimeType="video/*" />
 
@@ -132,6 +136,9 @@
 
                 <category
                     android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
 
                 <data
                     android:mimeType="audio/*" />
@@ -150,6 +157,9 @@
                 <category
                     android:name="android.intent.category.DEFAULT" />
 
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:mimeType="application/x-mpegURL" />
 
@@ -166,6 +176,9 @@
 
                 <category
                     android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
 
                 <data
                     android:mimeType="application/vnd.apple.mpegurl" />
@@ -184,6 +197,9 @@
                 <category
                     android:name="android.intent.category.DEFAULT" />
 
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:mimeType="video/mp2t" />
 
@@ -200,6 +216,9 @@
 
                 <category
                     android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
 
                 <data
                     android:mimeType="application/octet-stream" />
@@ -222,13 +241,87 @@
                     android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="http" />
-
-                <data
-                    android:scheme="https" />
-
-                <data
+                    android:scheme="http"
                     android:pathPattern=".*\\.m3u8" />
+
+                <data
+                    android:scheme="https"
+                    android:pathPattern=".*\\.m3u8" />
+
+            </intent-filter>
+
+            <!-- ================================= -->
+            <!-- MPD DASH SUPPORT -->
+            <!-- ================================= -->
+
+            <intent-filter>
+
+                <action
+                    android:name="android.intent.action.VIEW" />
+
+                <category
+                    android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="http"
+                    android:pathPattern=".*\\.mpd" />
+
+                <data
+                    android:scheme="https"
+                    android:pathPattern=".*\\.mpd" />
+
+            </intent-filter>
+
+            <!-- ================================= -->
+            <!-- TS STREAM SUPPORT -->
+            <!-- ================================= -->
+
+            <intent-filter>
+
+                <action
+                    android:name="android.intent.action.VIEW" />
+
+                <category
+                    android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="http"
+                    android:pathPattern=".*\\.ts" />
+
+                <data
+                    android:scheme="https"
+                    android:pathPattern=".*\\.ts" />
+
+            </intent-filter>
+
+            <!-- ================================= -->
+            <!-- MP4 SUPPORT -->
+            <!-- ================================= -->
+
+            <intent-filter>
+
+                <action
+                    android:name="android.intent.action.VIEW" />
+
+                <category
+                    android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="http"
+                    android:pathPattern=".*\\.mp4" />
+
+                <data
+                    android:scheme="https"
+                    android:pathPattern=".*\\.mp4" />
 
             </intent-filter>
 
