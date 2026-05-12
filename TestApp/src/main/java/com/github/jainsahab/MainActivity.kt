@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import com.github.jainsahab.databinding.ActivityMainBinding
 import com.prateekj.snooper.AndroidSnooper
@@ -24,21 +25,38 @@ import java.util.Date
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
+    private lateinit var binding:
+            ActivityMainBinding
 
     private val requestBody: JSONObject
         get() {
+
             return JSONObject().apply {
-                put("name", "test${Date().time}")
-                put("job", "Investment manager")
-                put("age", "23")
+
+                put(
+                    "name",
+                    "test${Date().time}"
+                )
+
+                put(
+                    "job",
+                    "Investment manager"
+                )
+
+                put(
+                    "age",
+                    "23"
+                )
             }
         }
 
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient:
+            OkHttpClient
+
         get() {
 
-            val builder = OkHttpClient.Builder()
+            val builder =
+                OkHttpClient.Builder()
 
             builder.networkInterceptors().add(
                 SnooperInterceptor()
@@ -53,20 +71,27 @@ class MainActivity : AppCompatActivity() {
                     ): Response {
 
                         val response =
-                            chain.proceed(chain.request())
+                            chain.proceed(
+                                chain.request()
+                            )
 
                         val body =
-                            response.body?.string().orEmpty()
+                            response.body
+                                ?.string()
+                                .orEmpty()
 
                         return response.newBuilder()
-                            .removeHeader("Content-type")
+                            .removeHeader(
+                                "Content-type"
+                            )
                             .addHeader(
                                 "Content-type",
                                 "application/json; charset=utf-8"
                             )
                             .body(
                                 body.toResponseBody(
-                                    response.body?.contentType()
+                                    response.body
+                                        ?.contentType()
                                 )
                             )
                             .build()
@@ -77,163 +102,220 @@ class MainActivity : AppCompatActivity() {
             return builder.build()
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
         AndroidSnooper.init(application)
 
-        super.onCreate(savedInstanceState)
+        super.onCreate(
+            savedInstanceState
+        )
 
         binding =
-            ActivityMainBinding.inflate(layoutInflater)
+            ActivityMainBinding.inflate(
+                layoutInflater
+            )
 
-        setContentView(binding.root)
+        setContentView(
+            binding.root
+        )
 
-        setSupportActionBar(binding.toolbar)
+        setSupportActionBar(
+            binding.toolbar
+        )
+
+        // =====================================
+        // WEBVIEW
+        // =====================================
+
+        binding.webview.webViewClient =
+            WebViewClient()
+
+        binding.webview.settings.javaScriptEnabled =
+            true
+
+        binding.webview.settings.domStorageEnabled =
+            true
+
+        binding.openBrowser.setOnClickListener {
+
+            binding.webview.loadUrl(
+                "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            )
+        }
     }
 
-    binding.webview.settings.javaScriptEnabled = true
-binding.webview.settings.domStorageEnabled = true
+    override fun onCreateOptionsMenu(
+        menu: Menu
+    ): Boolean {
 
-binding.openBrowser.setOnClickListener {
-
-    binding.webview.loadUrl(
-        "https://example.com"
-    )
-}
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-
-        menuInflater.inflate(R.menu.menu_main, menu)
+        menuInflater.inflate(
+            R.menu.menu_main,
+            menu
+        )
 
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+    override fun onOptionsItemSelected(
+        item: MenuItem
+    ): Boolean {
 
         return when (item.itemId) {
 
-            R.id.action_settings -> true
+            R.id.action_settings ->
+                true
 
             else ->
-                super.onOptionsItemSelected(item)
+                super.onOptionsItemSelected(
+                    item
+                )
         }
     }
 
-    fun fetchPosts(view: View) {
+    fun fetchPosts(
+        view: View
+    ) {
 
-        val request = Request.Builder()
-            .addHeader(
-                "Accept-Encoding",
-                "identity"
-            )
-            .addHeader(
-                "Content-type",
-                "application/json; charset=utf-8"
-            )
-            .url(
-                "https://reqres.in/api/users?page=1&per_page=12"
-            )
-            .build()
+        val request =
+            Request.Builder()
+                .addHeader(
+                    "Accept-Encoding",
+                    "identity"
+                )
+                .addHeader(
+                    "Content-type",
+                    "application/json; charset=utf-8"
+                )
+                .url(
+                    "https://reqres.in/api/users?page=1&per_page=12"
+                )
+                .build()
 
-        executeRequest(request)
+        executeRequest(
+            request
+        )
     }
 
-    fun fetchPostsFail(view: View) {
+    fun fetchPostsFail(
+        view: View
+    ) {
 
-        val request = Request.Builder()
-            .addHeader(
-                "Accept-Encoding",
-                "identity"
-            )
-            .addHeader(
-                "Content-type",
-                "application/json; charset=utf-8"
-            )
-            .url(
-                "https://reqres.in/apii/use?page=1&per_page=12"
-            )
-            .build()
+        val request =
+            Request.Builder()
+                .addHeader(
+                    "Accept-Encoding",
+                    "identity"
+                )
+                .addHeader(
+                    "Content-type",
+                    "application/json; charset=utf-8"
+                )
+                .url(
+                    "https://reqres.in/apii/use?page=1&per_page=12"
+                )
+                .build()
 
-        executeRequest(request)
+        executeRequest(
+            request
+        )
     }
 
-    fun createPost(view: View) {
+    fun createPost(
+        view: View
+    ) {
 
-        val request = Request.Builder()
-            .addHeader(
-                "Accept-Encoding",
-                "identity"
-            )
-            .addHeader(
-                "Content-type",
-                "application/json; charset=utf-8"
-            )
-            .url("https://reqres.in/api/users")
-            .post(
-                requestBody.toString()
-                    .toRequestBody(
-                        "application/json".toMediaType()
-                    )
-            )
-            .build()
+        val request =
+            Request.Builder()
+                .addHeader(
+                    "Accept-Encoding",
+                    "identity"
+                )
+                .addHeader(
+                    "Content-type",
+                    "application/json; charset=utf-8"
+                )
+                .url(
+                    "https://reqres.in/api/users"
+                )
+                .post(
+                    requestBody.toString()
+                        .toRequestBody(
+                            "application/json"
+                                .toMediaType()
+                        )
+                )
+                .build()
 
-        executeRequest(request)
+        executeRequest(
+            request
+        )
     }
 
-    private fun executeRequest(request: Request) {
+    private fun executeRequest(
+        request: Request
+    ) {
 
         okHttpClient
             .newCall(request)
-            .enqueue(object : Callback {
+            .enqueue(
+                object : Callback {
 
-                override fun onFailure(
-                    call: Call,
-                    e: IOException
-                ) {
-
-                    Log.e(
-                        "MAIN",
-                        "failure ${e.message}",
-                        e
-                    )
-                }
-
-                override fun onResponse(
-                    call: Call,
-                    response: Response
-                ) {
-
-                    try {
-
-                        if (!response.isSuccessful) {
-                            return
-                        }
-
-                        val text =
-                            response.body?.string().orEmpty()
-
-                        runOnUiThread {
-
-                            if (!isFinishing &&
-                                !isDestroyed) {
-
-                                binding.contentMain.result.text = text
-                            }
-                        }
-
-                    } catch (t: Throwable) {
+                    override fun onFailure(
+                        call: Call,
+                        e: IOException
+                    ) {
 
                         Log.e(
                             "MAIN",
-                            "response parse error",
-                            t
+                            "failure ${e.message}",
+                            e
                         )
+                    }
 
-                    } finally {
+                    override fun onResponse(
+                        call: Call,
+                        response: Response
+                    ) {
 
-                        response.close()
+                        try {
+
+                            if (!response.isSuccessful) {
+                                return
+                            }
+
+                            val text =
+                                response.body
+                                    ?.string()
+                                    .orEmpty()
+
+                            runOnUiThread {
+
+                                if (
+                                    !isFinishing &&
+                                    !isDestroyed
+                                ) {
+
+                                    binding.result.text =
+                                        text
+                                }
+                            }
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "MAIN",
+                                "response parse error",
+                                t
+                            )
+
+                        } finally {
+
+                            response.close()
+                        }
                     }
                 }
-            })
+            )
     }
 }
