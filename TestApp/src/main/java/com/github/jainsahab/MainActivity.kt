@@ -420,11 +420,7 @@ binding.contentMain.openPlayer.setOnClickListener {
     }
 
     val streamList =
-    detectedStreams.map {
-
-        "\n$it\n"
-
-    }.toTypedArray()
+    detectedStreams.toTypedArray()
 
     androidx.appcompat.app.AlertDialog.Builder(this)
         .setTitle("Select Stream")
@@ -563,11 +559,7 @@ binding.contentMain.shareStream.setOnClickListener {
     }
 
     val streamList =
-    detectedStreams.map {
-
-        "\n$it\n"
-
-    }.toTypedArray()
+    detectedStreams.toTypedArray()
 
     androidx.appcompat.app.AlertDialog.Builder(this)
         .setTitle("Select Stream To Share")
