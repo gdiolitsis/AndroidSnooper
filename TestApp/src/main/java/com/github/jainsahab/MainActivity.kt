@@ -332,6 +332,57 @@ class MainActivity : AppCompatActivity() {
     }
 
     // =====================================
+// FILTER BUTTONS
+// =====================================
+
+binding.contentMain.btnAll.setOnClickListener {
+
+    showAllMedia()
+}
+
+binding.contentMain.btnVideos.setOnClickListener {
+
+    showVideos()
+}
+
+binding.contentMain.btnImages.setOnClickListener {
+
+    showImages()
+}
+
+binding.contentMain.btnAudio.setOnClickListener {
+
+    showAudio()
+}
+
+binding.contentMain.btnClear.setOnClickListener {
+
+    detectedStreams.clear()
+
+    detectedVideos.clear()
+
+    detectedImages.clear()
+
+    detectedAudio.clear()
+
+    binding.contentMain.result.text = ""
+
+    try {
+
+        SnooperRepo(this)
+            .deleteAll()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "CLEAR",
+            "db clear failed",
+            t
+        )
+    }
+}
+
+    // =====================================
     // DETECT + SAVE URL
     // =====================================
 
@@ -507,6 +558,82 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
+
+    // =====================================
+// SHOW ALL
+// =====================================
+
+private fun showAllMedia() {
+
+    val sb = StringBuilder()
+
+    detectedStreams.forEach {
+
+        sb.append("\n\nMEDIA:\n")
+        sb.append(it)
+        sb.append("\n")
+    }
+
+    binding.contentMain.result.text =
+        sb.toString()
+}
+
+// =====================================
+// SHOW VIDEOS
+// =====================================
+
+private fun showVideos() {
+
+    val sb = StringBuilder()
+
+    detectedVideos.forEach {
+
+        sb.append("\n\nVIDEO:\n")
+        sb.append(it)
+        sb.append("\n")
+    }
+
+    binding.contentMain.result.text =
+        sb.toString()
+}
+
+// =====================================
+// SHOW IMAGES
+// =====================================
+
+private fun showImages() {
+
+    val sb = StringBuilder()
+
+    detectedImages.forEach {
+
+        sb.append("\n\nIMAGE:\n")
+        sb.append(it)
+        sb.append("\n")
+    }
+
+    binding.contentMain.result.text =
+        sb.toString()
+}
+
+// =====================================
+// SHOW AUDIO
+// =====================================
+
+private fun showAudio() {
+
+    val sb = StringBuilder()
+
+    detectedAudio.forEach {
+
+        sb.append("\n\nAUDIO:\n")
+        sb.append(it)
+        sb.append("\n")
+    }
+
+    binding.contentMain.result.text =
+        sb.toString()
+}
 
     override fun onCreateOptionsMenu(
         menu: Menu
