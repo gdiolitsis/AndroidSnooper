@@ -5,10 +5,10 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import com.github.jainsahab.databinding.ActivityMainBinding
 import com.prateekj.snooper.AndroidSnooper
@@ -131,58 +131,58 @@ class MainActivity : AppCompatActivity() {
         // =====================================
         // WEBVIEW
         // =====================================
-        
-      binding.webview.webViewClient =
-    object : WebViewClient() {
 
-        override fun shouldInterceptRequest(
-            view: WebView?,
-            request: WebResourceRequest?
-        ): WebResourceResponse? {
+        binding.contentMain.webview.webViewClient =
+            object : WebViewClient() {
 
-            val url =
-                request?.url.toString()
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): WebResourceResponse? {
 
-            Log.e(
-                "M3U8_DETECT",
-                url
-            )
+                    val url =
+                        request?.url.toString()
 
-            if (
-                url.contains(".m3u8") ||
-                url.contains("mpd") ||
-                url.contains("playlist")
-            ) {
+                    Log.e(
+                        "M3U8_DETECT",
+                        url
+                    )
 
-                runOnUiThread {
+                    if (
+                        url.contains(".m3u8") ||
+                        url.contains(".mpd") ||
+                        url.contains("playlist")
+                    ) {
 
-    binding.result.append(
-        "\n\nSTREAM:\n$url\n"
-    )
-}
+                        runOnUiThread {
 
-Log.e(
-    "STREAM_FOUND",
-    url
-)
+                            binding.contentMain.result.append(
+                                "\n\nSTREAM:\n$url\n"
+                            )
+                        }
+
+                        Log.e(
+                            "STREAM_FOUND",
+                            url
+                        )
+                    }
+
+                    return super.shouldInterceptRequest(
+                        view,
+                        request
+                    )
+                }
             }
 
-            return super.shouldInterceptRequest(
-                view,
-                request
-            )
-        }
-    }
-      
-      binding.webview.settings.javaScriptEnabled =
+        binding.contentMain.webview.settings.javaScriptEnabled =
             true
 
-        binding.webview.settings.domStorageEnabled =
+        binding.contentMain.webview.settings.domStorageEnabled =
             true
 
-        binding.openBrowser.setOnClickListener {
+        binding.contentMain.openBrowser.setOnClickListener {
 
-            binding.webview.loadUrl(
+            binding.contentMain.webview.loadUrl(
                 "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
             )
         }
@@ -339,7 +339,7 @@ Log.e(
                                     !isDestroyed
                                 ) {
 
-                                    binding.result.text =
+                                    binding.contentMain.result.text =
                                         text
                                 }
                             }
