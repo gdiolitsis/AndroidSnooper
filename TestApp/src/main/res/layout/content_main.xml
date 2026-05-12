@@ -25,7 +25,7 @@
         android:id="@+id/urlInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter URL"
+        android:hint="Enter URL or Search"
         android:inputType="textUri"
         android:padding="10dp" />
 
@@ -35,11 +35,11 @@
         android:layout_height="wrap_content"
         android:text="OPEN PAGE" />
 
-  <Button
-    android:id="@+id/openChrome"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="OPEN IN CHROME" />
+    <Button
+        android:id="@+id/openChrome"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="OPEN IN CHROME" />
 
     <!-- ===================================== -->
     <!-- FILTER BUTTONS -->
@@ -56,31 +56,31 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/showAll"
+                android:id="@+id/btnAll"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="ALL" />
 
             <Button
-                android:id="@+id/showVideos"
+                android:id="@+id/btnVideos"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="VIDEOS" />
 
             <Button
-                android:id="@+id/showImages"
+                android:id="@+id/btnImages"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="IMAGES" />
 
             <Button
-                android:id="@+id/showAudio"
+                android:id="@+id/btnAudio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="AUDIO" />
 
             <Button
-                android:id="@+id/clearResults"
+                android:id="@+id/btnClear"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="CLEAR" />
