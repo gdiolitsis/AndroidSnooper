@@ -9,9 +9,9 @@ import android.view.MenuItem
 import android.view.View
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.webkit.WebSettings
 import androidx.appcompat.app.AppCompatActivity
 import com.github.jainsahab.databinding.ActivityMainBinding
 import com.prateekj.snooper.AndroidSnooper
@@ -52,6 +52,10 @@ class MainActivity : AppCompatActivity() {
     private val detectedAudio =
         linkedSetOf<String>()
 
+    // =====================================
+    // REQUEST BODY
+    // =====================================
+
     private val requestBody: JSONObject
         get() {
 
@@ -73,6 +77,10 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
+
+    // =====================================
+    // OKHTTP
+    // =====================================
 
     private val okHttpClient:
             OkHttpClient
@@ -126,6 +134,10 @@ class MainActivity : AppCompatActivity() {
             return builder.build()
         }
 
+    // =====================================
+    // ON CREATE
+    // =====================================
+
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
@@ -149,177 +161,34 @@ class MainActivity : AppCompatActivity() {
             binding.toolbar
         )
 
-        handleIncomingIntent()
-
-// =====================================
-// BROWSER SETTINGS
-// =====================================
-
-binding.contentMain.webview.settings.apply {
-
-    javaScriptEnabled = true
-
-    domStorageEnabled = true
-
-    mediaPlaybackRequiresUserGesture = false
-
-    loadsImagesAutomatically = true
-
-    useWideViewPort = true
-
-    loadWithOverviewMode = true
-
-    builtInZoomControls = true
-
-    displayZoomControls = false
-
-    cacheMode =
-        WebSettings.LOAD_DEFAULT
-}
-
         // =====================================
-        // OPEN STREAM / URL
+        // WEBVIEW SETTINGS
         // =====================================
 
-        if (
-            Intent.ACTION_VIEW == action
-        ) {
+        binding.contentMain.webview.settings.apply {
 
-            val data =
-                intent?.dataString
+            javaScriptEnabled = true
 
-            if (
-                !data.isNullOrBlank()
-            ) {
+            domStorageEnabled = true
 
-                binding.contentMain.urlInput
-                    .setText(data)
+            mediaPlaybackRequiresUserGesture = false
 
-                detectAndSaveUrl(
-                    data
-                )
+            loadsImagesAutomatically = true
 
-                binding.contentMain.webview
-                    .loadUrl(data)
+            useWideViewPort = true
 
-                Log.e(
-                    "VIEW_IMPORT",
-                    data
-                )
+            loadWithOverviewMode = true
 
-                return
-            }
+            builtInZoomControls = true
+
+            displayZoomControls = false
+
+            cacheMode =
+                WebSettings.LOAD_DEFAULT
         }
 
         // =====================================
-        // FALLBACK EXTRA STREAM
-        // =====================================
-
-        val extraStream =
-            intent?.getStringExtra(
-                Intent.EXTRA_STREAM
-            )
-
-        if (
-            !extraStream.isNullOrBlank()
-        ) {
-
-            binding.contentMain.urlInput
-                .setText(extraStream)
-
-            detectAndSaveUrl(
-                extraStream
-            )
-
-            binding.contentMain.webview
-                .loadUrl(extraStream)
-
-            Log.e(
-                "EXTRA_STREAM",
-                extraStream
-            )
-        }
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "INTENT_HANDLER",
-            "failed",
-            t
-        )
-    }
-}
-
-// =====================================
-// HANDLE NEW INTENTS
-// =====================================
-
-override fun onNewIntent(intent: Intent?) {
-
-    super.onNewIntent(intent)
-
-    setIntent(intent)
-
-    handleIncomingIntent()
-}
-
-// =====================================
-// HANDLE SHARE / OPEN WITH
-// =====================================
-
-private fun handleIncomingIntent() {
-
-    try {
-
-        val action =
-            intent?.action
-
-        val type =
-            intent?.type
-
-        Log.e(
-            "INTENT_DEBUG",
-            "action=$action type=$type data=${intent?.dataString}"
-        )
-
-        // =====================================
-        // SHARE TEXT
-        // =====================================
-
-        if (
-            Intent.ACTION_SEND == action
-        ) {
-
-            val sharedText =
-                intent.getStringExtra(
-                    Intent.EXTRA_TEXT
-                )
-
-            if (
-                !sharedText.isNullOrBlank()
-            ) {
-
-                binding.contentMain.urlInput
-                    .setText(sharedText)
-
-                binding.contentMain.webview
-                    .loadUrl(sharedText)
-
-                detectAndSaveUrl(
-                    sharedText
-                )
-
-                Log.e(
-                    "SHARE_IMPORT",
-                    sharedText
-                )
-
-                return
-            }
-        }
-
-        // =====================================
-        // WEBVIEW
+        // WEBVIEW CLIENT
         // =====================================
 
         binding.contentMain.webview.webViewClient =
@@ -359,8 +228,6 @@ private fun handleIncomingIntent() {
 
                             let results = [];
 
-                            // IMG
-
                             document
                                 .querySelectorAll("img")
                                 .forEach(function(el) {
@@ -369,8 +236,6 @@ private fun handleIncomingIntent() {
                                         results.push(el.src);
                                     }
                                 });
-
-                            // VIDEO
 
                             document
                                 .querySelectorAll("video")
@@ -385,8 +250,6 @@ private fun handleIncomingIntent() {
                                     }
                                 });
 
-                            // AUDIO
-
                             document
                                 .querySelectorAll("audio")
                                 .forEach(function(el) {
@@ -396,35 +259,12 @@ private fun handleIncomingIntent() {
                                     }
                                 });
 
-                            // SOURCE
-
                             document
                                 .querySelectorAll("source")
                                 .forEach(function(el) {
 
                                     if (el.src) {
                                         results.push(el.src);
-                                    }
-                                });
-
-                            // CSS BACKGROUND IMAGE
-
-                            document
-                                .querySelectorAll("*")
-                                .forEach(function(el) {
-
-                                    let style =
-                                        window.getComputedStyle(el);
-
-                                    let bg =
-                                        style.backgroundImage;
-
-                                    if (
-                                        bg &&
-                                        bg.includes("url(")
-                                    ) {
-
-                                        results.push(bg);
                                     }
                                 });
 
@@ -446,120 +286,117 @@ private fun handleIncomingIntent() {
                 }
             }
 
-        binding.contentMain.webview.settings.javaScriptEnabled =
-            true
+        // =====================================
+        // HANDLE INCOMING INTENT
+        // =====================================
 
-        binding.contentMain.webview.settings.domStorageEnabled =
-            true
+        handleIncomingIntent()
 
-        binding.contentMain.webview.settings.mediaPlaybackRequiresUserGesture =
-            false
+        // =====================================
+        // OPEN PAGE
+        // =====================================
 
-// =====================================
-// OPEN PAGE / SEARCH
-// =====================================
+        binding.contentMain.openBrowser.setOnClickListener {
 
-binding.contentMain.openBrowser.setOnClickListener {
+            detectedStreams.clear()
 
-    detectedStreams.clear()
+            detectedVideos.clear()
 
-    detectedVideos.clear()
+            detectedImages.clear()
 
-    detectedImages.clear()
+            detectedAudio.clear()
 
-    detectedAudio.clear()
+            binding.contentMain.result.text = ""
 
-    binding.contentMain.result.text = ""
+            val enteredText =
+                binding.contentMain.urlInput
+                    .text
+                    .toString()
+                    .trim()
 
-    val enteredText =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
+            val finalUrl =
+                when {
 
-    val finalUrl =
-        when {
+                    enteredText.isEmpty() -> {
 
-            enteredText.isEmpty() -> {
+                        "https://www.google.com"
+                    }
 
-                "https://www.google.com"
-            }
+                    enteredText.startsWith("http") -> {
 
-            enteredText.startsWith("http") -> {
+                        enteredText
+                    }
 
-                enteredText
-            }
+                    enteredText.contains(".") &&
+                    !enteredText.contains(" ") -> {
 
-            enteredText.contains(".") &&
-            !enteredText.contains(" ") -> {
+                        "https://$enteredText"
+                    }
 
-                "https://$enteredText"
-            }
+                    else -> {
 
-            else -> {
+                        val query =
+                            enteredText.replace(
+                                " ",
+                                "+"
+                            )
 
-                val query =
-                    enteredText.replace(
-                        " ",
-                        "+"
-                    )
+                        "https://www.google.com/search?q=$query"
+                    }
+                }
 
-                "https://www.google.com/search?q=$query"
-            }
+            binding.contentMain.webview.loadUrl(
+                finalUrl
+            )
         }
 
-    Log.e(
-        "OPEN_PAGE",
-        finalUrl
-    )
+        // =====================================
+        // OPEN CHROME
+        // =====================================
 
-    binding.contentMain.webview.loadUrl(
-        finalUrl
-    )
-}
+        binding.contentMain.openChrome.setOnClickListener {
 
-binding.contentMain.openChrome.setOnClickListener {
+            val enteredText =
+                binding.contentMain.urlInput
+                    .text
+                    .toString()
+                    .trim()
 
-    val enteredText =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
+            val finalUrl =
+                when {
 
-    val finalUrl =
-        when {
+                    enteredText.isEmpty() -> {
+                        "https://www.google.com"
+                    }
 
-            enteredText.isEmpty() -> {
-                "https://www.google.com"
-            }
+                    enteredText.startsWith("http") -> {
+                        enteredText
+                    }
 
-            enteredText.startsWith("http") -> {
-                enteredText
-            }
+                    enteredText.contains(".") &&
+                    !enteredText.contains(" ") -> {
+                        "https://$enteredText"
+                    }
 
-            enteredText.contains(".") &&
-            !enteredText.contains(" ") -> {
-                "https://$enteredText"
-            }
+                    else -> {
 
-            else -> {
-                val query =
-                    enteredText.replace(
-                        " ",
-                        "+"
-                    )
+                        val query =
+                            enteredText.replace(
+                                " ",
+                                "+"
+                            )
 
-                "https://www.google.com/search?q=$query"
-            }
+                        "https://www.google.com/search?q=$query"
+                    }
+                }
+
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(finalUrl)
+                )
+            )
         }
-
-    startActivity(
-        Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse(finalUrl)
-        )
-    )
-}
 
         // =====================================
         // FILTER BUTTONS
@@ -614,6 +451,135 @@ binding.contentMain.openChrome.setOnClickListener {
     }
 
     // =====================================
+    // HANDLE NEW INTENTS
+    // =====================================
+
+    override fun onNewIntent(
+        intent: Intent?
+    ) {
+
+        super.onNewIntent(intent)
+
+        setIntent(intent)
+
+        handleIncomingIntent()
+    }
+
+    // =====================================
+    // HANDLE SHARE / OPEN WITH
+    // =====================================
+
+    private fun handleIncomingIntent() {
+
+        try {
+
+            val action =
+                intent?.action
+
+            val type =
+                intent?.type
+
+            Log.e(
+                "INTENT_DEBUG",
+                "action=$action type=$type data=${intent?.dataString}"
+            )
+
+            // =====================================
+            // SHARE TEXT
+            // =====================================
+
+            if (
+                Intent.ACTION_SEND == action
+            ) {
+
+                val sharedText =
+                    intent.getStringExtra(
+                        Intent.EXTRA_TEXT
+                    )
+
+                if (
+                    !sharedText.isNullOrBlank()
+                ) {
+
+                    binding.contentMain.urlInput
+                        .setText(sharedText)
+
+                    detectAndSaveUrl(
+                        sharedText
+                    )
+
+                    binding.contentMain.webview
+                        .loadUrl(sharedText)
+
+                    return
+                }
+            }
+
+            // =====================================
+            // ACTION VIEW
+            // =====================================
+
+            if (
+                Intent.ACTION_VIEW == action
+            ) {
+
+                val data =
+                    intent?.dataString
+
+                if (
+                    !data.isNullOrBlank()
+                ) {
+
+                    binding.contentMain.urlInput
+                        .setText(data)
+
+                    detectAndSaveUrl(
+                        data
+                    )
+
+                    binding.contentMain.webview
+                        .loadUrl(data)
+
+                    return
+                }
+            }
+
+            // =====================================
+            // EXTRA STREAM
+            // =====================================
+
+            val streamUri =
+                intent?.getParcelableExtra<Uri>(
+                    Intent.EXTRA_STREAM
+                )
+
+            if (streamUri != null) {
+
+                val url =
+                    streamUri.toString()
+
+                binding.contentMain.urlInput
+                    .setText(url)
+
+                detectAndSaveUrl(
+                    url
+                )
+
+                binding.contentMain.webview
+                    .loadUrl(url)
+            }
+
+        } catch (t: Throwable) {
+
+            Log.e(
+                "INTENT_HANDLER",
+                "failed",
+                t
+            )
+        }
+    }
+
+    // =====================================
     // DETECT + SAVE URL
     // =====================================
 
@@ -629,8 +595,6 @@ binding.contentMain.openChrome.setOnClickListener {
         val lower =
             url.lowercase()
 
-        // VIDEO
-
         val isVideo =
             lower.contains(".m3u8") ||
             lower.contains(".mpd") ||
@@ -642,8 +606,6 @@ binding.contentMain.openChrome.setOnClickListener {
             lower.contains("playlist") ||
             lower.contains("chunklist")
 
-        // IMAGE
-
         val isImage =
             lower.contains(".jpg") ||
             lower.contains(".jpeg") ||
@@ -653,8 +615,6 @@ binding.contentMain.openChrome.setOnClickListener {
             lower.contains(".bmp") ||
             lower.contains(".svg") ||
             lower.contains(".ico")
-
-        // AUDIO
 
         val isAudio =
             lower.contains(".mp3") ||
@@ -673,42 +633,25 @@ binding.contentMain.openChrome.setOnClickListener {
             return
         }
 
-        // UNIQUE CACHE
+        if (
+            detectedStreams.contains(url)
+        ) {
+            return
+        }
+
+        detectedStreams.add(url)
 
         if (isVideo) {
-
-            if (
-                detectedVideos.contains(url)
-            ) {
-                return
-            }
-
             detectedVideos.add(url)
         }
 
         if (isImage) {
-
-            if (
-                detectedImages.contains(url)
-            ) {
-                return
-            }
-
             detectedImages.add(url)
         }
 
         if (isAudio) {
-
-            if (
-                detectedAudio.contains(url)
-            ) {
-                return
-            }
-
             detectedAudio.add(url)
         }
-
-        detectedStreams.add(url)
 
         val mediaType =
             when {
@@ -729,31 +672,20 @@ binding.contentMain.openChrome.setOnClickListener {
             )
         }
 
-        Log.e(
-            "MEDIA_FOUND",
-            "$mediaType -> $url"
-        )
-
-        // SAVE DB
-
         try {
 
-            val repo =
-                SnooperRepo(
-                    this@MainActivity
+            SnooperRepo(this)
+                .save(
+                    HttpCallRecord(
+                        url = url,
+                        method = "GET",
+                        responseBody =
+                            "$mediaType DETECTED",
+                        statusCode = 200,
+                        statusText = "OK",
+                        date = Date()
+                    )
                 )
-
-            repo.save(
-                HttpCallRecord(
-                    url = url,
-                    method = "GET",
-                    responseBody =
-                        "$mediaType DETECTED",
-                    statusCode = 200,
-                    statusText = "OK",
-                    date = Date()
-                )
-            )
 
         } catch (t: Throwable) {
 
@@ -841,6 +773,10 @@ binding.contentMain.openChrome.setOnClickListener {
             sb.toString()
     }
 
+    // =====================================
+    // MENU
+    // =====================================
+
     override fun onCreateOptionsMenu(
         menu: Menu
     ): Boolean {
@@ -869,6 +805,10 @@ binding.contentMain.openChrome.setOnClickListener {
         }
     }
 
+    // =====================================
+    // TEST REQUESTS
+    // =====================================
+
     fun fetchPosts(
         view: View
     ) {
@@ -888,9 +828,7 @@ binding.contentMain.openChrome.setOnClickListener {
                 )
                 .build()
 
-        executeRequest(
-            request
-        )
+        executeRequest(request)
     }
 
     fun fetchPostsFail(
@@ -912,9 +850,7 @@ binding.contentMain.openChrome.setOnClickListener {
                 )
                 .build()
 
-        executeRequest(
-            request
-        )
+        executeRequest(request)
     }
 
     fun createPost(
@@ -943,10 +879,12 @@ binding.contentMain.openChrome.setOnClickListener {
                 )
                 .build()
 
-        executeRequest(
-            request
-        )
+        executeRequest(request)
     }
+
+    // =====================================
+    // EXECUTE REQUEST
+    // =====================================
 
     private fun executeRequest(
         request: Request
