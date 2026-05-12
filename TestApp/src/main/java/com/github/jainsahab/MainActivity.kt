@@ -177,75 +177,6 @@ binding.contentMain.webview.settings.apply {
         WebSettings.LOAD_DEFAULT
 }
 
-
-// =====================================
-// HANDLE NEW INTENTS
-// =====================================
-
-override fun onNewIntent(intent: Intent?) {
-
-    super.onNewIntent(intent)
-
-    setIntent(intent)
-
-    handleIncomingIntent()
-}
-
-// =====================================
-// HANDLE SHARE / OPEN WITH
-// =====================================
-
-private fun handleIncomingIntent() {
-
-    try {
-
-        val action =
-            intent?.action
-
-        val type =
-            intent?.type
-
-        Log.e(
-            "INTENT_DEBUG",
-            "action=$action type=$type data=${intent?.dataString}"
-        )
-
-        // =====================================
-        // SHARE TEXT
-        // =====================================
-
-        if (
-            Intent.ACTION_SEND == action
-        ) {
-
-            val sharedText =
-                intent.getStringExtra(
-                    Intent.EXTRA_TEXT
-                )
-
-            if (
-                !sharedText.isNullOrBlank()
-            ) {
-
-                binding.contentMain.urlInput
-                    .setText(sharedText)
-
-                binding.contentMain.webview
-                    .loadUrl(sharedText)
-
-                detectAndSaveUrl(
-                    sharedText
-                )
-
-                Log.e(
-                    "SHARE_IMPORT",
-                    sharedText
-                )
-
-                return
-            }
-        }
-
         // =====================================
         // OPEN STREAM / URL
         // =====================================
@@ -318,6 +249,74 @@ private fun handleIncomingIntent() {
         )
     }
 }
+
+// =====================================
+// HANDLE NEW INTENTS
+// =====================================
+
+override fun onNewIntent(intent: Intent?) {
+
+    super.onNewIntent(intent)
+
+    setIntent(intent)
+
+    handleIncomingIntent()
+}
+
+// =====================================
+// HANDLE SHARE / OPEN WITH
+// =====================================
+
+private fun handleIncomingIntent() {
+
+    try {
+
+        val action =
+            intent?.action
+
+        val type =
+            intent?.type
+
+        Log.e(
+            "INTENT_DEBUG",
+            "action=$action type=$type data=${intent?.dataString}"
+        )
+
+        // =====================================
+        // SHARE TEXT
+        // =====================================
+
+        if (
+            Intent.ACTION_SEND == action
+        ) {
+
+            val sharedText =
+                intent.getStringExtra(
+                    Intent.EXTRA_TEXT
+                )
+
+            if (
+                !sharedText.isNullOrBlank()
+            ) {
+
+                binding.contentMain.urlInput
+                    .setText(sharedText)
+
+                binding.contentMain.webview
+                    .loadUrl(sharedText)
+
+                detectAndSaveUrl(
+                    sharedText
+                )
+
+                Log.e(
+                    "SHARE_IMPORT",
+                    sharedText
+                )
+
+                return
+            }
+        }
 
         // =====================================
         // WEBVIEW
