@@ -447,10 +447,10 @@ binding.contentMain.openPlayer.setOnClickListener {
         // =========================
 
         lower.contains(".m3u8") ->
-            "application/x-mpegURL"
+    "*/*"
 
         lower.contains(".mpd") ->
-            "application/dash+xml"
+    "*/*"
 
         lower.contains(".mp4") ->
             "video/mp4"
@@ -462,7 +462,7 @@ binding.contentMain.openPlayer.setOnClickListener {
             "video/webm"
 
         lower.contains(".ts") ->
-            "video/mp2t"
+    "*/*"
 
         // =========================
         // AUDIO
@@ -509,17 +509,16 @@ binding.contentMain.openPlayer.setOnClickListener {
     }
 
                 val intent =
-                    Intent(Intent.ACTION_VIEW).apply {
+    Intent(Intent.ACTION_VIEW).apply {
 
-                        setDataAndType(
-                            Uri.parse(url),
-                            mimeType
-                        )
+        data = Uri.parse(url)
 
-                        addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                        )
-                    }
+        type = mimeType
+
+        addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK
+        )
+    }
 
                 startActivity(
                     Intent.createChooser(
