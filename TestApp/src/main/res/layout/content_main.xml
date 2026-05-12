@@ -43,14 +43,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN PAGE" />
+            android:text="OPEN WITH EXTRACTOR" />
 
         <Button
             android:id="@+id/openChrome"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="CHROME" />
+            android:text="OPEN WITH BROWSER" />
 
     </LinearLayout>
 
@@ -68,14 +68,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN PLAYER" />
+            android:text="OPEN URLs WITH EXTERNAL PLAYER" />
 
         <Button
             android:id="@+id/shareStream"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="SHARE STREAM" />
+            android:text="SHARE SELECTED STREAM" />
 
     </LinearLayout>
 
