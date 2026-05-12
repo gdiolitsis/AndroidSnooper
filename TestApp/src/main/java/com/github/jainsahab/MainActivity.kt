@@ -390,12 +390,18 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-            startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse(finalUrl)
-                )
-            )
+            val browserIntent =
+    Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse(finalUrl)
+    )
+
+startActivity(
+    Intent.createChooser(
+        browserIntent,
+        "Open With Browser"
+    )
+)
         }
 
 // =====================================
@@ -485,49 +491,62 @@ binding.contentMain.openPlayer.setOnClickListener {
 }
 
 // =====================================
-// SHARE STREAM
+// SHARE SELECTED STREAM
 // =====================================
 
 binding.contentMain.shareStream.setOnClickListener {
 
-    val url =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
+    if (detectedStreams.isEmpty()) {
 
-    if (url.isBlank()) {
+        binding.contentMain.result.append(
+            "\n\nNO STREAMS DETECTED\n"
+        )
+
         return@setOnClickListener
     }
 
-    try {
+    val streamList =
+        detectedStreams.toTypedArray()
 
-        val shareIntent =
-            Intent(Intent.ACTION_SEND).apply {
+    androidx.appcompat.app.AlertDialog.Builder(this)
+        .setTitle("Select Stream To Share")
 
-                type = "text/plain"
+        .setItems(streamList) { _, which ->
 
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    url
+            val url =
+                streamList[which]
+
+            try {
+
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+
+                        type = "text/plain"
+
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            url
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        shareIntent,
+                        "Share Stream With"
+                    )
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "SHARE_STREAM",
+                    "failed",
+                    t
                 )
             }
+        }
 
-        startActivity(
-            Intent.createChooser(
-                shareIntent,
-                "Share Stream"
-            )
-        )
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "SHARE_STREAM",
-            "failed",
-            t
-        )
-    }
+        .show()
 }
 
         // =====================================
