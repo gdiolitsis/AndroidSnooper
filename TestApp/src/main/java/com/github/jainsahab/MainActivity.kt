@@ -420,7 +420,11 @@ binding.contentMain.openPlayer.setOnClickListener {
     }
 
     val streamList =
-        detectedStreams.toTypedArray()
+    detectedStreams.map {
+
+        "\n$it\n"
+
+    }.toTypedArray()
 
     androidx.appcompat.app.AlertDialog.Builder(this)
         .setTitle("Select Stream")
@@ -436,26 +440,73 @@ binding.contentMain.openPlayer.setOnClickListener {
                     url.lowercase()
 
                 val mimeType =
-                    when {
+    when {
 
-                        lower.contains(".m3u8") ->
-                            "application/x-mpegURL"
+        // =========================
+        // STREAMS / VIDEO
+        // =========================
 
-                        lower.contains(".mpd") ->
-                            "application/dash+xml"
+        lower.contains(".m3u8") ->
+            "application/x-mpegURL"
 
-                        lower.contains(".mp4") ->
-                            "video/mp4"
+        lower.contains(".mpd") ->
+            "application/dash+xml"
 
-                        lower.contains(".ts") ->
-                            "video/mp2t"
+        lower.contains(".mp4") ->
+            "video/mp4"
 
-                        lower.contains(".mp3") ->
-                            "audio/mpeg"
+        lower.contains(".mkv") ->
+            "video/x-matroska"
 
-                        else ->
-                            "video/*"
-                    }
+        lower.contains(".webm") ->
+            "video/webm"
+
+        lower.contains(".ts") ->
+            "video/mp2t"
+
+        // =========================
+        // AUDIO
+        // =========================
+
+        lower.contains(".mp3") ->
+            "audio/mpeg"
+
+        lower.contains(".aac") ->
+            "audio/aac"
+
+        lower.contains(".wav") ->
+            "audio/wav"
+
+        lower.contains(".ogg") ->
+            "audio/ogg"
+
+        lower.contains(".flac") ->
+            "audio/flac"
+
+        // =========================
+        // IMAGES
+        // =========================
+
+        lower.contains(".jpg") ||
+        lower.contains(".jpeg") ->
+            "image/jpeg"
+
+        lower.contains(".png") ->
+            "image/png"
+
+        lower.contains(".webp") ->
+            "image/webp"
+
+        lower.contains(".gif") ->
+            "image/gif"
+
+        // =========================
+        // FALLBACK
+        // =========================
+
+        else ->
+            "*/*"
+    }
 
                 val intent =
                     Intent(Intent.ACTION_VIEW).apply {
@@ -506,7 +557,11 @@ binding.contentMain.shareStream.setOnClickListener {
     }
 
     val streamList =
-        detectedStreams.toTypedArray()
+    detectedStreams.map {
+
+        "\n$it\n"
+
+    }.toTypedArray()
 
     androidx.appcompat.app.AlertDialog.Builder(this)
         .setTitle("Select Stream To Share")
