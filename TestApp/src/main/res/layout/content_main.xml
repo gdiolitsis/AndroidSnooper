@@ -22,13 +22,13 @@
         android:textStyle="bold" />
 
     <EditText
-        android:id="@+id/urlInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="https://example.com/video"
-        android:inputType="textUri"
-        android:padding="10dp" />
-
+    android:id="@+id/urlInput"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:hint="Enter m3u8 / mpd / url"
+    android:inputType="textUri"
+    android:padding="10dp" />
+  
     <Button
         android:id="@+id/openBrowser"
         android:layout_width="match_parent"
