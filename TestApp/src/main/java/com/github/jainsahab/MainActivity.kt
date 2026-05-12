@@ -6,6 +6,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import com.github.jainsahab.databinding.ActivityMainBinding
 import com.prateekj.snooper.AndroidSnooper
@@ -128,11 +131,43 @@ class MainActivity : AppCompatActivity() {
         // =====================================
         // WEBVIEW
         // =====================================
+        
+      binding.webview.webViewClient =
+    object : WebViewClient() {
 
-        binding.webview.webViewClient =
-            WebViewClient()
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): WebResourceResponse? {
 
-        binding.webview.settings.javaScriptEnabled =
+            val url =
+                request?.url.toString()
+
+            Log.e(
+                "M3U8_DETECT",
+                url
+            )
+
+            if (
+                url.contains(".m3u8") ||
+                url.contains("mpd") ||
+                url.contains("playlist")
+            ) {
+
+                Log.e(
+                    "STREAM_FOUND",
+                    url
+                )
+            }
+
+            return super.shouldInterceptRequest(
+                view,
+                request
+            )
+        }
+    }
+      
+      binding.webview.settings.javaScriptEnabled =
             true
 
         binding.webview.settings.domStorageEnabled =
