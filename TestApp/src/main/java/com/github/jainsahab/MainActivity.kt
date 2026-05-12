@@ -182,9 +182,46 @@ class MainActivity : AppCompatActivity() {
 
         binding.contentMain.openBrowser.setOnClickListener {
 
-            binding.contentMain.webview.loadUrl(
-                "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            val request =
+    Request.Builder()
+        .url(
+            "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+        )
+        .build()
+
+okHttpClient
+    .newCall(request)
+    .enqueue(object : Callback {
+
+        override fun onFailure(
+            call: Call,
+            e: IOException
+        ) {
+
+            Log.e(
+                "WEBVIEW_PROXY",
+                "error",
+                e
             )
+        }
+
+        override fun onResponse(
+            call: Call,
+            response: Response
+        ) {
+
+            val text =
+                response.body?.string().orEmpty()
+
+            runOnUiThread {
+
+                binding.contentMain.result.text =
+                    text
+            }
+
+            response.close()
+        }
+    })
         }
     }
 
