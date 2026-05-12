@@ -4,8 +4,16 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ===================================== -->
+    <!-- PERMISSIONS -->
+    <!-- ===================================== -->
+
     <uses-permission
         android:name="android.permission.INTERNET" />
+
+    <!-- ===================================== -->
+    <!-- APPLICATION -->
+    <!-- ===================================== -->
 
     <application
         android:allowBackup="true"
@@ -15,6 +23,10 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
+
+        <!-- ===================================== -->
+        <!-- FILE PROVIDER -->
+        <!-- ===================================== -->
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -38,9 +50,9 @@
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
 
-            <!-- ============================== -->
-            <!-- NORMAL LAUNCH -->
-            <!-- ============================== -->
+            <!-- ================================= -->
+            <!-- NORMAL APP LAUNCH -->
+            <!-- ================================= -->
 
             <intent-filter>
 
@@ -52,9 +64,9 @@
 
             </intent-filter>
 
-            <!-- ============================== -->
+            <!-- ================================= -->
             <!-- SHARE TEXT -->
-            <!-- ============================== -->
+            <!-- ================================= -->
 
             <intent-filter>
 
@@ -69,9 +81,9 @@
 
             </intent-filter>
 
-            <!-- ============================== -->
+            <!-- ================================= -->
             <!-- OPEN LINKS -->
-            <!-- ============================== -->
+            <!-- ================================= -->
 
             <intent-filter>
 
@@ -100,19 +112,7 @@
 
         <activity
             android:name="com.prateekj.snooper.networksnooper.activity.HttpCallListActivity"
-            tools:node="merge">
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.MAIN" />
-
-                <category
-                    android:name="android.intent.category.LAUNCHER" />
-
-            </intent-filter>
-
-        </activity>
+            tools:node="merge" />
 
     </application>
 
