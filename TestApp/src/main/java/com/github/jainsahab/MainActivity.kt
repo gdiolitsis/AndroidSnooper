@@ -512,16 +512,15 @@ binding.contentMain.openPlayer.setOnClickListener {
         .replace(" ", "")
 
     val intent =
-        Intent(Intent.ACTION_VIEW).apply {
+    Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse(cleanUrl)
+    ).apply {
 
-            data = Uri.parse(cleanUrl)
-
-            type = mimeType
-
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK
-            )
-        }
+        addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK
+        )
+    }
 
     startActivity(
         Intent.createChooser(
