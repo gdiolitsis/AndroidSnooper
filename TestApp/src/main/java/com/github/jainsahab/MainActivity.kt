@@ -310,42 +310,68 @@ binding.contentMain.webview.settings.apply {
         binding.contentMain.webview.settings.mediaPlaybackRequiresUserGesture =
             false
 
-        // =====================================
-        // OPEN PAGE
-        // =====================================
+// =====================================
+// OPEN PAGE / SEARCH
+// =====================================
 
-        binding.contentMain.openBrowser.setOnClickListener {
+binding.contentMain.openBrowser.setOnClickListener {
 
-            detectedStreams.clear()
+    detectedStreams.clear()
 
-            detectedVideos.clear()
+    detectedVideos.clear()
 
-            detectedImages.clear()
+    detectedImages.clear()
 
-            detectedAudio.clear()
+    detectedAudio.clear()
 
-            val enteredUrl =
-                binding.contentMain.urlInput
-                    .text
-                    .toString()
-                    .trim()
+    binding.contentMain.result.text = ""
 
-            val finalUrl =
-                if (enteredUrl.isEmpty()) {
+    val enteredText =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
 
-                    "https://hlsjs.video-dev.org/demo/"
+    val finalUrl =
+        when {
 
-                } else {
+            enteredText.isEmpty() -> {
 
-                    enteredUrl
-                }
+                "https://www.google.com"
+            }
 
-            binding.contentMain.result.text = ""
+            enteredText.startsWith("http") -> {
 
-            binding.contentMain.webview.loadUrl(
-                finalUrl
-            )
+                enteredText
+            }
+
+            enteredText.contains(".") &&
+            !enteredText.contains(" ") -> {
+
+                "https://$enteredText"
+            }
+
+            else -> {
+
+                val query =
+                    enteredText.replace(
+                        " ",
+                        "+"
+                    )
+
+                "https://www.google.com/search?q=$query"
+            }
         }
+
+    Log.e(
+        "OPEN_PAGE",
+        finalUrl
+    )
+
+    binding.contentMain.webview.loadUrl(
+        finalUrl
+    )
+}
 
         // =====================================
         // FILTER BUTTONS
