@@ -340,96 +340,27 @@ class MainActivity : AppCompatActivity() {
         view: View
     ) {
 
-        val request =
-            Request.Builder()
-                .addHeader(
-                    "Accept-Encoding",
-                    "identity"
-                )
-                .addHeader(
-                    "Content-type",
-                    "application/json; charset=utf-8"
-                )
-                .url(
-                    "https://reqres.in/api/users"
-                )
-                .post(
-                    requestBody.toString()
-                        .toRequestBody(
-                            "application/json"
-                                .toMediaType()
-                        )
-                )
-                .build()
+        binding.contentMain.openBrowser.setOnClickListener {
 
-        executeRequest(
-            request
-        )
-    }
+    val enteredUrl =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
 
-    private fun executeRequest(
-        request: Request
-    ) {
+    val finalUrl =
+        if (enteredUrl.isEmpty()) {
 
-        okHttpClient
-            .newCall(request)
-            .enqueue(
-                object : Callback {
+            "https://hlsjs.video-dev.org/demo/"
 
-                    override fun onFailure(
-                        call: Call,
-                        e: IOException
-                    ) {
+        } else {
 
-                        Log.e(
-                            "MAIN",
-                            "failure ${e.message}",
-                            e
-                        )
-                    }
+            enteredUrl
+        }
 
-                    override fun onResponse(
-                        call: Call,
-                        response: Response
-                    ) {
+    binding.contentMain.result.text = ""
 
-                        try {
-
-                            if (!response.isSuccessful) {
-                                return
-                            }
-
-                            val text =
-                                response.body
-                                    ?.string()
-                                    .orEmpty()
-
-                            runOnUiThread {
-
-                                if (
-                                    !isFinishing &&
-                                    !isDestroyed
-                                ) {
-
-                                    binding.contentMain.result.text =
-                                        text
-                                }
-                            }
-
-                        } catch (t: Throwable) {
-
-                            Log.e(
-                                "MAIN",
-                                "response parse error",
-                                t
-                            )
-
-                        } finally {
-
-                            response.close()
-                        }
-                    }
-                }
-            )
-    }
+    binding.contentMain.webview.loadUrl(
+        finalUrl
+    )
 }
