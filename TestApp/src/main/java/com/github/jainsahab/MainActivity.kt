@@ -1,5 +1,7 @@
 package com.github.jainsahab
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -370,6 +372,49 @@ binding.contentMain.openBrowser.setOnClickListener {
 
     binding.contentMain.webview.loadUrl(
         finalUrl
+    )
+}
+
+binding.contentMain.openChrome.setOnClickListener {
+
+    val enteredText =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
+
+    val finalUrl =
+        when {
+
+            enteredText.isEmpty() -> {
+                "https://www.google.com"
+            }
+
+            enteredText.startsWith("http") -> {
+                enteredText
+            }
+
+            enteredText.contains(".") &&
+            !enteredText.contains(" ") -> {
+                "https://$enteredText"
+            }
+
+            else -> {
+                val query =
+                    enteredText.replace(
+                        " ",
+                        "+"
+                    )
+
+                "https://www.google.com/search?q=$query"
+            }
+        }
+
+    startActivity(
+        Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse(finalUrl)
+        )
     )
 }
 
