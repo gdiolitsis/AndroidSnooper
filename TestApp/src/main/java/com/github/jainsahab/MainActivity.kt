@@ -40,6 +40,15 @@ class MainActivity : AppCompatActivity() {
     private val detectedStreams =
         linkedSetOf<String>()
 
+    private val detectedVideos =
+    linkedSetOf<String>()
+
+private val detectedImages =
+    linkedSetOf<String>()
+
+private val detectedAudio =
+    linkedSetOf<String>()
+
     private val requestBody: JSONObject
         get() {
 
@@ -311,81 +320,177 @@ class MainActivity : AppCompatActivity() {
     // =====================================
 
     private fun detectAndSaveUrl(
-        url: String
+    url: String
+) {
+
+    Log.e(
+        "MEDIA_DETECT",
+        url
+    )
+
+    val lower =
+        url.lowercase()
+
+    // =====================================
+    // VIDEO
+    // =====================================
+
+    val isVideo =
+        lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains(".m4s") ||
+        lower.contains(".ts") ||
+        lower.contains(".mp4") ||
+        lower.contains(".webm") ||
+        lower.contains(".mkv") ||
+        lower.contains("playlist") ||
+        lower.contains("chunklist")
+
+    // =====================================
+    // IMAGE
+    // =====================================
+
+    val isImage =
+        lower.contains(".jpg") ||
+        lower.contains(".jpeg") ||
+        lower.contains(".png") ||
+        lower.contains(".webp") ||
+        lower.contains(".gif") ||
+        lower.contains(".bmp") ||
+        lower.contains(".svg") ||
+        lower.contains(".ico")
+
+    // =====================================
+    // AUDIO
+    // =====================================
+
+    val isAudio =
+        lower.contains(".mp3") ||
+        lower.contains(".m4a") ||
+        lower.contains(".aac") ||
+        lower.contains(".opus") ||
+        lower.contains(".wav") ||
+        lower.contains(".ogg") ||
+        lower.contains(".flac")
+
+    // =====================================
+    // FILTER
+    // =====================================
+
+    if (
+        !isVideo &&
+        !isImage &&
+        !isAudio
     ) {
+        return
+    }
 
-        Log.e(
-            "MEDIA_DETECT",
-            url
-        )
+    // =====================================
+    // UNIQUE CACHE
+    // =====================================
 
-        val isMedia =
-            url.contains(".m3u8") ||
-            url.contains(".mpd") ||
-            url.contains(".m4s") ||
-            url.contains(".ts") ||
-            url.contains(".mp4") ||
-            url.contains(".jpg") ||
-            url.contains(".jpeg") ||
-            url.contains(".png") ||
-            url.contains(".webp") ||
-            url.contains(".gif") ||
-            url.contains("playlist") ||
-            url.contains("chunklist")
+    if (isVideo) {
 
         if (
-            isMedia &&
-            !detectedStreams.contains(url)
+            detectedVideos.contains(url)
         ) {
+            return
+        }
 
-            detectedStreams.add(url)
+        detectedVideos.add(url)
+    }
 
-            runOnUiThread {
+    if (isImage) {
 
-                binding.contentMain.result.append(
-                    "\n\nMEDIA:\n$url\n"
-                )
-            }
+        if (
+            detectedImages.contains(url)
+        ) {
+            return
+        }
 
-            Log.e(
-                "MEDIA_FOUND",
-                url
+        detectedImages.add(url)
+    }
+
+    if (isAudio) {
+
+        if (
+            detectedAudio.contains(url)
+        ) {
+            return
+        }
+
+        detectedAudio.add(url)
+    }
+
+    detectedStreams.add(url)
+
+    // =====================================
+    // TYPE LABEL
+    // =====================================
+
+    val mediaType =
+        when {
+
+            isVideo -> "VIDEO"
+            isImage -> "IMAGE"
+            isAudio -> "AUDIO"
+
+            else -> "MEDIA"
+        }
+
+    // =====================================
+    // UI
+    // =====================================
+
+    runOnUiThread {
+
+        binding.contentMain.result.append(
+            "\n\n$mediaType:\n$url\n"
+        )
+    }
+
+    Log.e(
+        "MEDIA_FOUND",
+        "$mediaType -> $url"
+    )
+
+    // =====================================
+    // SAVE DB
+    // =====================================
+
+    try {
+
+        val repo =
+            SnooperRepo(
+                this@MainActivity
             )
 
-            try {
+        repo.save(
+            HttpCallRecord(
+                url = url,
+                method = "GET",
+                responseBody =
+                    "$mediaType DETECTED",
+                statusCode = 200,
+                statusText = "OK",
+                date = Date()
+            )
+        )
 
-                val repo =
-                    SnooperRepo(
-                        this@MainActivity
-                    )
+        Log.e(
+            "SNOOPER_DB",
+            "saved -> $url"
+        )
 
-                repo.save(
-                    HttpCallRecord(
-                        url = url,
-                        method = "GET",
-                        responseBody =
-                            "MEDIA DETECTED",
-                        statusCode = 200,
-                        statusText = "OK",
-                        date = Date()
-                    )
-                )
+    } catch (t: Throwable) {
 
-                Log.e(
-                    "SNOOPER_DB",
-                    "saved -> $url"
-                )
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "SNOOPER_DB",
-                    "save failed",
-                    t
-                )
-            }
-        }
+        Log.e(
+            "SNOOPER_DB",
+            "save failed",
+            t
+        )
     }
+}
 
     override fun onCreateOptionsMenu(
         menu: Menu
