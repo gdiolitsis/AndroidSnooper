@@ -15,38 +15,17 @@
         android:id="@+id/header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:layout_gravity="center_horizontal"
-        android:text="Snooper Test App"
+        android:padding="10dp"
+        android:text="Android Snooper Browser"
         android:textAlignment="center"
-        android:textSize="30sp" />
-
-    <Button
-        android:id="@+id/fetch_posts"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="fetchPosts"
-        android:text="GET" />
-
-    <Button
-        android:id="@+id/fetch_posts_fail"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="fetchPostsFail"
-        android:text="GET FAIL" />
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="createPost"
-        android:text="POST" />
+        android:textSize="26sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/openBrowser"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="OPEN BROWSER" />
+        android:text="OPEN VIDEO PAGE" />
 
     <WebView
         android:id="@+id/webview"
@@ -54,9 +33,18 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <TextView
-        android:id="@+id/result"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="180dp">
+
+        <TextView
+            android:id="@+id/result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+    </ScrollView>
 
 </LinearLayout>
