@@ -16,7 +16,6 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.SearchView.OnQueryTextListener
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
-import androidx.core.widget.NestedScrollView.OnScrollChangeListener
 import androidx.fragment.app.Fragment
 import com.prateekj.snooper.R
 import com.prateekj.snooper.databinding.FragmentResponseBodyBinding
@@ -36,7 +35,7 @@ class HttpCallFragment :
     Fragment(),
     HttpCallBodyView,
     OnQueryTextListener,
-    OnScrollChangeListener {
+    NestedScrollView.OnScrollChangeListener {
 
     private var _binding:
             FragmentResponseBodyBinding? = null
@@ -127,17 +126,7 @@ class HttpCallFragment :
         )
 
         binding.scrollView
-            .setOnScrollChangeListener(
-    NestedScrollView.OnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
-        onScrollChange(
-            v,
-            scrollX,
-            scrollY,
-            oldScrollX,
-            oldScrollY
-        )
-    }
-)
+            .setOnScrollChangeListener(this)
     }
 
     override fun onDestroyView() {
@@ -145,7 +134,9 @@ class HttpCallFragment :
         super.onDestroyView()
 
         binding.scrollView
-            .setOnScrollChangeListener(null)
+            .setOnScrollChangeListener(
+                null as NestedScrollView.OnScrollChangeListener?
+            )
 
         _binding = null
     }
@@ -197,6 +188,7 @@ class HttpCallFragment :
     ) {
 
         _binding?.embeddedLoader
+            ?.root
             ?.visibility = visibility
     }
 
