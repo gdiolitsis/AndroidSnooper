@@ -35,6 +35,12 @@
         android:layout_height="wrap_content"
         android:text="OPEN PAGE" />
 
+  <Button
+    android:id="@+id/openChrome"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="OPEN IN CHROME" />
+
     <!-- ===================================== -->
     <!-- FILTER BUTTONS -->
     <!-- ===================================== -->
