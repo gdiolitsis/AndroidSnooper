@@ -177,6 +177,148 @@ binding.contentMain.webview.settings.apply {
         WebSettings.LOAD_DEFAULT
 }
 
+
+// =====================================
+// HANDLE NEW INTENTS
+// =====================================
+
+override fun onNewIntent(intent: Intent?) {
+
+    super.onNewIntent(intent)
+
+    setIntent(intent)
+
+    handleIncomingIntent()
+}
+
+// =====================================
+// HANDLE SHARE / OPEN WITH
+// =====================================
+
+private fun handleIncomingIntent() {
+
+    try {
+
+        val action =
+            intent?.action
+
+        val type =
+            intent?.type
+
+        Log.e(
+            "INTENT_DEBUG",
+            "action=$action type=$type data=${intent?.dataString}"
+        )
+
+        // =====================================
+        // SHARE TEXT
+        // =====================================
+
+        if (
+            Intent.ACTION_SEND == action
+        ) {
+
+            val sharedText =
+                intent.getStringExtra(
+                    Intent.EXTRA_TEXT
+                )
+
+            if (
+                !sharedText.isNullOrBlank()
+            ) {
+
+                binding.contentMain.urlInput
+                    .setText(sharedText)
+
+                binding.contentMain.webview
+                    .loadUrl(sharedText)
+
+                detectAndSaveUrl(
+                    sharedText
+                )
+
+                Log.e(
+                    "SHARE_IMPORT",
+                    sharedText
+                )
+
+                return
+            }
+        }
+
+        // =====================================
+        // OPEN STREAM / URL
+        // =====================================
+
+        if (
+            Intent.ACTION_VIEW == action
+        ) {
+
+            val data =
+                intent?.dataString
+
+            if (
+                !data.isNullOrBlank()
+            ) {
+
+                binding.contentMain.urlInput
+                    .setText(data)
+
+                detectAndSaveUrl(
+                    data
+                )
+
+                binding.contentMain.webview
+                    .loadUrl(data)
+
+                Log.e(
+                    "VIEW_IMPORT",
+                    data
+                )
+
+                return
+            }
+        }
+
+        // =====================================
+        // FALLBACK EXTRA STREAM
+        // =====================================
+
+        val extraStream =
+            intent?.getStringExtra(
+                Intent.EXTRA_STREAM
+            )
+
+        if (
+            !extraStream.isNullOrBlank()
+        ) {
+
+            binding.contentMain.urlInput
+                .setText(extraStream)
+
+            detectAndSaveUrl(
+                extraStream
+            )
+
+            binding.contentMain.webview
+                .loadUrl(extraStream)
+
+            Log.e(
+                "EXTRA_STREAM",
+                extraStream
+            )
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "INTENT_HANDLER",
+            "failed",
+            t
+        )
+    }
+}
+
         // =====================================
         // WEBVIEW
         // =====================================
@@ -471,92 +613,6 @@ binding.contentMain.openChrome.setOnClickListener {
             }
         }
     }
-
-    // =====================================
-// HANDLE SHARE / OPEN WITH
-// =====================================
-
-private fun handleIncomingIntent() {
-
-    try {
-
-        val action =
-            intent?.action
-
-        val type =
-            intent?.type
-
-        // =====================================
-        // SHARE TEXT
-        // =====================================
-
-        if (
-            Intent.ACTION_SEND == action &&
-            type != null
-        ) {
-
-            val sharedText =
-                intent.getStringExtra(
-                    Intent.EXTRA_TEXT
-                )
-
-            if (
-                !sharedText.isNullOrBlank()
-            ) {
-
-                binding.contentMain.urlInput
-                    .setText(sharedText)
-
-                binding.contentMain.webview
-                    .loadUrl(sharedText)
-
-                Log.e(
-                    "SHARE_IMPORT",
-                    sharedText
-                )
-
-                return
-            }
-        }
-
-        // =====================================
-        // OPEN WITH
-        // =====================================
-
-        if (
-            Intent.ACTION_VIEW == action
-        ) {
-
-            val data =
-                intent?.dataString
-
-            if (
-                !data.isNullOrBlank()
-            ) {
-
-                binding.contentMain.urlInput
-                    .setText(data)
-
-                binding.contentMain.webview
-                    .loadUrl(data)
-
-                Log.e(
-                    "VIEW_IMPORT",
-                    data
-                )
-            }
-        }
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "INTENT_HANDLER",
-            "failed",
-            t
-        )
-    }
-}
-
 
     // =====================================
     // DETECT + SAVE URL
