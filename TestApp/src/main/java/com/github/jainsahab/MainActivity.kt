@@ -398,77 +398,90 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // =====================================
+// =====================================
 // OPEN PLAYER
 // =====================================
 
 binding.contentMain.openPlayer.setOnClickListener {
 
-    val url =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
+    if (detectedStreams.isEmpty()) {
 
-    if (url.isBlank()) {
+        binding.contentMain.result.append(
+            "\n\nNO STREAMS DETECTED\n"
+        )
+
         return@setOnClickListener
     }
 
-    try {
+    val streamList =
+        detectedStreams.toTypedArray()
 
-        val lower =
-            url.lowercase()
+    androidx.appcompat.app.AlertDialog.Builder(this)
+        .setTitle("Select Stream")
 
-        val mimeType =
-            when {
+        .setItems(streamList) { _, which ->
 
-                lower.contains(".m3u8") ->
-                    "application/x-mpegURL"
+            val url =
+                streamList[which]
 
-                lower.contains(".mpd") ->
-                    "application/dash+xml"
+            try {
 
-                lower.contains(".mp4") ->
-                    "video/mp4"
+                val lower =
+                    url.lowercase()
 
-                lower.contains(".ts") ->
-                    "video/mp2t"
+                val mimeType =
+                    when {
 
-                lower.contains(".mp3") ->
-                    "audio/mpeg"
+                        lower.contains(".m3u8") ->
+                            "application/x-mpegURL"
 
-                else ->
-                    "video/*"
-            }
+                        lower.contains(".mpd") ->
+                            "application/dash+xml"
 
-        val intent =
-            Intent(Intent.ACTION_VIEW).apply {
+                        lower.contains(".mp4") ->
+                            "video/mp4"
 
-                setDataAndType(
-                    Uri.parse(url),
-                    mimeType
+                        lower.contains(".ts") ->
+                            "video/mp2t"
+
+                        lower.contains(".mp3") ->
+                            "audio/mpeg"
+
+                        else ->
+                            "video/*"
+                    }
+
+                val intent =
+                    Intent(Intent.ACTION_VIEW).apply {
+
+                        setDataAndType(
+                            Uri.parse(url),
+                            mimeType
+                        )
+
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        intent,
+                        "Open Stream With"
+                    )
                 )
 
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "PLAYER_OPEN",
+                    "failed",
+                    t
                 )
             }
+        }
 
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Open Stream With"
-            )
-        )
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "PLAYER_OPEN",
-            "failed",
-            t
-        )
-    }
+        .show()
 }
 
 // =====================================
