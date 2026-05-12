@@ -91,6 +91,16 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
     }
 
+    binding.webview.settings.javaScriptEnabled = true
+binding.webview.settings.domStorageEnabled = true
+
+binding.openBrowser.setOnClickListener {
+
+    binding.webview.loadUrl(
+        "https://example.com"
+    )
+}
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
 
         menuInflater.inflate(R.menu.menu_main, menu)
