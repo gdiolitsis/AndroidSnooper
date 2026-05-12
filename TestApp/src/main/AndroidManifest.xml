@@ -45,6 +45,24 @@
 
         </activity>
 
+        <activity
+            android:name="com.prateekj.snooper.networksnooper.activity.HttpCallListActivity"
+            android:exported="true"
+            android:label="Snooper Logs"
+            android:theme="@style/AppTheme.NoActionBar">
+
+            <intent-filter>
+
+                <action
+                    android:name="android.intent.action.VIEW" />
+
+                <category
+                    android:name="android.intent.category.DEFAULT" />
+
+            </intent-filter>
+
+        </activity>
+
     </application>
 
 </manifest>
