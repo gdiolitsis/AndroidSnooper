@@ -187,9 +187,7 @@ class MainActivity : AppCompatActivity() {
 
                             let results = [];
 
-                            // =========================
                             // IMG
-                            // =========================
 
                             document
                                 .querySelectorAll("img")
@@ -200,9 +198,7 @@ class MainActivity : AppCompatActivity() {
                                     }
                                 });
 
-                            // =========================
                             // VIDEO
-                            // =========================
 
                             document
                                 .querySelectorAll("video")
@@ -217,9 +213,7 @@ class MainActivity : AppCompatActivity() {
                                     }
                                 });
 
-                            // =========================
                             // AUDIO
-                            // =========================
 
                             document
                                 .querySelectorAll("audio")
@@ -230,9 +224,7 @@ class MainActivity : AppCompatActivity() {
                                     }
                                 });
 
-                            // =========================
                             // SOURCE
-                            // =========================
 
                             document
                                 .querySelectorAll("source")
@@ -243,9 +235,7 @@ class MainActivity : AppCompatActivity() {
                                     }
                                 });
 
-                            // =========================
                             // CSS BACKGROUND IMAGE
-                            // =========================
 
                             document
                                 .querySelectorAll("*")
@@ -276,13 +266,6 @@ class MainActivity : AppCompatActivity() {
                         js
                     ) { value ->
 
-                        runOnUiThread {
-
-                            binding.contentMain.result.append(
-                                "\n\nJS_SCAN:\n$value\n"
-                            )
-                        }
-
                         Log.e(
                             "JS_MEDIA_SCAN",
                             value
@@ -300,11 +283,18 @@ class MainActivity : AppCompatActivity() {
         binding.contentMain.webview.settings.mediaPlaybackRequiresUserGesture =
             false
 
+        // =====================================
+        // OPEN PAGE
+        // =====================================
+
         binding.contentMain.openBrowser.setOnClickListener {
 
             detectedStreams.clear()
+
             detectedVideos.clear()
+
             detectedImages.clear()
+
             detectedAudio.clear()
 
             val enteredUrl =
@@ -329,58 +319,58 @@ class MainActivity : AppCompatActivity() {
                 finalUrl
             )
         }
+
+        // =====================================
+        // FILTER BUTTONS
+        // =====================================
+
+        binding.contentMain.btnAll.setOnClickListener {
+
+            showAllMedia()
+        }
+
+        binding.contentMain.btnVideos.setOnClickListener {
+
+            showVideos()
+        }
+
+        binding.contentMain.btnImages.setOnClickListener {
+
+            showImages()
+        }
+
+        binding.contentMain.btnAudio.setOnClickListener {
+
+            showAudio()
+        }
+
+        binding.contentMain.btnClear.setOnClickListener {
+
+            detectedStreams.clear()
+
+            detectedVideos.clear()
+
+            detectedImages.clear()
+
+            detectedAudio.clear()
+
+            binding.contentMain.result.text = ""
+
+            try {
+
+                SnooperRepo(this)
+                    .deleteAll()
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "CLEAR",
+                    "db clear failed",
+                    t
+                )
+            }
+        }
     }
-
-    // =====================================
-// FILTER BUTTONS
-// =====================================
-
-binding.contentMain.btnAll.setOnClickListener {
-
-    showAllMedia()
-}
-
-binding.contentMain.btnVideos.setOnClickListener {
-
-    showVideos()
-}
-
-binding.contentMain.btnImages.setOnClickListener {
-
-    showImages()
-}
-
-binding.contentMain.btnAudio.setOnClickListener {
-
-    showAudio()
-}
-
-binding.contentMain.btnClear.setOnClickListener {
-
-    detectedStreams.clear()
-
-    detectedVideos.clear()
-
-    detectedImages.clear()
-
-    detectedAudio.clear()
-
-    binding.contentMain.result.text = ""
-
-    try {
-
-        SnooperRepo(this)
-            .deleteAll()
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "CLEAR",
-            "db clear failed",
-            t
-        )
-    }
-}
 
     // =====================================
     // DETECT + SAVE URL
@@ -398,9 +388,7 @@ binding.contentMain.btnClear.setOnClickListener {
         val lower =
             url.lowercase()
 
-        // =====================================
         // VIDEO
-        // =====================================
 
         val isVideo =
             lower.contains(".m3u8") ||
@@ -413,9 +401,7 @@ binding.contentMain.btnClear.setOnClickListener {
             lower.contains("playlist") ||
             lower.contains("chunklist")
 
-        // =====================================
         // IMAGE
-        // =====================================
 
         val isImage =
             lower.contains(".jpg") ||
@@ -427,9 +413,7 @@ binding.contentMain.btnClear.setOnClickListener {
             lower.contains(".svg") ||
             lower.contains(".ico")
 
-        // =====================================
         // AUDIO
-        // =====================================
 
         val isAudio =
             lower.contains(".mp3") ||
@@ -440,10 +424,6 @@ binding.contentMain.btnClear.setOnClickListener {
             lower.contains(".ogg") ||
             lower.contains(".flac")
 
-        // =====================================
-        // FILTER
-        // =====================================
-
         if (
             !isVideo &&
             !isImage &&
@@ -452,9 +432,7 @@ binding.contentMain.btnClear.setOnClickListener {
             return
         }
 
-        // =====================================
         // UNIQUE CACHE
-        // =====================================
 
         if (isVideo) {
 
@@ -491,23 +469,17 @@ binding.contentMain.btnClear.setOnClickListener {
 
         detectedStreams.add(url)
 
-        // =====================================
-        // TYPE LABEL
-        // =====================================
-
         val mediaType =
             when {
 
                 isVideo -> "VIDEO"
+
                 isImage -> "IMAGE"
+
                 isAudio -> "AUDIO"
 
                 else -> "MEDIA"
             }
-
-        // =====================================
-        // UI
-        // =====================================
 
         runOnUiThread {
 
@@ -521,9 +493,7 @@ binding.contentMain.btnClear.setOnClickListener {
             "$mediaType -> $url"
         )
 
-        // =====================================
         // SAVE DB
-        // =====================================
 
         try {
 
@@ -544,11 +514,6 @@ binding.contentMain.btnClear.setOnClickListener {
                 )
             )
 
-            Log.e(
-                "SNOOPER_DB",
-                "saved -> $url"
-            )
-
         } catch (t: Throwable) {
 
             Log.e(
@@ -560,80 +525,80 @@ binding.contentMain.btnClear.setOnClickListener {
     }
 
     // =====================================
-// SHOW ALL
-// =====================================
+    // SHOW ALL
+    // =====================================
 
-private fun showAllMedia() {
+    private fun showAllMedia() {
 
-    val sb = StringBuilder()
+        val sb = StringBuilder()
 
-    detectedStreams.forEach {
+        detectedStreams.forEach {
 
-        sb.append("\n\nMEDIA:\n")
-        sb.append(it)
-        sb.append("\n")
+            sb.append("\n\nMEDIA:\n")
+            sb.append(it)
+            sb.append("\n")
+        }
+
+        binding.contentMain.result.text =
+            sb.toString()
     }
 
-    binding.contentMain.result.text =
-        sb.toString()
-}
+    // =====================================
+    // SHOW VIDEOS
+    // =====================================
 
-// =====================================
-// SHOW VIDEOS
-// =====================================
+    private fun showVideos() {
 
-private fun showVideos() {
+        val sb = StringBuilder()
 
-    val sb = StringBuilder()
+        detectedVideos.forEach {
 
-    detectedVideos.forEach {
+            sb.append("\n\nVIDEO:\n")
+            sb.append(it)
+            sb.append("\n")
+        }
 
-        sb.append("\n\nVIDEO:\n")
-        sb.append(it)
-        sb.append("\n")
+        binding.contentMain.result.text =
+            sb.toString()
     }
 
-    binding.contentMain.result.text =
-        sb.toString()
-}
+    // =====================================
+    // SHOW IMAGES
+    // =====================================
 
-// =====================================
-// SHOW IMAGES
-// =====================================
+    private fun showImages() {
 
-private fun showImages() {
+        val sb = StringBuilder()
 
-    val sb = StringBuilder()
+        detectedImages.forEach {
 
-    detectedImages.forEach {
+            sb.append("\n\nIMAGE:\n")
+            sb.append(it)
+            sb.append("\n")
+        }
 
-        sb.append("\n\nIMAGE:\n")
-        sb.append(it)
-        sb.append("\n")
+        binding.contentMain.result.text =
+            sb.toString()
     }
 
-    binding.contentMain.result.text =
-        sb.toString()
-}
+    // =====================================
+    // SHOW AUDIO
+    // =====================================
 
-// =====================================
-// SHOW AUDIO
-// =====================================
+    private fun showAudio() {
 
-private fun showAudio() {
+        val sb = StringBuilder()
 
-    val sb = StringBuilder()
+        detectedAudio.forEach {
 
-    detectedAudio.forEach {
+            sb.append("\n\nAUDIO:\n")
+            sb.append(it)
+            sb.append("\n")
+        }
 
-        sb.append("\n\nAUDIO:\n")
-        sb.append(it)
-        sb.append("\n")
+        binding.contentMain.result.text =
+            sb.toString()
     }
-
-    binding.contentMain.result.text =
-        sb.toString()
-}
 
     override fun onCreateOptionsMenu(
         menu: Menu
