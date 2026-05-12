@@ -207,7 +207,7 @@ class MainActivity : AppCompatActivity() {
                             if (!isFinishing &&
                                 !isDestroyed) {
 
-                                binding.contentMain.result.text = text
+                                binding.result.text = text
                             }
                         }
 
