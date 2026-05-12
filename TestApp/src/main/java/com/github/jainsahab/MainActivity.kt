@@ -509,10 +509,11 @@ binding.contentMain.openPlayer.setOnClickListener {
     }
 
     val cleanUrl =
-        url
-            .trim()
-            .replace("\n", "")
-            .replace("\r", "")
+    url
+        .trim()
+        .replace("\n", "")
+        .replace("\r", "")
+        .replace(" ", "")
 
     val intent =
         Intent(Intent.ACTION_VIEW).apply {
