@@ -83,7 +83,7 @@
             </intent-filter>
 
             <!-- ================================= -->
-            <!-- OPEN LINKS -->
+            <!-- UNIVERSAL STREAM / PLAYER SUPPORT -->
             <!-- ================================= -->
 
             <intent-filter>
@@ -96,6 +96,8 @@
 
                 <category
                     android:name="android.intent.category.BROWSABLE" />
+
+                <!-- HTTP / HTTPS -->
 
                 <data
                     android:scheme="http" />
@@ -103,122 +105,42 @@
                 <data
                     android:scheme="https" />
 
-            </intent-filter>
-
-            <!-- ================================= -->
-            <!-- VIDEO SUPPORT -->
-            <!-- ================================= -->
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.VIEW" />
-
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+                <!-- GENERIC VIDEO -->
 
                 <data
                     android:mimeType="video/*" />
 
-            </intent-filter>
-
-            <!-- ================================= -->
-            <!-- AUDIO SUPPORT -->
-            <!-- ================================= -->
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.VIEW" />
-
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+                <!-- GENERIC AUDIO -->
 
                 <data
                     android:mimeType="audio/*" />
 
-            </intent-filter>
-
-            <!-- ================================= -->
-            <!-- HLS STREAM -->
-            <!-- ================================= -->
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.VIEW" />
-
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+                <!-- MP4 -->
 
                 <data
-                    android:mimeType="application/x-mpegURL" />
+                    android:mimeType="video/mp4" />
 
-            </intent-filter>
-
-            <!-- ================================= -->
-            <!-- APPLE HLS -->
-            <!-- ================================= -->
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.VIEW" />
-
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+                <!-- MPEG -->
 
                 <data
-                    android:mimeType="application/vnd.apple.mpegurl" />
+                    android:mimeType="video/mpeg" />
 
-            </intent-filter>
-
-            <!-- ================================= -->
-            <!-- MPEG TS STREAM -->
-            <!-- ================================= -->
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.VIEW" />
-
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+                <!-- MPEG TS -->
 
                 <data
                     android:mimeType="video/mp2t" />
 
-            </intent-filter>
+                <!-- HLS -->
 
-            <!-- ================================= -->
-            <!-- GENERIC STREAM -->
-            <!-- ================================= -->
+                <data
+                    android:mimeType="application/x-mpegURL" />
 
-            <intent-filter>
+                <!-- APPLE HLS -->
 
-                <action
-                    android:name="android.intent.action.VIEW" />
+                <data
+                    android:mimeType="application/vnd.apple.mpegurl" />
 
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+                <!-- GENERIC STREAM -->
 
                 <data
                     android:mimeType="application/octet-stream" />
@@ -301,7 +223,7 @@
             </intent-filter>
 
             <!-- ================================= -->
-            <!-- MP4 SUPPORT -->
+            <!-- MP4 PATH SUPPORT -->
             <!-- ================================= -->
 
             <intent-filter>
