@@ -29,17 +29,55 @@
         android:inputType="textUri"
         android:padding="10dp" />
 
-    <Button
-        android:id="@+id/openBrowser"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="OPEN PAGE" />
+    <!-- ===================================== -->
+    <!-- MAIN ACTIONS -->
+    <!-- ===================================== -->
 
-    <Button
-        android:id="@+id/openChrome"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="OPEN IN CHROME" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/openBrowser"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="OPEN PAGE" />
+
+        <Button
+            android:id="@+id/openChrome"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="CHROME" />
+
+    </LinearLayout>
+
+    <!-- ===================================== -->
+    <!-- PLAYER ACTIONS -->
+    <!-- ===================================== -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/openPlayer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="OPEN PLAYER" />
+
+        <Button
+            android:id="@+id/shareStream"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="SHARE STREAM" />
+
+    </LinearLayout>
 
     <!-- ===================================== -->
     <!-- FILTER BUTTONS -->
