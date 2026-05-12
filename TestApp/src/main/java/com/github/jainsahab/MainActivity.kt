@@ -152,76 +152,120 @@ class MainActivity : AppCompatActivity() {
                     val url =
                         request?.url.toString()
 
-                    Log.e(
-                        "M3U8_DETECT",
+                    detectAndSaveUrl(
                         url
                     )
-
-                    val isStream =
-                        url.contains(".m3u8") ||
-                        url.contains(".mpd") ||
-                        url.contains(".m4s") ||
-                        url.contains(".ts") ||
-                        url.contains("playlist") ||
-                        url.contains("chunklist")
-
-                    if (
-                        isStream &&
-                        !detectedStreams.contains(url)
-                    ) {
-
-                        detectedStreams.add(url)
-
-                        runOnUiThread {
-
-                            binding.contentMain.result.append(
-                                "\n\nSTREAM:\n$url\n"
-                            )
-                        }
-
-                        Log.e(
-                            "STREAM_FOUND",
-                            url
-                        )
-
-                        try {
-
-                            val repo =
-                                SnooperRepo(
-                                    this@MainActivity
-                                )
-
-                            repo.save(
-                                HttpCallRecord(
-                                    url = url,
-                                    method = "GET",
-                                    responseBody =
-                                        "STREAM DETECTED",
-                                    statusCode = 200,
-                                    statusText = "OK",
-                                    date = Date()
-                                )
-                            )
-
-                            Log.e(
-                                "SNOOPER_DB",
-                                "saved -> $url"
-                            )
-
-                        } catch (t: Throwable) {
-
-                            Log.e(
-                                "SNOOPER_DB",
-                                "save failed",
-                                t
-                            )
-                        }
-                    }
 
                     return super.shouldInterceptRequest(
                         view,
                         request
                     )
+                }
+
+                override fun onPageFinished(
+                    view: WebView?,
+                    url: String?
+                ) {
+
+                    super.onPageFinished(
+                        view,
+                        url
+                    )
+
+                    val js = """
+                        
+                        (function() {
+
+                            let results = [];
+
+                            // =========================
+                            // IMG
+                            // =========================
+
+                            document
+                                .querySelectorAll("img")
+                                .forEach(function(el) {
+
+                                    if (el.src) {
+                                        results.push(el.src);
+                                    }
+                                });
+
+                            // =========================
+                            // VIDEO
+                            // =========================
+
+                            document
+                                .querySelectorAll("video")
+                                .forEach(function(el) {
+
+                                    if (el.src) {
+                                        results.push(el.src);
+                                    }
+
+                                    if (el.poster) {
+                                        results.push(el.poster);
+                                    }
+                                });
+
+                            // =========================
+                            // SOURCE
+                            // =========================
+
+                            document
+                                .querySelectorAll("source")
+                                .forEach(function(el) {
+
+                                    if (el.src) {
+                                        results.push(el.src);
+                                    }
+                                });
+
+                            // =========================
+                            // CSS BACKGROUND IMAGE
+                            // =========================
+
+                            document
+                                .querySelectorAll("*")
+                                .forEach(function(el) {
+
+                                    let style =
+                                        window.getComputedStyle(el);
+
+                                    let bg =
+                                        style.backgroundImage;
+
+                                    if (
+                                        bg &&
+                                        bg.includes("url(")
+                                    ) {
+
+                                        results.push(bg);
+                                    }
+                                });
+
+                            return JSON.stringify(results);
+
+                        })();
+                        
+                    """.trimIndent()
+
+                    view?.evaluateJavascript(
+                        js
+                    ) { value ->
+
+                        runOnUiThread {
+
+                            binding.contentMain.result.append(
+                                "\n\nJS_SCAN:\n$value\n"
+                            )
+                        }
+
+                        Log.e(
+                            "JS_MEDIA_SCAN",
+                            value
+                        )
+                    }
                 }
             }
 
@@ -259,6 +303,87 @@ class MainActivity : AppCompatActivity() {
             binding.contentMain.webview.loadUrl(
                 finalUrl
             )
+        }
+    }
+
+    // =====================================
+    // DETECT + SAVE URL
+    // =====================================
+
+    private fun detectAndSaveUrl(
+        url: String
+    ) {
+
+        Log.e(
+            "MEDIA_DETECT",
+            url
+        )
+
+        val isMedia =
+            url.contains(".m3u8") ||
+            url.contains(".mpd") ||
+            url.contains(".m4s") ||
+            url.contains(".ts") ||
+            url.contains(".mp4") ||
+            url.contains(".jpg") ||
+            url.contains(".jpeg") ||
+            url.contains(".png") ||
+            url.contains(".webp") ||
+            url.contains(".gif") ||
+            url.contains("playlist") ||
+            url.contains("chunklist")
+
+        if (
+            isMedia &&
+            !detectedStreams.contains(url)
+        ) {
+
+            detectedStreams.add(url)
+
+            runOnUiThread {
+
+                binding.contentMain.result.append(
+                    "\n\nMEDIA:\n$url\n"
+                )
+            }
+
+            Log.e(
+                "MEDIA_FOUND",
+                url
+            )
+
+            try {
+
+                val repo =
+                    SnooperRepo(
+                        this@MainActivity
+                    )
+
+                repo.save(
+                    HttpCallRecord(
+                        url = url,
+                        method = "GET",
+                        responseBody =
+                            "MEDIA DETECTED",
+                        statusCode = 200,
+                        statusText = "OK",
+                        date = Date()
+                    )
+                )
+
+                Log.e(
+                    "SNOOPER_DB",
+                    "saved -> $url"
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "SNOOPER_DB",
+                    "save failed",
+                    t
+                )
+            }
         }
     }
 
