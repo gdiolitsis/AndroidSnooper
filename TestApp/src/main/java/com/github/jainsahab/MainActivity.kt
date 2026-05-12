@@ -9,6 +9,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebSettings
 import androidx.appcompat.app.AppCompatActivity
 import com.github.jainsahab.databinding.ActivityMainBinding
 import com.prateekj.snooper.AndroidSnooper
@@ -145,6 +146,32 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(
             binding.toolbar
         )
+
+// =====================================
+// BROWSER SETTINGS
+// =====================================
+
+binding.contentMain.webview.settings.apply {
+
+    javaScriptEnabled = true
+
+    domStorageEnabled = true
+
+    mediaPlaybackRequiresUserGesture = false
+
+    loadsImagesAutomatically = true
+
+    useWideViewPort = true
+
+    loadWithOverviewMode = true
+
+    builtInZoomControls = true
+
+    displayZoomControls = false
+
+    cacheMode =
+        WebSettings.LOAD_DEFAULT
+}
 
         // =====================================
         // WEBVIEW
