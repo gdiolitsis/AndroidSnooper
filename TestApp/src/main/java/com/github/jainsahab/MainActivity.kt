@@ -438,28 +438,28 @@ binding.contentMain.openPlayer.setOnClickListener {
                 val mimeType =
     when {
 
-        // =========================
-        // STREAMS / VIDEO
-        // =========================
+// =========================
+// STREAMS / VIDEO
+// =========================
 
-        lower.contains(".m3u8") ->
-    "*/*"
+lower.contains(".m3u8") ->
+    "video/*"
 
-        lower.contains(".mpd") ->
-    "*/*"
+lower.contains(".mpd") ->
+    "video/*"
 
-        lower.contains(".mp4") ->
-            "video/mp4"
+lower.contains(".mp4") ->
+    "video/*"
 
-        lower.contains(".mkv") ->
-            "video/x-matroska"
+lower.contains(".mkv") ->
+    "video/*"
 
-        lower.contains(".webm") ->
-            "video/webm"
+lower.contains(".webm") ->
+    "video/*"
 
-        lower.contains(".ts") ->
-    "*/*"
-
+lower.contains(".ts") ->
+    "video/*"
+    
         // =========================
         // AUDIO
         // =========================
@@ -515,18 +515,18 @@ binding.contentMain.openPlayer.setOnClickListener {
     Intent(Intent.ACTION_VIEW).apply {
 
         setDataAndType(
-            Uri.parse(cleanUrl),
-            "*/*"
+    Uri.parse(cleanUrl),
+    mimeType
+)
+
+        addCategory(
+            Intent.CATEGORY_BROWSABLE
         )
 
         addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK
         )
     }
-
-intent.addFlags(
-    Intent.FLAG_GRANT_READ_URI_PERMISSION
-)
 
 startActivity(
     Intent.createChooser(
