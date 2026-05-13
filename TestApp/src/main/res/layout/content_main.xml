@@ -161,6 +161,8 @@
             android:padding="8dp"
             android:textIsSelectable="true"
             android:textSize="12sp" />
+            android:longClickable="true"
+            android:textIsSelectable="true"
 
     </ScrollView>
 
