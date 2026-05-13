@@ -7,6 +7,10 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.KeyEvent
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -51,6 +55,15 @@ class MainActivity : AppCompatActivity() {
 
     private val detectedAudio =
         linkedSetOf<String>()
+        
+    // =====================================
+    // FULLSCREEN VIDEO
+    // =====================================
+
+    private var customView: View? = null
+
+    private var customViewCallback:
+            WebChromeClient.CustomViewCallback? = null
 
     // =====================================
     // REQUEST BODY
@@ -187,104 +200,156 @@ class MainActivity : AppCompatActivity() {
                 WebSettings.LOAD_DEFAULT
         }
 
-        // =====================================
-        // WEBVIEW CLIENT
-        // =====================================
+// =====================================
+// WEBVIEW CLIENT
+// =====================================
 
-        binding.contentMain.webview.webViewClient =
-            object : WebViewClient() {
+binding.contentMain.webview.webViewClient =
+    object : WebViewClient() {
 
-                override fun shouldInterceptRequest(
-                    view: WebView?,
-                    request: WebResourceRequest?
-                ): WebResourceResponse? {
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): WebResourceResponse? {
 
-                    val url =
-                        request?.url.toString()
+            val url =
+                request?.url.toString()
 
-                    detectAndSaveUrl(
-                        url
-                    )
+            detectAndSaveUrl(
+                url
+            )
 
-                    return super.shouldInterceptRequest(
-                        view,
-                        request
-                    )
-                }
+            return super.shouldInterceptRequest(
+                view,
+                request
+            )
+        }
 
-                override fun onPageFinished(
-                    view: WebView?,
-                    url: String?
-                ) {
+        override fun onPageFinished(
+            view: WebView?,
+            url: String?
+        ) {
 
-                    super.onPageFinished(
-                        view,
-                        url
-                    )
+            super.onPageFinished(
+                view,
+                url
+            )
 
-                    val js = """
+            val js = """
 
-                        (function() {
+                (function() {
 
-                            let results = [];
+                    let results = [];
 
-                            document
-                                .querySelectorAll("img")
-                                .forEach(function(el) {
+                    document
+                        .querySelectorAll("img")
+                        .forEach(function(el) {
 
-                                    if (el.src) {
-                                        results.push(el.src);
-                                    }
-                                });
+                            if (el.src) {
+                                results.push(el.src);
+                            }
+                        });
 
-                            document
-                                .querySelectorAll("video")
-                                .forEach(function(el) {
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(el) {
 
-                                    if (el.src) {
-                                        results.push(el.src);
-                                    }
+                            if (el.src) {
+                                results.push(el.src);
+                            }
 
-                                    if (el.poster) {
-                                        results.push(el.poster);
-                                    }
-                                });
+                            if (el.poster) {
+                                results.push(el.poster);
+                            }
+                        });
 
-                            document
-                                .querySelectorAll("audio")
-                                .forEach(function(el) {
+                    document
+                        .querySelectorAll("audio")
+                        .forEach(function(el) {
 
-                                    if (el.src) {
-                                        results.push(el.src);
-                                    }
-                                });
+                            if (el.src) {
+                                results.push(el.src);
+                            }
+                        });
 
-                            document
-                                .querySelectorAll("source")
-                                .forEach(function(el) {
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(el) {
 
-                                    if (el.src) {
-                                        results.push(el.src);
-                                    }
-                                });
+                            if (el.src) {
+                                results.push(el.src);
+                            }
+                        });
 
-                            return JSON.stringify(results);
+                    return JSON.stringify(results);
 
-                        })();
+                })();
 
-                    """.trimIndent()
+            """.trimIndent()
 
-                    view?.evaluateJavascript(
-                        js
-                    ) { value ->
+            view?.evaluateJavascript(
+                js
+            ) { value ->
 
-                        Log.e(
-                            "JS_MEDIA_SCAN",
-                            value
-                        )
-                    }
-                }
+                Log.e(
+                    "JS_MEDIA_SCAN",
+                    value
+                )
             }
+        }
+    }
+
+// =====================================
+// WEB CHROME CLIENT (FULLSCREEN)
+// =====================================
+
+binding.contentMain.webview.webChromeClient =
+    object : WebChromeClient() {
+
+        override fun onShowCustomView(
+            view: View?,
+            callback: CustomViewCallback?
+        ) {
+
+            if (customView != null) {
+
+                callback?.onCustomViewHidden()
+                return
+            }
+
+            customView = view
+
+            customViewCallback = callback
+
+            addContentView(
+                view,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+
+            binding.contentMain.webview.visibility =
+                View.GONE
+        }
+
+        override fun onHideCustomView() {
+
+            customView?.visibility =
+                View.GONE
+
+            (customView?.parent as? ViewGroup)
+                ?.removeView(customView)
+
+            customView = null
+
+            binding.contentMain.webview.visibility =
+                View.VISIBLE
+
+            customViewCallback
+                ?.onCustomViewHidden()
+        }
+    }
 
         // =====================================
         // HANDLE INCOMING INTENT
@@ -935,9 +1000,17 @@ if (
 
         detectedStreams.forEach {
 
-            sb.append("\n\nMEDIA:\n")
-            sb.append(it)
-            sb.append("\n")
+            sb.append(
+    "\n────────────────────\n"
+)
+
+sb.append("MEDIA:\n\n")
+
+sb.append(it)
+
+sb.append(
+    "\n────────────────────\n\n"
+)
         }
 
         binding.contentMain.result.text =
@@ -954,9 +1027,17 @@ if (
 
         detectedVideos.forEach {
 
-            sb.append("\n\nVIDEO:\n")
-            sb.append(it)
-            sb.append("\n")
+            sb.append(
+    "\n────────────────────\n"
+)
+
+sb.append("VIDEO:\n\n")
+
+sb.append(it)
+
+sb.append(
+    "\n────────────────────\n\n"
+)
         }
 
         binding.contentMain.result.text =
@@ -973,9 +1054,17 @@ if (
 
         detectedImages.forEach {
 
-            sb.append("\n\nIMAGE:\n")
-            sb.append(it)
-            sb.append("\n")
+            sb.append(
+    "\n────────────────────\n"
+)
+
+sb.append("IMAGE:\n\n")
+
+sb.append(it)
+
+sb.append(
+    "\n────────────────────\n\n"
+)
         }
 
         binding.contentMain.result.text =
@@ -992,9 +1081,17 @@ if (
 
         detectedAudio.forEach {
 
-            sb.append("\n\nAUDIO:\n")
-            sb.append(it)
-            sb.append("\n")
+            sb.append(
+    "\n────────────────────\n"
+)
+
+sb.append("AUDIO:\n\n")
+
+sb.append(it)
+
+sb.append(
+    "\n────────────────────\n\n"
+)
         }
 
         binding.contentMain.result.text =
@@ -1115,68 +1212,95 @@ if (
     // =====================================
 
     private fun executeRequest(
-        request: Request
-    ) {
+    request: Request
+) {
 
-        okHttpClient
-            .newCall(request)
-            .enqueue(
-                object : Callback {
+    okHttpClient
+        .newCall(request)
+        .enqueue(
+            object : Callback {
 
-                    override fun onFailure(
-                        call: Call,
-                        e: IOException
-                    ) {
+                override fun onFailure(
+                    call: Call,
+                    e: IOException
+                ) {
+
+                    Log.e(
+                        "MAIN",
+                        "failure ${e.message}",
+                        e
+                    )
+                }
+
+                override fun onResponse(
+                    call: Call,
+                    response: Response
+                ) {
+
+                    try {
+
+                        if (!response.isSuccessful) {
+                            return
+                        }
+
+                        val text =
+                            response.body
+                                ?.string()
+                                .orEmpty()
+
+                        runOnUiThread {
+
+                            if (
+                                !isFinishing &&
+                                !isDestroyed
+                            ) {
+
+                                binding.contentMain.result.text =
+                                    text
+                            }
+                        }
+
+                    } catch (t: Throwable) {
 
                         Log.e(
                             "MAIN",
-                            "failure ${e.message}",
-                            e
+                            "response parse error",
+                            t
                         )
-                    }
 
-                    override fun onResponse(
-                        call: Call,
-                        response: Response
-                    ) {
+                    } finally {
 
-                        try {
-
-                            if (!response.isSuccessful) {
-                                return
-                            }
-
-                            val text =
-                                response.body
-                                    ?.string()
-                                    .orEmpty()
-
-                            runOnUiThread {
-
-                                if (
-                                    !isFinishing &&
-                                    !isDestroyed
-                                ) {
-
-                                    binding.contentMain.result.text =
-                                        text
-                                }
-                            }
-
-                        } catch (t: Throwable) {
-
-                            Log.e(
-                                "MAIN",
-                                "response parse error",
-                                t
-                            )
-
-                        } finally {
-
-                            response.close()
-                        }
+                        response.close()
                     }
                 }
-            )
+            }
+        )
+}
+
+// =====================================
+// BACK BUTTON
+// =====================================
+
+override fun onBackPressed() {
+
+    when {
+
+        customView != null -> {
+
+            binding.contentMain.webview
+                .webChromeClient
+                ?.onHideCustomView()
+        }
+
+        binding.contentMain.webview.canGoBack() -> {
+
+            binding.contentMain.webview.goBack()
+        }
+
+        else -> {
+
+            super.onBackPressed()
+        }
     }
+}
 }
