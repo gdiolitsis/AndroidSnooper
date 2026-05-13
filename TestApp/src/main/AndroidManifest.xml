@@ -1,112 +1,99 @@
-<activity
-    android:name=".MainActivity"
-    android:exported="true"
-    android:launchMode="singleTask"
-    android:configChanges="orientation|screenSize|keyboardHidden"
-    android:label="@string/app_name"
-    android:theme="@style/AppTheme.NoActionBar">
+<?xml version="1.0" encoding="utf-8"?>
+
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.github.jainsahab">
 
     <!-- ================================= -->
-    <!-- NORMAL APP LAUNCH -->
+    <!-- PERMISSIONS -->
     <!-- ================================= -->
 
-    <intent-filter>
+    <uses-permission
+        android:name="android.permission.INTERNET" />
 
-        <action
-            android:name="android.intent.action.MAIN" />
-
-        <category
-            android:name="android.intent.category.LAUNCHER" />
-
-    </intent-filter>
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- ================================= -->
-    <!-- SHARE TEXT -->
+    <!-- APPLICATION -->
     <!-- ================================= -->
 
-    <intent-filter>
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
 
-        <action
-            android:name="android.intent.action.SEND" />
+        <!-- ================================= -->
+        <!-- MAIN ACTIVITY -->
+        <!-- ================================= -->
 
-        <category
-            android:name="android.intent.category.DEFAULT" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:label="@string/app_name"
+            android:theme="@style/AppTheme.NoActionBar">
 
-        <data
-            android:mimeType="text/plain" />
+            <!-- ================================= -->
+            <!-- NORMAL LAUNCH -->
+            <!-- ================================= -->
 
-    </intent-filter>
+            <intent-filter>
 
-    <!-- ================================= -->
-    <!-- MEDIA / STREAM VIEW SUPPORT -->
-    <!-- ================================= -->
+                <action
+                    android:name="android.intent.action.MAIN" />
 
-    <intent-filter>
+                <category
+                    android:name="android.intent.category.LAUNCHER" />
 
-        <action
-            android:name="android.intent.action.VIEW" />
+            </intent-filter>
 
-        <category
-            android:name="android.intent.category.DEFAULT" />
+            <!-- ================================= -->
+            <!-- SHARE TEXT -->
+            <!-- ================================= -->
 
-        <category
-            android:name="android.intent.category.BROWSABLE" />
+            <intent-filter>
 
-        <!-- HTTP -->
+                <action
+                    android:name="android.intent.action.SEND" />
 
-        <data
-            android:scheme="http" />
+                <category
+                    android:name="android.intent.category.DEFAULT" />
 
-        <!-- HTTPS -->
+                <data
+                    android:mimeType="text/plain" />
 
-        <data
-            android:scheme="https" />
+            </intent-filter>
 
-        <!-- VIDEO -->
+            <!-- ================================= -->
+            <!-- VIEW LINKS -->
+            <!-- ================================= -->
 
-        <data
-            android:mimeType="video/*" />
+            <intent-filter>
 
-        <!-- AUDIO -->
+                <action
+                    android:name="android.intent.action.VIEW" />
 
-        <data
-            android:mimeType="audio/*" />
+                <category
+                    android:name="android.intent.category.DEFAULT" />
 
-        <!-- MP4 -->
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
 
-        <data
-            android:mimeType="video/mp4" />
+                <data
+                    android:scheme="http" />
 
-        <!-- MPEG -->
+                <data
+                    android:scheme="https" />
 
-        <data
-            android:mimeType="video/mpeg" />
+            </intent-filter>
 
-        <!-- MPEG TS -->
+        </activity>
 
-        <data
-            android:mimeType="video/mp2t" />
+    </application>
 
-        <!-- HLS -->
-
-        <data
-            android:mimeType="application/x-mpegURL" />
-
-        <!-- APPLE HLS -->
-
-        <data
-            android:mimeType="application/vnd.apple.mpegurl" />
-
-        <!-- DASH -->
-
-        <data
-            android:mimeType="application/dash+xml" />
-
-        <!-- GENERIC -->
-
-        <data
-            android:mimeType="application/octet-stream" />
-
-    </intent-filter>
-
-</activity>
+</manifest>
