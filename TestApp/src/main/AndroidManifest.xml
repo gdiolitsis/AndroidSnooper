@@ -38,7 +38,7 @@
     </intent-filter>
 
     <!-- ================================= -->
-    <!-- UNIVERSAL STREAM / PLAYER SUPPORT -->
+    <!-- MEDIA / STREAM VIEW SUPPORT -->
     <!-- ================================= -->
 
     <intent-filter>
@@ -52,20 +52,22 @@
         <category
             android:name="android.intent.category.BROWSABLE" />
 
-        <!-- HTTP / HTTPS -->
+        <!-- HTTP -->
 
         <data
             android:scheme="http" />
 
+        <!-- HTTPS -->
+
         <data
             android:scheme="https" />
 
-        <!-- GENERIC VIDEO -->
+        <!-- VIDEO -->
 
         <data
             android:mimeType="video/*" />
 
-        <!-- GENERIC AUDIO -->
+        <!-- AUDIO -->
 
         <data
             android:mimeType="audio/*" />
@@ -95,110 +97,15 @@
         <data
             android:mimeType="application/vnd.apple.mpegurl" />
 
-        <!-- GENERIC STREAM -->
+        <!-- DASH -->
+
+        <data
+            android:mimeType="application/dash+xml" />
+
+        <!-- GENERIC -->
 
         <data
             android:mimeType="application/octet-stream" />
-
-    </intent-filter>
-
-    <!-- ================================= -->
-    <!-- M3U8 PATH SUPPORT -->
-    <!-- ================================= -->
-
-    <intent-filter>
-
-        <action
-            android:name="android.intent.action.VIEW" />
-
-        <category
-            android:name="android.intent.category.DEFAULT" />
-
-        <category
-            android:name="android.intent.category.BROWSABLE" />
-
-        <data
-            android:scheme="http"
-            android:pathPattern=".*\\.m3u8" />
-
-        <data
-            android:scheme="https"
-            android:pathPattern=".*\\.m3u8" />
-
-    </intent-filter>
-
-    <!-- ================================= -->
-    <!-- MPD DASH SUPPORT -->
-    <!-- ================================= -->
-
-    <intent-filter>
-
-        <action
-            android:name="android.intent.action.VIEW" />
-
-        <category
-            android:name="android.intent.category.DEFAULT" />
-
-        <category
-            android:name="android.intent.category.BROWSABLE" />
-
-        <data
-            android:scheme="http"
-            android:pathPattern=".*\\.mpd" />
-
-        <data
-            android:scheme="https"
-            android:pathPattern=".*\\.mpd" />
-
-    </intent-filter>
-
-    <!-- ================================= -->
-    <!-- TS STREAM SUPPORT -->
-    <!-- ================================= -->
-
-    <intent-filter>
-
-        <action
-            android:name="android.intent.action.VIEW" />
-
-        <category
-            android:name="android.intent.category.DEFAULT" />
-
-        <category
-            android:name="android.intent.category.BROWSABLE" />
-
-        <data
-            android:scheme="http"
-            android:pathPattern=".*\\.ts" />
-
-        <data
-            android:scheme="https"
-            android:pathPattern=".*\\.ts" />
-
-    </intent-filter>
-
-    <!-- ================================= -->
-    <!-- MP4 PATH SUPPORT -->
-    <!-- ================================= -->
-
-    <intent-filter>
-
-        <action
-            android:name="android.intent.action.VIEW" />
-
-        <category
-            android:name="android.intent.category.DEFAULT" />
-
-        <category
-            android:name="android.intent.category.BROWSABLE" />
-
-        <data
-            android:scheme="http"
-            android:pathPattern=".*\\.mp4" />
-
-        <data
-            android:scheme="https"
-            android:pathPattern=".*\\.mp4" />
 
     </intent-filter>
 
