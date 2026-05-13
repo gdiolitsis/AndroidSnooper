@@ -85,6 +85,13 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="SHARE STREAM" />
+            
+       <Button
+    android:id="@+id/exportM3u"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:text="EXPORT M3U" />
 
     </LinearLayout>
 
