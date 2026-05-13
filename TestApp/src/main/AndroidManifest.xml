@@ -1,262 +1,205 @@
-<?xml version="1.0" encoding="utf-8"?>
+<activity
+    android:name=".MainActivity"
+    android:exported="true"
+    android:launchMode="singleTask"
+    android:configChanges="orientation|screenSize|keyboardHidden"
+    android:label="@string/app_name"
+    android:theme="@style/AppTheme.NoActionBar">
 
-<manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    <!-- ================================= -->
+    <!-- NORMAL APP LAUNCH -->
+    <!-- ================================= -->
 
-    <!-- ===================================== -->
-    <!-- PERMISSIONS -->
-    <!-- ===================================== -->
+    <intent-filter>
 
-    <uses-permission
-        android:name="android.permission.INTERNET" />
+        <action
+            android:name="android.intent.action.MAIN" />
 
-    <!-- ===================================== -->
-    <!-- APPLICATION -->
-    <!-- ===================================== -->
+        <category
+            android:name="android.intent.category.LAUNCHER" />
 
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme"
-        tools:ignore="GoogleAppIndexingWarning">
+    </intent-filter>
 
-        <!-- ===================================== -->
-        <!-- FILE PROVIDER -->
-        <!-- ===================================== -->
+    <!-- ================================= -->
+    <!-- SHARE TEXT -->
+    <!-- ================================= -->
 
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
-            android:exported="false"
-            android:grantUriPermissions="true">
+    <intent-filter>
 
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/filepaths" />
+        <action
+            android:name="android.intent.action.SEND" />
 
-        </provider>
+        <category
+            android:name="android.intent.category.DEFAULT" />
 
-        <!-- ===================================== -->
-        <!-- MAIN ACTIVITY -->
-        <!-- ===================================== -->
+        <data
+            android:mimeType="text/plain" />
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:label="@string/app_name"
-            android:theme="@style/AppTheme.NoActionBar">
+    </intent-filter>
 
-            <!-- ================================= -->
-            <!-- NORMAL APP LAUNCH -->
-            <!-- ================================= -->
+    <!-- ================================= -->
+    <!-- UNIVERSAL STREAM / PLAYER SUPPORT -->
+    <!-- ================================= -->
 
-            <intent-filter>
+    <intent-filter>
 
-                <action
-                    android:name="android.intent.action.MAIN" />
+        <action
+            android:name="android.intent.action.VIEW" />
 
-                <category
-                    android:name="android.intent.category.LAUNCHER" />
+        <category
+            android:name="android.intent.category.DEFAULT" />
 
-            </intent-filter>
+        <category
+            android:name="android.intent.category.BROWSABLE" />
 
-            <!-- ================================= -->
-            <!-- SHARE TEXT -->
-            <!-- ================================= -->
+        <!-- HTTP / HTTPS -->
 
-            <intent-filter>
+        <data
+            android:scheme="http" />
 
-                <action
-                    android:name="android.intent.action.SEND" />
+        <data
+            android:scheme="https" />
 
-                <category
-                    android:name="android.intent.category.DEFAULT" />
+        <!-- GENERIC VIDEO -->
 
-                <data
-                    android:mimeType="text/plain" />
+        <data
+            android:mimeType="video/*" />
 
-            </intent-filter>
+        <!-- GENERIC AUDIO -->
 
-            <!-- ================================= -->
-            <!-- UNIVERSAL STREAM / PLAYER SUPPORT -->
-            <!-- ================================= -->
+        <data
+            android:mimeType="audio/*" />
 
-            <intent-filter>
+        <!-- MP4 -->
 
-                <action
-                    android:name="android.intent.action.VIEW" />
+        <data
+            android:mimeType="video/mp4" />
 
-                <category
-                    android:name="android.intent.category.DEFAULT" />
+        <!-- MPEG -->
 
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:mimeType="video/mpeg" />
 
-                <!-- HTTP / HTTPS -->
+        <!-- MPEG TS -->
 
-                <data
-                    android:scheme="http" />
+        <data
+            android:mimeType="video/mp2t" />
 
-                <data
-                    android:scheme="https" />
+        <!-- HLS -->
 
-                <!-- GENERIC VIDEO -->
+        <data
+            android:mimeType="application/x-mpegURL" />
 
-                <data
-                    android:mimeType="video/*" />
+        <!-- APPLE HLS -->
 
-                <!-- GENERIC AUDIO -->
+        <data
+            android:mimeType="application/vnd.apple.mpegurl" />
 
-                <data
-                    android:mimeType="audio/*" />
+        <!-- GENERIC STREAM -->
 
-                <!-- MP4 -->
+        <data
+            android:mimeType="application/octet-stream" />
 
-                <data
-                    android:mimeType="video/mp4" />
+    </intent-filter>
 
-                <!-- MPEG -->
+    <!-- ================================= -->
+    <!-- M3U8 PATH SUPPORT -->
+    <!-- ================================= -->
 
-                <data
-                    android:mimeType="video/mpeg" />
+    <intent-filter>
 
-                <!-- MPEG TS -->
+        <action
+            android:name="android.intent.action.VIEW" />
 
-                <data
-                    android:mimeType="video/mp2t" />
+        <category
+            android:name="android.intent.category.DEFAULT" />
 
-                <!-- HLS -->
+        <category
+            android:name="android.intent.category.BROWSABLE" />
 
-                <data
-                    android:mimeType="application/x-mpegURL" />
+        <data
+            android:scheme="http"
+            android:pathPattern=".*\\.m3u8" />
 
-                <!-- APPLE HLS -->
+        <data
+            android:scheme="https"
+            android:pathPattern=".*\\.m3u8" />
 
-                <data
-                    android:mimeType="application/vnd.apple.mpegurl" />
+    </intent-filter>
 
-                <!-- GENERIC STREAM -->
+    <!-- ================================= -->
+    <!-- MPD DASH SUPPORT -->
+    <!-- ================================= -->
 
-                <data
-                    android:mimeType="application/octet-stream" />
+    <intent-filter>
 
-            </intent-filter>
+        <action
+            android:name="android.intent.action.VIEW" />
 
-            <!-- ================================= -->
-            <!-- M3U8 PATH SUPPORT -->
-            <!-- ================================= -->
+        <category
+            android:name="android.intent.category.DEFAULT" />
 
-            <intent-filter>
+        <category
+            android:name="android.intent.category.BROWSABLE" />
 
-                <action
-                    android:name="android.intent.action.VIEW" />
+        <data
+            android:scheme="http"
+            android:pathPattern=".*\\.mpd" />
 
-                <category
-                    android:name="android.intent.category.DEFAULT" />
+        <data
+            android:scheme="https"
+            android:pathPattern=".*\\.mpd" />
 
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+    </intent-filter>
 
-                <data
-                    android:scheme="http"
-                    android:pathPattern=".*\\.m3u8" />
+    <!-- ================================= -->
+    <!-- TS STREAM SUPPORT -->
+    <!-- ================================= -->
 
-                <data
-                    android:scheme="https"
-                    android:pathPattern=".*\\.m3u8" />
+    <intent-filter>
 
-            </intent-filter>
+        <action
+            android:name="android.intent.action.VIEW" />
 
-            <!-- ================================= -->
-            <!-- MPD DASH SUPPORT -->
-            <!-- ================================= -->
+        <category
+            android:name="android.intent.category.DEFAULT" />
 
-            <intent-filter>
+        <category
+            android:name="android.intent.category.BROWSABLE" />
 
-                <action
-                    android:name="android.intent.action.VIEW" />
+        <data
+            android:scheme="http"
+            android:pathPattern=".*\\.ts" />
 
-                <category
-                    android:name="android.intent.category.DEFAULT" />
+        <data
+            android:scheme="https"
+            android:pathPattern=".*\\.ts" />
 
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+    </intent-filter>
 
-                <data
-                    android:scheme="http"
-                    android:pathPattern=".*\\.mpd" />
+    <!-- ================================= -->
+    <!-- MP4 PATH SUPPORT -->
+    <!-- ================================= -->
 
-                <data
-                    android:scheme="https"
-                    android:pathPattern=".*\\.mpd" />
+    <intent-filter>
 
-            </intent-filter>
+        <action
+            android:name="android.intent.action.VIEW" />
 
-            <!-- ================================= -->
-            <!-- TS STREAM SUPPORT -->
-            <!-- ================================= -->
+        <category
+            android:name="android.intent.category.DEFAULT" />
 
-            <intent-filter>
+        <category
+            android:name="android.intent.category.BROWSABLE" />
 
-                <action
-                    android:name="android.intent.action.VIEW" />
+        <data
+            android:scheme="http"
+            android:pathPattern=".*\\.mp4" />
 
-                <category
-                    android:name="android.intent.category.DEFAULT" />
+        <data
+            android:scheme="https"
+            android:pathPattern=".*\\.mp4" />
 
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
+    </intent-filter>
 
-                <data
-                    android:scheme="http"
-                    android:pathPattern=".*\\.ts" />
-
-                <data
-                    android:scheme="https"
-                    android:pathPattern=".*\\.ts" />
-
-            </intent-filter>
-
-            <!-- ================================= -->
-            <!-- MP4 PATH SUPPORT -->
-            <!-- ================================= -->
-
-            <intent-filter>
-
-                <action
-                    android:name="android.intent.action.VIEW" />
-
-                <category
-                    android:name="android.intent.category.DEFAULT" />
-
-                <category
-                    android:name="android.intent.category.BROWSABLE" />
-
-                <data
-                    android:scheme="http"
-                    android:pathPattern=".*\\.mp4" />
-
-                <data
-                    android:scheme="https"
-                    android:pathPattern=".*\\.mp4" />
-
-            </intent-filter>
-
-        </activity>
-
-        <!-- ===================================== -->
-        <!-- SNOOPER ACTIVITY -->
-        <!-- ===================================== -->
-
-        <activity
-            android:name="com.prateekj.snooper.networksnooper.activity.HttpCallListActivity"
-            tools:node="merge" />
-
-    </application>
-
-</manifest>
+</activity>
