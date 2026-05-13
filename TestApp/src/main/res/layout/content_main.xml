@@ -16,7 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="10dp"
-        android:text="Android Media Extractor"
+        android:text="Android Media Analyzer"
         android:textAlignment="center"
         android:textSize="26sp"
         android:textStyle="bold" />
@@ -44,14 +44,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN WITH EXTRACTOR" />
+            android:text="OPEN ANALYZER" />
 
         <Button
             android:id="@+id/openChrome"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN WITH BROWSER" />
+            android:text="OPEN BROWSER" />
 
     </LinearLayout>
 
@@ -63,7 +63,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:weightSum="3">
+        android:weightSum="4">
 
         <Button
             android:id="@+id/openPlayer"
@@ -77,21 +77,21 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="TEST STREAM" />
+            android:text="VALIDATE" />
 
         <Button
             android:id="@+id/shareStream"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="SHARE STREAM" />
-            
-       <Button
-    android:id="@+id/exportM3u"
-    android:layout_width="0dp"
-    android:layout_height="wrap_content"
-    android:layout_weight="1"
-    android:text="EXPORT M3U" />
+            android:text="SHARE" />
+
+        <Button
+            android:id="@+id/exportM3u"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="EXPORT M3U" />
 
     </LinearLayout>
 
@@ -166,10 +166,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="8dp"
+            android:textSize="12sp"
             android:textIsSelectable="true"
-            android:textSize="12sp" />
-            android:longClickable="true"
-            android:textIsSelectable="true"
+            android:longClickable="true" />
 
     </ScrollView>
 
