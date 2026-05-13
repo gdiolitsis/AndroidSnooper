@@ -36,7 +36,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:weightSum="2">
 
         <Button
             android:id="@+id/openBrowser"
@@ -61,21 +62,29 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:weightSum="3">
 
         <Button
             android:id="@+id/openPlayer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN URLs WITH EXTERNAL PLAYER" />
+            android:text="OPEN PLAYER" />
+
+        <Button
+            android:id="@+id/testStream"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="TEST STREAM" />
 
         <Button
             android:id="@+id/shareStream"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="SHARE SELECTED STREAM" />
+            android:text="SHARE STREAM" />
 
     </LinearLayout>
 
