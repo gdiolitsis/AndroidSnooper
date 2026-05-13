@@ -598,12 +598,8 @@ if (!window.__gelXHRHooked) {
                             jsonArray.getString(i)
 
                         detectAndSaveUrl(
-    fullUrl
+    foundUrl
 )
-
-detectedChannels[
-    currentChannel
-] = fullUrl
                     }
 
                } catch (t: Throwable) {
@@ -630,73 +626,6 @@ if (!monitorRunning) {
         }
     }
     
-// =====================================
-// BLOB / MEDIA SOURCE HOOK
-// =====================================
-
-if (!window.__gelMediaHooked) {
-
-    window.__gelMediaHooked = true;
-
-    try {
-
-        const originalCreateObjectURL =
-            URL.createObjectURL;
-
-        URL.createObjectURL =
-            function(obj) {
-
-                try {
-
-                    const blobUrl =
-                        originalCreateObjectURL.call(
-                            this,
-                            obj
-                        );
-
-                    results.push(blobUrl);
-
-                    return blobUrl;
-
-                } catch(e) {
-
-                    return originalCreateObjectURL.call(
-                        this,
-                        obj
-                    );
-                }
-            };
-
-    } catch(e) {}
-}
-
-// =====================================
-// VIDEO SRC WATCHER
-// =====================================
-
-setInterval(function() {
-
-    try {
-
-        document
-            .querySelectorAll("video")
-            .forEach(function(v) {
-
-                if (v.currentSrc) {
-
-                    results.push(v.currentSrc);
-                }
-
-                if (v.src) {
-
-                    results.push(v.src);
-                }
-            });
-
-    } catch(e) {}
-
-}, 2000);
-
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
 // =====================================
@@ -1170,13 +1099,6 @@ binding.contentMain.exportM3u.setOnClickListener {
         sb.append("$url\n\n")
     }
 
-            sb.append(
-                "#EXTINF:-1,$it\n"
-            )
-
-            sb.append("$it\n\n")
-        }
-
         val shareIntent =
             Intent(Intent.ACTION_SEND).apply {
 
@@ -1587,6 +1509,19 @@ if (
             lower.contains(".wav") ||
             lower.contains(".ogg") ||
             lower.contains(".flac")
+            
+            val isGarbage =
+    lower.contains("doubleclick") ||
+    lower.contains("googleads") ||
+    lower.contains("analytics") ||
+    lower.contains("facebook") ||
+    lower.contains("tracker") ||
+    lower.contains("adsystem") ||
+    lower.contains(".css") ||
+    lower.contains(".js") ||
+    lower.contains("favicon") ||
+    lower.contains("logo") ||
+    lower.contains("banner")
             
             if (isSegmentTs) {
     return
