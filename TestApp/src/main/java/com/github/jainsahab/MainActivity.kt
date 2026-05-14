@@ -218,7 +218,7 @@ binding.contentMain.webview.settings.apply {
 
     javaScriptCanOpenWindowsAutomatically = true
 
-    setSupportMultipleWindows(true)
+    setSupportMultipleWindows(false)
 
     mixedContentMode =
         WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
@@ -246,6 +246,33 @@ CookieManager
         binding.contentMain.webview,
         true
     )
+    
+// =====================================
+// WEB CHROME CLIENT
+// =====================================
+
+binding.contentMain.webview.webChromeClient =
+    object : WebChromeClient() {
+
+        override fun onCreateWindow(
+            view: WebView?,
+            isDialog: Boolean,
+            isUserGesture: Boolean,
+            resultMsg: android.os.Message?
+        ): Boolean {
+
+            val transport =
+                resultMsg?.obj
+                    as? WebView.WebViewTransport
+
+            transport?.webView =
+                binding.contentMain.webview
+
+            resultMsg?.sendToTarget()
+
+            return true
+        }
+    }
 
 // =====================================
 // WEBVIEW CLIENT
@@ -254,6 +281,26 @@ CookieManager
 binding.contentMain.webview.webViewClient =
     object : WebViewClient() {
 
+        override fun shouldOverrideUrlLoading(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): Boolean {
+
+            val url =
+                request?.url.toString()
+
+            return try {
+
+                view?.loadUrl(url)
+
+                true
+
+            } catch (_: Throwable) {
+
+                false
+            }
+        }
+
         override fun shouldInterceptRequest(
             view: WebView?,
             request: WebResourceRequest?
@@ -261,26 +308,24 @@ binding.contentMain.webview.webViewClient =
 
             val url =
                 request?.url.toString()
-                
-    try {
 
-    val headers =
-        mutableMapOf<String, String>()
+            try {
 
-    request?.requestHeaders
-        ?.forEach { (k, v) ->
+                val headers =
+                    mutableMapOf<String, String>()
 
-            headers[k] = v
-        }
+                request?.requestHeaders
+                    ?.forEach { (k, v) ->
 
-    streamHeaders[url] =
-        headers
+                        headers[k] = v
+                    }
 
-} catch (_: Throwable) {}
+                streamHeaders[url] =
+                    headers
 
-            detectAndSaveUrl(
-                url
-            )
+            } catch (_: Throwable) {}
+
+            detectAndSaveUrl(url)
 
             return super.shouldInterceptRequest(
                 view,
@@ -303,6 +348,8 @@ binding.contentMain.webview.webViewClient =
 (function() {
 
     let results = [];
+
+""".trimIndent()
 
     // =====================================
     // IMG
