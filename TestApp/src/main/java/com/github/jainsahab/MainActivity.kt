@@ -1,5 +1,6 @@
 package com.github.jainsahab
 
+import androidx.activity.addCallback
 import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -2568,17 +2569,19 @@ private fun startStreamMonitor() {
                                 ?.string()
                                 .orEmpty()
 
-                        runOnUiThread {
+                        this@MainActivity.runOnUiThread {
 
-                            if (
-                                !isFinishing &&
-                                !isDestroyed
-                            ) {
+    if (
+        !this@MainActivity.isFinishing &&
+        !this@MainActivity.isDestroyed
+    ) {
 
-                                binding.contentMain.result.text =
-                                    text
-                            }
-                        }
+        this@MainActivity.binding
+            .contentMain
+            .result
+            .text = text
+    }
+}
 
                     } catch (t: Throwable) {
 
