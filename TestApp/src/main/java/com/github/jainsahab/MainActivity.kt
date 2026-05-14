@@ -2157,15 +2157,7 @@ lastSelectedUrl =
 
 runOnUiThread {
 
-    if (
-        cleanedUrl.contains(".m3u8") ||
-        cleanedUrl.contains(".mpd") ||
-        cleanedUrl.contains(".mp4")
-    ) {
-
-        showAllMedia()
-    }
-}
+    // NO AUTO REFRESH
 }
 
 // =====================================
