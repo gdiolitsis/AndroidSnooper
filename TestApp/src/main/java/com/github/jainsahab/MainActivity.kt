@@ -32,6 +32,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
+import org.json.JSONArray
 import java.io.IOException
 import java.util.Date
 
@@ -246,33 +247,6 @@ CookieManager
         binding.contentMain.webview,
         true
     )
-    
-// =====================================
-// WEB CHROME CLIENT
-// =====================================
-
-binding.contentMain.webview.webChromeClient =
-    object : WebChromeClient() {
-
-        override fun onCreateWindow(
-            view: WebView?,
-            isDialog: Boolean,
-            isUserGesture: Boolean,
-            resultMsg: android.os.Message?
-        ): Boolean {
-
-            val transport =
-                resultMsg?.obj
-                    as? WebView.WebViewTransport
-
-            transport?.webView =
-                binding.contentMain.webview
-
-            resultMsg?.sendToTarget()
-
-            return true
-        }
-    }
 
 // =====================================
 // WEBVIEW CLIENT
@@ -348,8 +322,6 @@ binding.contentMain.webview.webViewClient =
 (function() {
 
     let results = [];
-
-""".trimIndent()
 
     // =====================================
     // IMG
@@ -682,6 +654,32 @@ if (!monitorRunning) {
 
 binding.contentMain.webview.webChromeClient =
     object : WebChromeClient() {
+    
+    override fun onCreateWindow(
+    view: WebView?,
+    isDialog: Boolean,
+    isUserGesture: Boolean,
+    resultMsg: android.os.Message?
+): Boolean {
+
+    return try {
+
+        val transport =
+            resultMsg?.obj
+                as? WebView.WebViewTransport
+
+        transport?.webView =
+            binding.contentMain.webview
+
+        resultMsg?.sendToTarget()
+
+        true
+
+    } catch (_: Throwable) {
+
+        false
+    }
+}
 
         override fun onShowCustomView(
             view: View?,
