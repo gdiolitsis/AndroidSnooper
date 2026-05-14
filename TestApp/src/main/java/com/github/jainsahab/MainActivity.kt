@@ -1393,7 +1393,7 @@ true
 }
 }
 
-} END onCreate()
+} // END onCreate()
 
     // =====================================
     // HANDLE NEW INTENTS
