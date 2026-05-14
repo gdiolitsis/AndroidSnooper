@@ -1154,18 +1154,146 @@ binding.contentMain.exportM3u.setOnClickListener {
 
         binding.contentMain.btnClear.setOnClickListener {
 
-            detectedStreams.clear()
+    detectedStreams.clear()
 
-            detectedVideos.clear()
+    detectedVideos.clear()
 
-            detectedImages.clear()
+    detectedImages.clear()
 
-            detectedAudio.clear()
+    detectedAudio.clear()
 
-            binding.contentMain.result.text = ""
-        }
+    binding.contentMain.result.text = ""
+}
+
+// =====================================
+// RESULT CLICK = COPY
+// =====================================
+
+binding.contentMain.result.setOnClickListener {
+
+    if (lastSelectedUrl.isBlank()) {
+        return@setOnClickListener
     }
-    
+
+    val clipboard =
+        getSystemService(
+            CLIPBOARD_SERVICE
+        ) as ClipboardManager
+
+    clipboard.setPrimaryClip(
+        ClipData.newPlainText(
+            "stream",
+            lastSelectedUrl
+        )
+    )
+
+    Toast.makeText(
+        this,
+        "URL copied",
+        Toast.LENGTH_SHORT
+    ).show()
+}
+
+// =====================================
+// RESULT LONG PRESS MENU
+// =====================================
+
+binding.contentMain.result.setOnLongClickListener { v ->
+
+    if (lastSelectedUrl.isBlank()) {
+        return@setOnLongClickListener true
+    }
+
+    val popup =
+        PopupMenu(this, v)
+
+    popup.menu.add("OPEN PLAYER")
+
+    popup.menu.add("TEST STREAM")
+
+    popup.menu.add("SHARE URL")
+
+    popup.menu.add("COPY URL")
+
+    popup.setOnMenuItemClickListener {
+
+        when (it.title.toString()) {
+
+            "OPEN PLAYER" -> {
+
+                val intent =
+                    Intent(Intent.ACTION_VIEW).apply {
+
+                        setDataAndType(
+                            Uri.parse(lastSelectedUrl),
+                            "video/*"
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        intent,
+                        "Open With"
+                    )
+                )
+            }
+
+            "TEST STREAM" -> {
+
+                testStream(lastSelectedUrl)
+            }
+
+            "SHARE URL" -> {
+
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+
+                        type = "text/plain"
+
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            lastSelectedUrl
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        shareIntent,
+                        "Share URL"
+                    )
+                )
+            }
+
+            "COPY URL" -> {
+
+                val clipboard =
+                    getSystemService(
+                        CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText(
+                        "stream",
+                        lastSelectedUrl
+                    )
+                )
+
+                Toast.makeText(
+                    this,
+                    "Copied",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        true
+    }
+
+    popup.show()
+
+    true
+}
+ 
 // =====================================
 // RESULT CLICK = COPY
 // =====================================
