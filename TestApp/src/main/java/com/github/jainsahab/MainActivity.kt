@@ -938,19 +938,6 @@ binding.contentMain.openPlayer.setOnClickListener {
                 val lower =
                     url.lowercase()
                     
-                val isGarbage =
-    lower.contains("doubleclick") ||
-    lower.contains("googleads") ||
-    lower.contains("analytics") ||
-    lower.contains("facebook") ||
-    lower.contains("tracker") ||
-    lower.contains("adsystem") ||
-    lower.contains(".css") ||
-    lower.contains(".js") ||
-    lower.contains("favicon") ||
-    lower.contains("logo") ||
-    lower.contains("banner")
-
                 val mimeType =
     when {
 
@@ -1062,230 +1049,6 @@ startActivity(
         }
 
         .show()
-}
-
-// =====================================
-// TEST STREAM ENGINE
-// =====================================
-
-private fun testStream(
-    url: String
-) {
-
-    val cleanedUrl =
-        url
-            .replace("\\u0026", "&")
-            .replace("\\/", "/")
-            .trim()
-
-    binding.contentMain.result.append(
-
-        """
-
-🧪 TESTING STREAM
-
-$cleanedUrl
-
-────────────────────
-
-""".trimIndent()
-    )
-
-    // =====================================
-    // REQUEST
-    // =====================================
-
-    val builder =
-        Request.Builder()
-            .url(cleanedUrl)
-            .head()
-
-    streamHeaders[cleanedUrl]
-        ?.forEach { (k, v) ->
-
-            builder.header(k, v)
-        }
-
-    builder.header(
-        "User-Agent",
-        binding.contentMain.webview
-            .settings
-            .userAgentString
-    )
-
-    builder.header(
-        "Referer",
-        binding.contentMain.webview.url
-            ?: cleanedUrl
-    )
-
-    builder.header(
-        "Origin",
-        binding.contentMain.webview.url
-            ?: cleanedUrl
-    )
-
-    builder.header(
-        "Accept",
-        "*/*"
-    )
-
-    builder.header(
-        "Connection",
-        "keep-alive"
-    )
-
-    val request =
-        builder.build()
-
-    // =====================================
-    // EXECUTE
-    // =====================================
-
-    okHttpClient
-        .newCall(request)
-        .enqueue(
-
-            object : Callback {
-
-                override fun onFailure(
-                    call: Call,
-                    e: IOException
-                ) {
-
-                    runOnUiThread {
-
-                        binding.contentMain.result.append(
-
-                            """
-
-❌ TEST FAILED
-
-URL:
-$cleanedUrl
-
-ERROR:
-${e.message}
-
-────────────────────
-
-""".trimIndent()
-                        )
-                    }
-                }
-
-                override fun onResponse(
-                    call: Call,
-                    response: Response
-                ) {
-
-                    try {
-
-                        val code =
-                            response.code
-
-                        val contentType =
-                            response.header(
-                                "Content-Type"
-                            ).orEmpty()
-
-                        val contentLength =
-                            response.header(
-                                "Content-Length"
-                            ).orEmpty()
-
-                        val location =
-                            response.header(
-                                "Location"
-                            ).orEmpty()
-
-                        val server =
-                            response.header(
-                                "Server"
-                            ).orEmpty()
-
-                        val finalStatus =
-                            when {
-
-                                code in 200..299 ->
-                                    "✅ STREAM OK"
-
-                                code in 300..399 ->
-                                    "↪ REDIRECT"
-
-                                code == 403 ->
-                                    "🔒 FORBIDDEN"
-
-                                code == 404 ->
-                                    "❌ NOT FOUND"
-
-                                else ->
-                                    "⚠ RESPONSE RECEIVED"
-                            }
-
-                        runOnUiThread {
-
-                            binding.contentMain.result.append(
-
-                                """
-
-$finalStatus
-
-HTTP:
-$code
-
-TYPE:
-$contentType
-
-SIZE:
-$contentLength
-
-SERVER:
-$server
-
-REDIRECT:
-$location
-
-HEADERS:
-${streamHeaders[cleanedUrl]}
-
-────────────────────
-
-""".trimIndent()
-                            )
-                        }
-
-                    } catch (t: Throwable) {
-
-                        Log.e(
-                            "STREAM_TEST",
-                            "parse failed",
-                            t
-                        )
-
-                        runOnUiThread {
-
-                            binding.contentMain.result.append(
-
-                                """
-
-❌ PARSE FAILED
-
-${t.message}
-
-────────────────────
-
-""".trimIndent()
-                            )
-                        )
-
-                    } finally {
-
-                        response.close()
-                    }
-                }
-            }
-        )
 }
 
 // =====================================
@@ -1755,6 +1518,230 @@ if (
             )
         }
     }
+    
+// =====================================
+// TEST STREAM ENGINE
+// =====================================
+
+private fun testStream(
+    url: String
+) {
+
+    val cleanedUrl =
+        url
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .trim()
+
+    binding.contentMain.result.append(
+
+        """
+
+🧪 TESTING STREAM
+
+$cleanedUrl
+
+────────────────────
+
+""".trimIndent()
+    )
+
+    // =====================================
+    // REQUEST
+    // =====================================
+
+    val builder =
+        Request.Builder()
+            .url(cleanedUrl)
+            .get()
+
+    streamHeaders[cleanedUrl]
+        ?.forEach { (k, v) ->
+
+            builder.header(k, v)
+        }
+
+    builder.header(
+        "User-Agent",
+        binding.contentMain.webview
+            .settings
+            .userAgentString
+    )
+
+    builder.header(
+        "Referer",
+        binding.contentMain.webview.url
+            ?: cleanedUrl
+    )
+
+    builder.header(
+        "Origin",
+        binding.contentMain.webview.url
+            ?: cleanedUrl
+    )
+
+    builder.header(
+        "Accept",
+        "*/*"
+    )
+
+    builder.header(
+        "Connection",
+        "keep-alive"
+    )
+
+    val request =
+        builder.build()
+
+    // =====================================
+    // EXECUTE
+    // =====================================
+
+    okHttpClient
+        .newCall(request)
+        .enqueue(
+
+            object : Callback {
+
+                override fun onFailure(
+                    call: Call,
+                    e: IOException
+                ) {
+
+                    runOnUiThread {
+
+                        binding.contentMain.result.append(
+
+                            """
+
+❌ TEST FAILED
+
+URL:
+$cleanedUrl
+
+ERROR:
+${e.message}
+
+────────────────────
+
+""".trimIndent()
+                        )
+                    }
+                }
+
+                override fun onResponse(
+                    call: Call,
+                    response: Response
+                ) {
+
+                    try {
+
+                        val code =
+                            response.code
+
+                        val contentType =
+                            response.header(
+                                "Content-Type"
+                            ).orEmpty()
+
+                        val contentLength =
+                            response.header(
+                                "Content-Length"
+                            ).orEmpty()
+
+                        val location =
+                            response.header(
+                                "Location"
+                            ).orEmpty()
+
+                        val server =
+                            response.header(
+                                "Server"
+                            ).orEmpty()
+
+                        val finalStatus =
+                            when {
+
+                                code in 200..299 ->
+                                    "✅ STREAM OK"
+
+                                code in 300..399 ->
+                                    "↪ REDIRECT"
+
+                                code == 403 ->
+                                    "🔒 FORBIDDEN"
+
+                                code == 404 ->
+                                    "❌ NOT FOUND"
+
+                                else ->
+                                    "⚠ RESPONSE RECEIVED"
+                            }
+
+                        runOnUiThread {
+
+                            binding.contentMain.result.append(
+
+                                """
+
+$finalStatus
+
+HTTP:
+$code
+
+TYPE:
+$contentType
+
+SIZE:
+$contentLength
+
+SERVER:
+$server
+
+REDIRECT:
+$location
+
+HEADERS:
+${streamHeaders[cleanedUrl]}
+
+────────────────────
+
+""".trimIndent()
+                            )
+                        }
+
+                    } catch (t: Throwable) {
+
+                        Log.e(
+                            "STREAM_TEST",
+                            "parse failed",
+                            t
+                        )
+
+                        runOnUiThread {
+
+                            binding.contentMain.result.append(
+
+                                """
+
+❌ PARSE FAILED
+
+${t.message}
+
+────────────────────
+
+""".trimIndent()
+                            )
+                        )
+
+                    } finally {
+
+                        response.close()
+                    }
+                }
+            }
+        )
+}
 
 // =====================================
 // DETECT + SAVE URL
@@ -2307,288 +2294,6 @@ private fun showChannels() {
 
     binding.contentMain.result.text =
         sb.toString()
-}
-
-// =====================================
-// TEST STREAM ENGINE
-// =====================================
-
-private fun testStream(
-    url: String
-) {
-
-    val cleanedUrl =
-        url
-            .replace("\\u0026", "&")
-            .replace("\\/", "/")
-            .trim()
-
-    binding.contentMain.result.append(
-
-        "\n\n🧪 TESTING STREAM\n$cleanedUrl\n"
-    )
-
-    val builder =
-        Request.Builder()
-            .url(cleanedUrl)
-
-    streamHeaders[cleanedUrl]
-        ?.forEach { (k, v) ->
-
-            builder.header(k, v)
-        }
-
-    builder.header(
-        "User-Agent",
-        binding.contentMain.webview
-            .settings
-            .userAgentString
-    )
-
-    val request =
-        builder.build()
-
-    okHttpClient
-        .newCall(request)
-        .enqueue(
-
-            object : Callback {
-
-                override fun onFailure(
-    call: Call,
-    e: IOException
-) {
-
-    runOnUiThread {
-
-        binding.contentMain.result.append(
-
-            """
-
-❌ TEST FAILED
-
-URL:
-$cleanedUrl
-
-ERROR:
-${e.message}
-
-────────────────────
-
-""".trimIndent()
-        )
-    }
-}
-
-                override fun onResponse(
-                    call: Call,
-                    response: Response
-                ) {
-
-                    try {
-
-                        val code =
-                            response.code
-
-                        val contentType =
-                            response.header(
-                                "Content-Type"
-                            ).orEmpty()
-
-                        val contentLength =
-                            response.header(
-                                "Content-Length"
-                            ).orEmpty()
-
-                        val responseBody =
-                            response.body
-
-                        val bodyText =
-                            try {
-
-                                responseBody
-                                    ?.string()
-                                    .orEmpty()
-
-                            } catch (_: Throwable) {
-
-                                ""
-                            }
-
-                        val streamInfo =
-                            StringBuilder()
-
-                        if (
-
-                            cleanedUrl.contains(".m3u8") ||
-                            cleanedUrl.contains(".m3u") ||
-
-                            bodyText.contains("#EXTM3U") ||
-
-                            bodyText.contains("#EXTINF")
-
-                        ) {
-
-                            val lines =
-                                bodyText.lines()
-
-                            var currentChannel =
-                                "Unknown Channel"
-
-                            lines.forEach { line ->
-
-                                if (
-                                    line.startsWith("#EXTINF")
-                                ) {
-
-                                    try {
-
-                                        currentChannel =
-                                            line.substringAfter(",")
-
-                                    } catch (_: Throwable) {}
-                                }
-
-                                val trimmed =
-                                    line.trim()
-
-                                // =========================
-                                // CHANNEL URL
-                                // =========================
-
-                                if (
-                                    trimmed.startsWith("http")
-                                ) {
-
-                                    detectedChannels[
-                                        currentChannel
-                                    ] = trimmed
-                                }
-
-                                // =========================
-                                // VARIANT PLAYLIST
-                                // =========================
-
-                                if (
-                                    trimmed.endsWith(".m3u8")
-                                ) {
-
-                                    try {
-
-                                        val fullUrl =
-                                            if (
-                                                trimmed.startsWith("http")
-                                            ) {
-
-                                                trimmed
-
-                                            } else {
-
-                                                cleanedUrl
-                                                    .substringBeforeLast("/") +
-                                                "/" +
-                                                trimmed.removePrefix("/")
-                                            }
-
-                                        detectAndSaveUrl(
-                                            fullUrl
-                                        )
-
-                                        streamInfo.append(
-
-                                            "\n🎯 VARIANT:\n$fullUrl\n"
-                                        )
-
-                                    } catch (_: Throwable) {}
-                                }
-
-                                val lowerLine =
-                                    line.lowercase()
-
-                                if (
-                                    lowerLine.contains("resolution")
-                                ) {
-
-                                    streamInfo.append(
-                                        "\n📺 $line"
-                                    )
-                                }
-
-                                if (
-                                    lowerLine.contains("bandwidth")
-                                ) {
-
-                                    streamInfo.append(
-                                        "\n⚡ $line"
-                                    )
-                                }
-
-                                if (
-                                    lowerLine.contains("audio")
-                                ) {
-
-                                    streamInfo.append(
-                                        "\n🎵 $line"
-                                    )
-                                }
-
-                                if (
-                                    lowerLine.contains("subtitle")
-                                ) {
-
-                                    streamInfo.append(
-                                        "\n💬 $line"
-                                    )
-                                }
-                            }
-                        }
-
-                        runOnUiThread {
-
-                            binding.contentMain.result.append(
-
-                                """
-
-✅ STREAM OK
-
-HTTP: $code
-
-TYPE:
-$contentType
-
-SIZE:
-$contentLength
-
-HEADERS:
-${streamHeaders[cleanedUrl]}
-
-CHANNELS FOUND:
-${detectedChannels.size}
-
-MANIFEST INFO:
-$streamInfo
-
-────────────────────
-
-""".trimIndent()
-                            )
-                        }
-
-                    } catch (t: Throwable) {
-
-                        Log.e(
-                            "STREAM_TEST",
-                            "parse failed",
-                            t
-                        )
-
-                    } finally {
-
-                        response.close()
-                    }
-                }
-            }
-        )
 }
 
 // =====================================
