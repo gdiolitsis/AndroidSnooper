@@ -1389,8 +1389,11 @@ binding.contentMain.result.setOnLongClickListener { v ->
 
     popup.show()
 
-    true
+true
 }
+}
+
+} END onCreate()
 
     // =====================================
     // HANDLE NEW INTENTS
