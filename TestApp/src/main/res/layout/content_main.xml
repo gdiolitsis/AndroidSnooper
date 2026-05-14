@@ -102,7 +102,8 @@
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -151,24 +152,29 @@
         android:id="@+id/webview"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:overScrollMode="never" />
 
     <!-- ===================================== -->
     <!-- RESULTS -->
     <!-- ===================================== -->
 
     <ScrollView
+        android:id="@+id/resultScroll"
         android:layout_width="match_parent"
-        android:layout_height="220dp">
+        android:layout_height="180dp"
+        android:fillViewport="true"
+        android:scrollbars="vertical">
 
         <TextView
             android:id="@+id/result"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="8dp"
-            android:textSize="12sp"
             android:textIsSelectable="true"
-            android:longClickable="true" />
+            android:textSize="12sp"
+            android:longClickable="true"
+            android:scrollbars="vertical" />
 
     </ScrollView>
 
