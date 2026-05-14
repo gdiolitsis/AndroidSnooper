@@ -176,8 +176,13 @@ class MainActivity : AppCompatActivity() {
             )
 
         setContentView(
-            binding.root
-        )
+    binding.root
+)
+
+binding.contentMain.result.isVerticalScrollBarEnabled = true
+
+binding.contentMain.result.movementMethod =
+    android.text.method.ScrollingMovementMethod()
 
         setSupportActionBar(
             binding.toolbar
@@ -1508,7 +1513,8 @@ private fun detectAndSaveUrl(
         lower.contains(".m3u8") ||
         lower.contains(".mpd") ||
         lower.contains(".m4s") ||
-        lower.contains(".ts") ||
+        lower.endsWith(".ts") ||
+        lower.contains(".ts?") ||
         lower.contains(".mp4") ||
         lower.contains(".webm") ||
         lower.contains(".mkv") ||
@@ -1539,16 +1545,18 @@ private fun detectAndSaveUrl(
     // =====================================
 
     val isSegmentTs =
-        (
-            lower.contains(".ts") ||
-            lower.contains(".m4s")
-        ) &&
-        (
-            lower.contains("seg") ||
-            lower.contains("chunk") ||
-            lower.contains("frag") ||
-            lower.contains("segment")
-        )
+    (
+        lower.endsWith(".ts") ||
+        lower.contains(".ts?") ||
+        lower.endsWith(".m4s") ||
+        lower.contains(".m4s?")
+    ) &&
+    (
+        lower.contains("seg") ||
+        lower.contains("chunk") ||
+        lower.contains("frag") ||
+        lower.contains("segment")
+    )
 
     // =====================================
     // MASTER STREAM
