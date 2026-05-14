@@ -44,14 +44,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN ANALYZER" />
+            android:text="OPEN WITH ANALYZER" />
 
         <Button
             android:id="@+id/openChrome"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN BROWSER" />
+            android:text="OPEN WITH BROWSER" />
 
     </LinearLayout>
 
@@ -70,21 +70,21 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="OPEN PLAYER" />
+            android:text="OPEN WITH EXTERNAL PLAYER" />
 
         <Button
             android:id="@+id/testStream"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="VALIDATE" />
+            android:text="TEST STREAM" />
 
         <Button
             android:id="@+id/shareStream"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="SHARE" />
+            android:text="SHARE STREAMS" />
 
         <Button
             android:id="@+id/exportM3u"
