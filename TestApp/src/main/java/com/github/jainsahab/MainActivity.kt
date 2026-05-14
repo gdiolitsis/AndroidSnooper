@@ -686,9 +686,7 @@ if (
     !monitorRunning &&
     (
         url?.contains(".m3u8") == true ||
-        url?.contains(".mpd") == true ||
-        url?.contains("player") == true ||
-        url?.contains("embed") == true
+        url?.contains(".mpd") == true
     )
 ) {
 
