@@ -1538,10 +1538,10 @@ if (isGarbage) {
         }
 
         if (
-            detectedStreams.contains(url)
-        ) {
-            return
-        }
+    detectedStreams.contains(cleanedUrl)
+) {
+    return
+}
 
         detectedStreams.add(cleanedUrl)
 
@@ -1717,7 +1717,7 @@ $cleanedUrl
         }
     }
 
-    // =====================================
+// =====================================
 // SHOW ALL
 // =====================================
 
@@ -1731,9 +1731,11 @@ private fun showAllMedia() {
             "\n🔥 MASTER STREAMS 🔥\n\n"
         )
 
-        detectedMasterStreams.forEach {
+        detectedMasterStreams.forEach { url ->
 
-            sb.append(it)
+            sb.append("📺 MASTER STREAM\n\n")
+
+            sb.append(url)
 
             sb.append(
                 "\n\n────────────────────\n\n"
@@ -1741,11 +1743,51 @@ private fun showAllMedia() {
         }
     }
 
-    detectedStreams.forEach {
+    detectedStreams.forEach { url ->
 
-        sb.append("MEDIA:\n\n")
+        val lower =
+            url.lowercase()
 
-        sb.append(it)
+        val label =
+            when {
+
+                lower.contains(".m3u8") ->
+                    "📺 HLS"
+
+                lower.contains(".mpd") ->
+                    "📡 DASH"
+
+                lower.contains(".mp4") ||
+                lower.contains(".mkv") ||
+                lower.contains(".webm") ||
+                lower.contains(".ts") ->
+                    "🎬 VIDEO"
+
+                lower.contains(".jpg") ||
+                lower.contains(".jpeg") ||
+                lower.contains(".png") ||
+                lower.contains(".webp") ||
+                lower.contains(".gif") ||
+                lower.contains(".bmp") ||
+                lower.contains(".svg") ||
+                lower.contains(".ico") ->
+                    "🖼 IMAGE"
+
+                lower.contains(".mp3") ||
+                lower.contains(".m4a") ||
+                lower.contains(".aac") ||
+                lower.contains(".wav") ||
+                lower.contains(".ogg") ||
+                lower.contains(".flac") ->
+                    "🎵 AUDIO"
+
+                else ->
+                    "📦 MEDIA"
+            }
+
+        sb.append("$label\n\n")
+
+        sb.append(url)
 
         sb.append(
             "\n\n────────────────────\n\n"
@@ -1764,11 +1806,11 @@ private fun showVideos() {
 
     val sb = StringBuilder()
 
-    detectedVideos.forEach {
+    detectedVideos.forEach { url ->
 
-        sb.append("VIDEO:\n\n")
+        sb.append("🎬 VIDEO\n\n")
 
-        sb.append(it)
+        sb.append(url)
 
         sb.append(
             "\n\n────────────────────\n\n"
@@ -1787,11 +1829,11 @@ private fun showImages() {
 
     val sb = StringBuilder()
 
-    detectedImages.forEach {
+    detectedImages.forEach { url ->
 
-        sb.append("IMAGE:\n\n")
+        sb.append("🖼 IMAGE\n\n")
 
-        sb.append(it)
+        sb.append(url)
 
         sb.append(
             "\n\n────────────────────\n\n"
@@ -1810,11 +1852,11 @@ private fun showAudio() {
 
     val sb = StringBuilder()
 
-    detectedAudio.forEach {
+    detectedAudio.forEach { url ->
 
-        sb.append("AUDIO:\n\n")
+        sb.append("🎵 AUDIO\n\n")
 
-        sb.append(it)
+        sb.append(url)
 
         sb.append(
             "\n\n────────────────────\n\n"
