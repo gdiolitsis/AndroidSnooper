@@ -2140,31 +2140,21 @@ private fun detectAndSaveUrl(
                 "Generic CDN"
         }
 
-    // =====================================
-    // SAVE LAST URL
-    // =====================================
+// =====================================
+// SAVE LAST URL
+// =====================================
 
-    lastSelectedUrl =
-        cleanedUrl
+lastSelectedUrl =
+    cleanedUrl
 
-    // =====================================
-    // UI OUTPUT
-    // =====================================
+// =====================================
+// UI OUTPUT
+// =====================================
 
-    runOnUiThread {
+runOnUiThread {
 
-        binding.contentMain.result.append(
-            """
-
-$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge
-
-$cleanedUrl
-
-────────────────────
-
-""".trimIndent()
-        )
-    }
+    showAllMedia()
+}
 }
 
 // =====================================
