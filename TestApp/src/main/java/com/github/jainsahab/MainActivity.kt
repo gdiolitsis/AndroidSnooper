@@ -71,6 +71,9 @@ class MainActivity : AppCompatActivity() {
     
     private var monitorRunning =
     false
+    
+    private var autoRefreshEnabled =
+    false
         
     // =====================================
     // FULLSCREEN VIDEO
@@ -678,7 +681,10 @@ if (!window.__gelXHRHooked) {
 // AUTO MONITOR
 // =====================================
 
-if (!monitorRunning) {
+if (
+    autoRefreshEnabled &&
+    !monitorRunning
+) {
 
     monitorRunning = true
 
