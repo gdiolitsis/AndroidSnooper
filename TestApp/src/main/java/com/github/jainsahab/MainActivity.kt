@@ -2224,7 +2224,49 @@ private fun showAllMedia() {
 
     val sb = StringBuilder()
 
-    detectedStreams.forEach { url ->
+    // =====================================
+    // VIDEOS
+    // =====================================
+
+    detectedVideos.forEach { url ->
+
+        sb.append(
+            buildMediaLabel(url)
+        )
+
+        sb.append("\n\n")
+
+        sb.append(url)
+
+        sb.append(
+            "\n\n────────────────────\n\n"
+        )
+    }
+
+    // =====================================
+    // AUDIO
+    // =====================================
+
+    detectedAudio.forEach { url ->
+
+        sb.append(
+            buildMediaLabel(url)
+        )
+
+        sb.append("\n\n")
+
+        sb.append(url)
+
+        sb.append(
+            "\n\n────────────────────\n\n"
+        )
+    }
+
+    // =====================================
+    // IMAGES
+    // =====================================
+
+    detectedImages.forEach { url ->
 
         sb.append(
             buildMediaLabel(url)
