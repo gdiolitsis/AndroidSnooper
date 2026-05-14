@@ -2157,7 +2157,14 @@ lastSelectedUrl =
 
 runOnUiThread {
 
-    showAllMedia()
+    if (
+        cleanedUrl.contains(".m3u8") ||
+        cleanedUrl.contains(".mpd") ||
+        cleanedUrl.contains(".mp4")
+    ) {
+
+        showAllMedia()
+    }
 }
 }
 
