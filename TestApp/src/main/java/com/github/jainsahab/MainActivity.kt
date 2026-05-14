@@ -1404,7 +1404,6 @@ binding.contentMain.result.setOnLongClickListener { v ->
 
 true
 }
-}
 
 } // END onCreate()
 
