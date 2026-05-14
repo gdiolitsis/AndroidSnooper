@@ -1784,6 +1784,115 @@ $cleanedUrl
 }
 
 // =====================================
+// BUILD MEDIA LABEL
+// =====================================
+
+private fun buildMediaLabel(
+    url: String
+): String {
+
+    val lower =
+        url.lowercase()
+
+    val streamQuality =
+        when {
+
+            lower.contains("2160") ||
+            lower.contains("4k") ->
+                "4K"
+
+            lower.contains("1440") ->
+                "1440p"
+
+            lower.contains("1080") ->
+                "1080p"
+
+            lower.contains("900") ->
+                "900p"
+
+            lower.contains("720") ->
+                "720p"
+
+            lower.contains("540") ->
+                "540p"
+
+            lower.contains("480") ->
+                "480p"
+
+            lower.contains("360") ->
+                "360p"
+
+            lower.contains("240") ->
+                "240p"
+
+            lower.contains("144") ->
+                "144p"
+
+            lower.contains("hevc") ||
+            lower.contains("h265") ->
+                "HEVC"
+
+            lower.contains("av1") ->
+                "AV1"
+
+            lower.contains("/audio/") ->
+                "AUDIO"
+
+            else ->
+                "AUTO"
+        }
+
+    val cdnType =
+        when {
+
+            lower.contains("cloudfront") ->
+                "CloudFront"
+
+            lower.contains("akamai") ->
+                "Akamai"
+
+            lower.contains("cloudflare") ->
+                "Cloudflare"
+
+            lower.contains("bunny") ->
+                "Bunny"
+
+            lower.contains("broadpeak") ->
+                "Broadpeak"
+
+            else ->
+                "Generic CDN"
+        }
+
+    val badge =
+        when {
+
+            lower.contains(".m3u8") ->
+                "📺 HLS"
+
+            lower.contains(".mpd") ->
+                "📡 DASH"
+
+            lower.contains(".jpg") ||
+            lower.contains(".jpeg") ||
+            lower.contains(".png") ||
+            lower.contains(".webp") ||
+            lower.contains(".gif") ->
+                "🖼 IMAGE"
+
+            lower.contains(".mp3") ||
+            lower.contains(".aac") ||
+            lower.contains(".m4a") ->
+                "🎵 AUDIO"
+
+            else ->
+                "🎬 VIDEO"
+        }
+
+    return "$badge [$streamQuality] [$cdnType]"
+}
+
+// =====================================
 // SHOW ALL
 // =====================================
 
@@ -1791,67 +1900,13 @@ private fun showAllMedia() {
 
     val sb = StringBuilder()
 
-    if (detectedMasterStreams.isNotEmpty()) {
-
-        sb.append(
-            "\n🔥 MASTER STREAMS 🔥\n\n"
-        )
-
-        detectedMasterStreams.forEach { url ->
-
-            sb.append("📺 MASTER STREAM\n\n")
-
-            sb.append(url)
-
-            sb.append(
-                "\n\n────────────────────\n\n"
-            )
-        }
-    }
-
     detectedStreams.forEach { url ->
 
-        val lower =
-            url.lowercase()
+        sb.append(
+            buildMediaLabel(url)
+        )
 
-        val label =
-            when {
-
-                lower.contains(".m3u8") ->
-                    "📺 HLS"
-
-                lower.contains(".mpd") ->
-                    "📡 DASH"
-
-                lower.contains(".mp4") ||
-                lower.contains(".mkv") ||
-                lower.contains(".webm") ||
-                lower.contains(".ts") ->
-                    "🎬 VIDEO"
-
-                lower.contains(".jpg") ||
-                lower.contains(".jpeg") ||
-                lower.contains(".png") ||
-                lower.contains(".webp") ||
-                lower.contains(".gif") ||
-                lower.contains(".bmp") ||
-                lower.contains(".svg") ||
-                lower.contains(".ico") ->
-                    "🖼 IMAGE"
-
-                lower.contains(".mp3") ||
-                lower.contains(".m4a") ||
-                lower.contains(".aac") ||
-                lower.contains(".wav") ||
-                lower.contains(".ogg") ||
-                lower.contains(".flac") ->
-                    "🎵 AUDIO"
-
-                else ->
-                    "📦 MEDIA"
-            }
-
-        sb.append("$label\n\n")
+        sb.append("\n\n")
 
         sb.append(url)
 
@@ -1874,7 +1929,11 @@ private fun showVideos() {
 
     detectedVideos.forEach { url ->
 
-        sb.append("🎬 VIDEO\n\n")
+        sb.append(
+            buildMediaLabel(url)
+        )
+
+        sb.append("\n\n")
 
         sb.append(url)
 
@@ -1897,7 +1956,11 @@ private fun showImages() {
 
     detectedImages.forEach { url ->
 
-        sb.append("🖼 IMAGE\n\n")
+        sb.append(
+            buildMediaLabel(url)
+        )
+
+        sb.append("\n\n")
 
         sb.append(url)
 
@@ -1920,7 +1983,11 @@ private fun showAudio() {
 
     detectedAudio.forEach { url ->
 
-        sb.append("🎵 AUDIO\n\n")
+        sb.append(
+            buildMediaLabel(url)
+        )
+
+        sb.append("\n\n")
 
         sb.append(url)
 
