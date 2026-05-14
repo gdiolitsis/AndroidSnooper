@@ -412,13 +412,17 @@ document
             if (el.href) {
 
                 if (
-                    el.href.includes(".m3u8") ||
-                    el.href.includes(".mpd") ||
-                    el.href.includes(".mp4")
-                ) {
+    el.href.includes(".m3u8") ||
+    el.href.includes(".mpd") ||
+    el.href.includes(".mp4") ||
+    el.href.includes("master.m3u8") ||
+    el.href.includes("playlist.m3u8") ||
+    el.href.includes("index.m3u8") ||
+    el.href.includes("chunklist")
+) {
 
-                    results.push(el.href);
-                }
+    results.push(el.href);
+}
             }
         });
 
@@ -434,7 +438,7 @@ document
                 el.innerHTML;
 
             const regex =
-                /(https?:\/\/[^"' ]+\.(m3u8|mpd|mp4))/gi;
+/(https?:\/\/[^"' ]+\.(m3u8|mpd|mp4)(\?[^"' ]*)?)/gi;
 
             const found =
                 txt.match(regex);
@@ -1061,35 +1065,227 @@ startActivity(
 }
 
 // =====================================
-// TEST STREAM
+// TEST STREAM ENGINE
 // =====================================
 
-binding.contentMain.testStream.setOnClickListener {
+private fun testStream(
+    url: String
+) {
 
-    if (detectedStreams.isEmpty()) {
+    val cleanedUrl =
+        url
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .trim()
 
-        binding.contentMain.result.append(
-            "\n\nNO STREAMS DETECTED\n"
-        )
+    binding.contentMain.result.append(
 
-        return@setOnClickListener
-    }
+        """
 
-    val streamList =
-        detectedStreams.toTypedArray()
+🧪 TESTING STREAM
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
-        .setTitle("Test Stream")
+$cleanedUrl
 
-        .setItems(streamList) { _, which ->
+────────────────────
 
-            val url =
-                streamList[which]
+""".trimIndent()
+    )
 
-            testStream(url)
+    // =====================================
+    // REQUEST
+    // =====================================
+
+    val builder =
+        Request.Builder()
+            .url(cleanedUrl)
+            .head()
+
+    streamHeaders[cleanedUrl]
+        ?.forEach { (k, v) ->
+
+            builder.header(k, v)
         }
 
-        .show()
+    builder.header(
+        "User-Agent",
+        binding.contentMain.webview
+            .settings
+            .userAgentString
+    )
+
+    builder.header(
+        "Referer",
+        binding.contentMain.webview.url
+            ?: cleanedUrl
+    )
+
+    builder.header(
+        "Origin",
+        binding.contentMain.webview.url
+            ?: cleanedUrl
+    )
+
+    builder.header(
+        "Accept",
+        "*/*"
+    )
+
+    builder.header(
+        "Connection",
+        "keep-alive"
+    )
+
+    val request =
+        builder.build()
+
+    // =====================================
+    // EXECUTE
+    // =====================================
+
+    okHttpClient
+        .newCall(request)
+        .enqueue(
+
+            object : Callback {
+
+                override fun onFailure(
+                    call: Call,
+                    e: IOException
+                ) {
+
+                    runOnUiThread {
+
+                        binding.contentMain.result.append(
+
+                            """
+
+❌ TEST FAILED
+
+URL:
+$cleanedUrl
+
+ERROR:
+${e.message}
+
+────────────────────
+
+""".trimIndent()
+                        )
+                    }
+                }
+
+                override fun onResponse(
+                    call: Call,
+                    response: Response
+                ) {
+
+                    try {
+
+                        val code =
+                            response.code
+
+                        val contentType =
+                            response.header(
+                                "Content-Type"
+                            ).orEmpty()
+
+                        val contentLength =
+                            response.header(
+                                "Content-Length"
+                            ).orEmpty()
+
+                        val location =
+                            response.header(
+                                "Location"
+                            ).orEmpty()
+
+                        val server =
+                            response.header(
+                                "Server"
+                            ).orEmpty()
+
+                        val finalStatus =
+                            when {
+
+                                code in 200..299 ->
+                                    "✅ STREAM OK"
+
+                                code in 300..399 ->
+                                    "↪ REDIRECT"
+
+                                code == 403 ->
+                                    "🔒 FORBIDDEN"
+
+                                code == 404 ->
+                                    "❌ NOT FOUND"
+
+                                else ->
+                                    "⚠ RESPONSE RECEIVED"
+                            }
+
+                        runOnUiThread {
+
+                            binding.contentMain.result.append(
+
+                                """
+
+$finalStatus
+
+HTTP:
+$code
+
+TYPE:
+$contentType
+
+SIZE:
+$contentLength
+
+SERVER:
+$server
+
+REDIRECT:
+$location
+
+HEADERS:
+${streamHeaders[cleanedUrl]}
+
+────────────────────
+
+""".trimIndent()
+                            )
+                        }
+
+                    } catch (t: Throwable) {
+
+                        Log.e(
+                            "STREAM_TEST",
+                            "parse failed",
+                            t
+                        )
+
+                        runOnUiThread {
+
+                            binding.contentMain.result.append(
+
+                                """
+
+❌ PARSE FAILED
+
+${t.message}
+
+────────────────────
+
+""".trimIndent()
+                            )
+                        )
+
+                    } finally {
+
+                        response.close()
+                    }
+                }
+            }
+        )
 }
 
 // =====================================
@@ -2159,18 +2355,30 @@ private fun testStream(
             object : Callback {
 
                 override fun onFailure(
-                    call: Call,
-                    e: IOException
-                ) {
+    call: Call,
+    e: IOException
+) {
 
-                    runOnUiThread {
+    runOnUiThread {
 
-                        binding.contentMain.result.append(
+        binding.contentMain.result.append(
 
-                            "\n❌ FAILED\n${e.message}\n"
-                        )
-                    }
-                }
+            """
+
+❌ TEST FAILED
+
+URL:
+$cleanedUrl
+
+ERROR:
+${e.message}
+
+────────────────────
+
+""".trimIndent()
+        )
+    }
+}
 
                 override fun onResponse(
                     call: Call,
@@ -2607,7 +2815,10 @@ private fun startStreamMonitor() {
 
                     try {
 
-                        if (!response.isSuccessful) {
+                        if (
+    !response.isSuccessful &&
+    response.code !in 200..399
+) {
                             return
                         }
 
