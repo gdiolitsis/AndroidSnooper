@@ -1312,7 +1312,12 @@ binding.contentMain.result.setOnClickListener {
 
 binding.contentMain.result.setOnLongClickListener { v ->
 
-    if (lastSelectedUrl.isBlank()) {
+    val selectedUrl =
+        extractUrlFromText(
+            binding.contentMain.result.text.toString()
+        )
+
+    if (selectedUrl.isBlank()) {
         return@setOnLongClickListener true
     }
 
@@ -1337,7 +1342,7 @@ binding.contentMain.result.setOnLongClickListener { v ->
                     Intent(Intent.ACTION_VIEW).apply {
 
                         setDataAndType(
-                            Uri.parse(lastSelectedUrl),
+                            Uri.parse(selectedUrl),
                             "video/*"
                         )
                     }
@@ -1352,7 +1357,7 @@ binding.contentMain.result.setOnLongClickListener { v ->
 
             "TEST STREAM" -> {
 
-                testStream(lastSelectedUrl)
+                testStream(selectedUrl)
             }
 
             "SHARE URL" -> {
@@ -1364,7 +1369,7 @@ binding.contentMain.result.setOnLongClickListener { v ->
 
                         putExtra(
                             Intent.EXTRA_TEXT,
-                            lastSelectedUrl
+                            selectedUrl
                         )
                     }
 
@@ -1386,7 +1391,7 @@ binding.contentMain.result.setOnLongClickListener { v ->
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(
                         "stream",
-                        lastSelectedUrl
+                        selectedUrl
                     )
                 )
 
@@ -1407,6 +1412,19 @@ binding.contentMain.result.setOnLongClickListener { v ->
 }
 
 } // END onCreate()
+
+private fun extractUrlFromText(
+    text: String
+): String {
+
+    val regex =
+        "(https?://[^\\s]+)".toRegex()
+
+    return regex.find(text)
+        ?.value
+        ?.trim()
+        ?: ""
+}
 
     // =====================================
     // HANDLE NEW INTENTS
