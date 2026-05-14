@@ -1391,7 +1391,6 @@ binding.contentMain.result.setOnLongClickListener { v ->
 
     true
 }
-}
 
     // =====================================
     // HANDLE NEW INTENTS
