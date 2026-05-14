@@ -194,9 +194,22 @@ onBackPressedDispatcher.addCallback(this) {
 
         customView != null -> {
 
-            binding.contentMain.webview
-                .webChromeClient
-                ?.onHideCustomView()
+            customView?.visibility =
+                View.GONE
+
+            (customView?.parent as? ViewGroup)
+                ?.removeView(customView)
+
+            customView = null
+
+            binding.contentMain.webview.visibility =
+                View.VISIBLE
+
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_VISIBLE
+
+            customViewCallback
+                ?.onCustomViewHidden()
         }
 
         binding.contentMain.webview.canGoBack() -> {
