@@ -692,76 +692,112 @@ binding.contentMain.webview.webChromeClient =
 
         handleIncomingIntent()
 
-        // =====================================
-        // OPEN PAGE
-        // =====================================
+// =====================================
+// OPEN PAGE
+// =====================================
 
-        binding.contentMain.openBrowser.setOnClickListener {
+binding.contentMain.openBrowser.setOnClickListener {
 
-            detectedStreams.clear()
+    detectedStreams.clear()
 
-            detectedVideos.clear()
+    detectedVideos.clear()
 
-            detectedImages.clear()
+    detectedImages.clear()
 
-            detectedAudio.clear()
+    detectedAudio.clear()
 
-            binding.contentMain.result.text = ""
+    detectedMasterStreams.clear()
 
-            val enteredText =
-                binding.contentMain.urlInput
-                    .text
-                    .toString()
-                    .trim()
+    detectedChannels.clear()
 
-            val finalUrl =
-                when {
+    binding.contentMain.result.text = ""
 
-                    enteredText.isEmpty() -> {
+    val enteredText =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
 
-                        "https://www.google.com"
-                    }
+    val finalUrl =
+        when {
 
-                    enteredText.startsWith("http") -> {
+            enteredText.isEmpty() -> {
 
-                        enteredText
-                    }
+                "https://www.google.com"
+            }
 
-                    enteredText.contains(".") &&
-                    !enteredText.contains(" ") -> {
+            enteredText.startsWith("http") -> {
 
-                        "https://$enteredText"
-                    }
+                enteredText
+            }
 
-                    else -> {
+            enteredText.contains(".") &&
+            !enteredText.contains(" ") -> {
 
-                        val query =
-                            enteredText.replace(
-                                " ",
-                                "+"
-                            )
+                "https://$enteredText"
+            }
 
-                        "https://www.google.com/search?q=$query"
-                    }
-                }
-                
-val desktopMode = true
+            else -> {
 
-if (desktopMode) {
+                val query =
+                    enteredText.replace(
+                        " ",
+                        "+"
+                    )
 
-    binding.contentMain.webview.settings.userAgentString =
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-
-} else {
-
-    binding.contentMain.webview.settings.userAgentString =
-        null
-}
-
-            binding.contentMain.webview.loadUrl(
-                finalUrl
-            )
+                "https://www.google.com/search?q=$query"
+            }
         }
+
+    // =====================================
+    // DESKTOP MODE
+    // =====================================
+
+    val desktopMode = true
+
+    if (desktopMode) {
+
+        binding.contentMain.webview.settings.userAgentString =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+    } else {
+
+        binding.contentMain.webview.settings.userAgentString =
+            null
+    }
+
+    // =====================================
+    // HIDE KEYBOARD
+    // =====================================
+
+    try {
+
+        val imm =
+            getSystemService(
+                INPUT_METHOD_SERVICE
+            ) as android.view.inputmethod.InputMethodManager
+
+        imm.hideSoftInputFromWindow(
+            currentFocus?.windowToken,
+            0
+        )
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // REMOVE INPUT FOCUS
+    // =====================================
+
+    binding.contentMain.urlInput.clearFocus()
+
+    // =====================================
+    // LOAD PAGE
+    // =====================================
+
+    binding.contentMain.webview.loadUrl(
+        finalUrl
+    )
+}
 
         // =====================================
         // OPEN CHROME
@@ -1441,270 +1477,300 @@ if (
         }
     }
 
+// =====================================
+// DETECT + SAVE URL
+// =====================================
+
+private fun detectAndSaveUrl(
+    url: String
+) {
+
+    Log.e(
+        "MEDIA_DETECT",
+        url
+    )
+
+    val cleanedUrl =
+        url
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .trim()
+
+    val lower =
+        cleanedUrl.lowercase()
+
     // =====================================
-    // DETECT + SAVE URL
+    // MEDIA TYPES
     // =====================================
 
-    private fun detectAndSaveUrl(
-        url: String
-    ) {
+    val isVideo =
+        lower.contains(".m3u") ||
+        lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains(".m4s") ||
+        lower.contains(".ts") ||
+        lower.contains(".mp4") ||
+        lower.contains(".webm") ||
+        lower.contains(".mkv") ||
+        lower.contains("playlist") ||
+        lower.contains("chunklist")
 
-        Log.e(
-            "MEDIA_DETECT",
-            url
-        )
-        
-        val cleanedUrl =
-    url
-        .replace("\\u0026", "&")
-        .replace("\\/", "/")
-        .trim()
+    val isImage =
+        lower.contains(".jpg") ||
+        lower.contains(".jpeg") ||
+        lower.contains(".png") ||
+        lower.contains(".webp") ||
+        lower.contains(".gif") ||
+        lower.contains(".bmp") ||
+        lower.contains(".svg") ||
+        lower.contains(".ico")
 
-        val lower =
-    cleanedUrl.lowercase()
+    val isAudio =
+        lower.contains(".mp3") ||
+        lower.contains(".m4a") ||
+        lower.contains(".aac") ||
+        lower.contains(".opus") ||
+        lower.contains(".wav") ||
+        lower.contains(".ogg") ||
+        lower.contains(".flac")
 
-        val isVideo =
-    lower.contains(".m3u") ||
-    lower.contains(".m3u8") ||
-    lower.contains(".mpd") ||
-    lower.contains(".m4s") ||
-    lower.contains(".ts") ||
-    lower.contains(".mp4") ||
-    lower.contains(".webm") ||
-    lower.contains(".mkv") ||
-    lower.contains("playlist") ||
-    lower.contains("chunklist")
+    // =====================================
+    // SEGMENTS
+    // =====================================
 
     val isSegmentTs =
-    lower.contains(".ts") &&
-    (
-        lower.contains("seg-") ||
-        lower.contains("chunk") ||
-        lower.contains("frag") ||
-        lower.contains("segment")
-    )
-    
+        (
+            lower.contains(".ts") ||
+            lower.contains(".m4s")
+        ) &&
+        (
+            lower.contains("seg") ||
+            lower.contains("chunk") ||
+            lower.contains("frag") ||
+            lower.contains("segment")
+        )
+
+    // =====================================
+    // MASTER STREAM
+    // =====================================
+
     val isMasterStream =
-    lower.contains(".m3u8") ||
-    lower.contains(".mpd") ||
-    lower.contains("master")
+        lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains("master")
 
-        val isImage =
-            lower.contains(".jpg") ||
-            lower.contains(".jpeg") ||
-            lower.contains(".png") ||
-            lower.contains(".webp") ||
-            lower.contains(".gif") ||
-            lower.contains(".bmp") ||
-            lower.contains(".svg") ||
-            lower.contains(".ico")
+    // =====================================
+    // GARBAGE FILTER
+    // =====================================
 
-        val isAudio =
-            lower.contains(".mp3") ||
-            lower.contains(".m4a") ||
-            lower.contains(".aac") ||
-            lower.contains(".opus") ||
-            lower.contains(".wav") ||
-            lower.contains(".ogg") ||
-            lower.contains(".flac")
-            
-            val isGarbage =
-    lower.contains("doubleclick") ||
-    lower.contains("googleads") ||
-    lower.contains("analytics") ||
-    lower.contains("facebook") ||
-    lower.contains("tracker") ||
-    lower.contains("adsystem") ||
-    lower.contains(".css") ||
-    lower.contains(".js") ||
-    lower.contains("favicon") ||
-    lower.contains("logo") ||
-    lower.contains("banner")
-            
-            if (isSegmentTs) {
-    return
-}
+    val isGarbage =
+        lower.contains("doubleclick") ||
+        lower.contains("googleads") ||
+        lower.contains("analytics") ||
+        lower.contains("facebook") ||
+        lower.contains("tracker") ||
+        lower.contains("adsystem") ||
+        lower.contains(".css") ||
+        lower.contains(".js") ||
+        lower.contains("favicon") ||
+        lower.contains("logo") ||
+        lower.contains("banner") ||
+        lower.contains("recaptcha") ||
+        lower.contains("gstatic")
 
-if (isGarbage) {
-    return
-}
+    if (isSegmentTs) {
+        return
+    }
 
-        if (
-            !isVideo &&
-            !isImage &&
-            !isAudio
-        ) {
-            return
-        }
+    if (isGarbage) {
+        return
+    }
 
-        if (
-    detectedStreams.contains(cleanedUrl)
-) {
-    return
-}
+    if (
+        !isVideo &&
+        !isImage &&
+        !isAudio
+    ) {
+        return
+    }
 
-        detectedStreams.add(cleanedUrl)
+    // =====================================
+    // DUPLICATES
+    // =====================================
 
-        if (isVideo) {
-            detectedVideos.add(cleanedUrl)
-        }
+    if (
+        detectedStreams.contains(cleanedUrl)
+    ) {
+        return
+    }
 
-        if (isImage) {
-            detectedImages.add(cleanedUrl)
-        }
+    detectedStreams.add(cleanedUrl)
 
-        if (isAudio) {
-            detectedAudio.add(cleanedUrl)
-        }
-        
-        if (isMasterStream) {
-    detectedMasterStreams.add(cleanedUrl)
-}
+    if (isVideo) {
+        detectedVideos.add(cleanedUrl)
+    }
 
-        val mediaType =
-            when {
+    if (isImage) {
+        detectedImages.add(cleanedUrl)
+    }
 
-                isVideo -> "VIDEO"
+    if (isAudio) {
+        detectedAudio.add(cleanedUrl)
+    }
 
-                isImage -> "IMAGE"
+    if (isMasterStream) {
+        detectedMasterStreams.add(cleanedUrl)
+    }
 
-                isAudio -> "AUDIO"
+    // =====================================
+    // QUALITY
+    // =====================================
 
-                else -> "MEDIA"
-            }
-            
     val streamQuality =
-    when {
+        when {
 
-        lower.contains("2160") ||
-        lower.contains("4k") ->
-            "4K"
+            lower.contains("2160p") ||
+            lower.contains("4k") ->
+                "4K"
 
-        lower.contains("1440") ->
-            "1440p"
+            lower.contains("1440p") ->
+                "1440p"
 
-        lower.contains("1080") ->
-            "1080p"
+            lower.contains("1080p") ->
+                "1080p"
 
-        lower.contains("900") ->
-            "900p"
+            lower.contains("900p") ->
+                "900p"
 
-        lower.contains("720") ->
-            "720p"
+            lower.contains("720p") ->
+                "720p"
 
-        lower.contains("540") ->
-            "540p"
+            lower.contains("540p") ->
+                "540p"
 
-        lower.contains("480") ->
-            "480p"
+            lower.contains("480p") ->
+                "480p"
 
-        lower.contains("360") ->
-            "360p"
+            lower.contains("360p") ->
+                "360p"
 
-        lower.contains("240") ->
-            "240p"
+            lower.contains("240p") ->
+                "240p"
 
-        lower.contains("144") ->
-            "144p"
+            lower.contains("144p") ->
+                "144p"
 
-        lower.contains("hevc") ||
-        lower.contains("h265") ->
-            "HEVC"
+            lower.contains("hevc") ||
+            lower.contains("h265") ->
+                "HEVC"
 
-        lower.contains("av1") ->
-            "AV1"
+            lower.contains("av1") ->
+                "AV1"
 
-        lower.contains("hdr") ->
-            "HDR"
+            lower.contains("hdr") ->
+                "HDR"
 
-        lower.contains("aac") ->
-            "AAC"
+            lower.contains("aac") ->
+                "AAC"
 
-        lower.contains("ac3") ->
-            "AC3"
+            lower.contains("ac3") ->
+                "AC3"
 
-        lower.contains("opus") ->
-            "OPUS"
+            lower.contains("opus") ->
+                "OPUS"
 
-        lower.contains("audio") ->
-            "AUDIO"
+            lower.contains("/audio/") ->
+                "AUDIO"
 
-        lower.contains("chunklist") ->
-            "ADAPTIVE"
+            lower.contains("chunklist") ->
+                "ADAPTIVE"
 
-        else ->
-            "AUTO"
-    }
-    
+            else ->
+                "AUTO"
+        }
+
+    // =====================================
+    // BADGES
+    // =====================================
+
     val streamBadge =
-    when {
+        when {
 
-        lower.contains(".m3u8") ->
-            "📺 HLS"
+            lower.contains(".m3u8") ->
+                "📺 HLS"
 
-        lower.contains(".mpd") ->
-            "📡 DASH"
+            lower.contains(".mpd") ->
+                "📡 DASH"
 
-        isVideo ->
-            "🎬 VIDEO"
+            isVideo ->
+                "🎬 VIDEO"
 
-        isImage ->
-            "🖼 IMAGE"
+            isImage ->
+                "🖼 IMAGE"
 
-        isAudio ->
-            "🎵 AUDIO"
+            isAudio ->
+                "🎵 AUDIO"
 
-        else ->
-            "📦 MEDIA"
-    }
-    
+            else ->
+                "📦 MEDIA"
+        }
+
     val securityBadge =
-    when {
+        when {
 
-        lower.contains("token") ||
-        lower.contains("signature") ||
-        lower.contains("expires") ||
-        lower.contains("policy") ->
-            " 🔒 SIGNED"
+            lower.contains("token") ||
+            lower.contains("signature") ||
+            lower.contains("expires") ||
+            lower.contains("policy") ->
+                " 🔒 SIGNED"
 
-        else ->
-            ""
-    }
-    
+            else ->
+                ""
+        }
+
     val segmentBadge =
-    if (isSegmentTs)
-        " 🧩 SEGMENT"
-    else
-        ""
-    
+        if (isSegmentTs)
+            " 🧩 SEGMENT"
+        else
+            ""
+
     val cdnType =
-    when {
+        when {
 
-        lower.contains("cloudfront") ->
-            "CloudFront"
+            lower.contains("cloudfront") ->
+                "CloudFront"
 
-        lower.contains("akamai") ->
-            "Akamai"
+            lower.contains("akamai") ->
+                "Akamai"
 
-        lower.contains("cloudflare") ->
-            "Cloudflare"
+            lower.contains("cloudflare") ->
+                "Cloudflare"
 
-        lower.contains("bunny") ->
-            "Bunny"
+            lower.contains("bunny") ->
+                "Bunny"
 
-        lower.contains("broadpeak") ->
-            "Broadpeak"
+            lower.contains("broadpeak") ->
+                "Broadpeak"
 
-        else ->
-            "Generic CDN"
-    }
-    
-    lastSelectedUrl = cleanedUrl
+            else ->
+                "Generic CDN"
+        }
 
-        runOnUiThread {
+    // =====================================
+    // SAVE LAST URL
+    // =====================================
 
-            binding.contentMain.result.append(
-                """
+    lastSelectedUrl =
+        cleanedUrl
+
+    // =====================================
+    // UI OUTPUT
+    // =====================================
+
+    runOnUiThread {
+
+        binding.contentMain.result.append(
+            """
 
 $streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge
 
@@ -1713,9 +1779,9 @@ $cleanedUrl
 ────────────────────
 
 """.trimIndent()
-            )
-        }
+        )
     }
+}
 
 // =====================================
 // SHOW ALL
