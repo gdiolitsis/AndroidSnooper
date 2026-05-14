@@ -958,8 +958,35 @@ binding.contentMain.openPlayer.setOnClickListener {
         return@setOnClickListener
     }
 
+    val sortedStreams =
+        mutableListOf<String>()
+
+    // =====================================
+    // VIDEOS
+    // =====================================
+
+    sortedStreams.addAll(
+        detectedVideos
+    )
+
+    // =====================================
+    // AUDIO
+    // =====================================
+
+    sortedStreams.addAll(
+        detectedAudio
+    )
+
+    // =====================================
+    // IMAGES
+    // =====================================
+
+    sortedStreams.addAll(
+        detectedImages
+    )
+
     val streamList =
-    detectedStreams.toTypedArray()
+        sortedStreams.toTypedArray()
 
     androidx.appcompat.app.AlertDialog.Builder(this)
         .setTitle("Select Stream")
@@ -973,115 +1000,115 @@ binding.contentMain.openPlayer.setOnClickListener {
 
                 val lower =
                     url.lowercase()
-                    
+
                 val mimeType =
-    when {
+                    when {
 
-// =========================
-// STREAMS / VIDEO
-// =========================
+                        // =========================
+                        // STREAMS / VIDEO
+                        // =========================
 
-lower.contains(".m3u8") ->
-    "video/*"
+                        lower.contains(".m3u8") ->
+                            "video/*"
 
-lower.contains(".mpd") ->
-    "video/*"
+                        lower.contains(".mpd") ->
+                            "video/*"
 
-lower.contains(".mp4") ->
-    "video/*"
+                        lower.contains(".mp4") ->
+                            "video/*"
 
-lower.contains(".mkv") ->
-    "video/*"
+                        lower.contains(".mkv") ->
+                            "video/*"
 
-lower.contains(".webm") ->
-    "video/*"
+                        lower.contains(".webm") ->
+                            "video/*"
 
-lower.contains(".ts") ->
-    "video/*"
-    
-        // =========================
-        // AUDIO
-        // =========================
+                        lower.contains(".ts") ->
+                            "video/*"
 
-        lower.contains(".mp3") ->
-            "audio/mpeg"
+                        // =========================
+                        // AUDIO
+                        // =========================
 
-        lower.contains(".aac") ->
-            "audio/aac"
+                        lower.contains(".mp3") ->
+                            "audio/mpeg"
 
-        lower.contains(".wav") ->
-            "audio/wav"
+                        lower.contains(".aac") ->
+                            "audio/aac"
 
-        lower.contains(".ogg") ->
-            "audio/ogg"
+                        lower.contains(".wav") ->
+                            "audio/wav"
 
-        lower.contains(".flac") ->
-            "audio/flac"
+                        lower.contains(".ogg") ->
+                            "audio/ogg"
 
-        // =========================
-        // IMAGES
-        // =========================
+                        lower.contains(".flac") ->
+                            "audio/flac"
 
-        lower.contains(".jpg") ||
-        lower.contains(".jpeg") ->
-            "image/jpeg"
+                        // =========================
+                        // IMAGES
+                        // =========================
 
-        lower.contains(".png") ->
-            "image/png"
+                        lower.contains(".jpg") ||
+                        lower.contains(".jpeg") ->
+                            "image/jpeg"
 
-        lower.contains(".webp") ->
-            "image/webp"
+                        lower.contains(".png") ->
+                            "image/png"
 
-        lower.contains(".gif") ->
-            "image/gif"
+                        lower.contains(".webp") ->
+                            "image/webp"
 
-        // =========================
-        // FALLBACK
-        // =========================
+                        lower.contains(".gif") ->
+                            "image/gif"
 
-        else ->
-            "*/*"
-    }
+                        // =========================
+                        // FALLBACK
+                        // =========================
 
-    val cleanUrl =
-    url
-        .trim()
-        .replace("\n", "")
-        .replace("\r", "")
-        .replace(" ", "")
+                        else ->
+                            "*/*"
+                    }
 
-    val intent =
-    Intent(Intent.ACTION_VIEW).apply {
+                val cleanUrl =
+                    url
+                        .trim()
+                        .replace("\n", "")
+                        .replace("\r", "")
+                        .replace(" ", "")
 
-        setDataAndType(
-    Uri.parse(cleanUrl),
-    mimeType
-)
+                val intent =
+                    Intent(Intent.ACTION_VIEW).apply {
 
-        addCategory(
-            Intent.CATEGORY_BROWSABLE
-        )
+                        setDataAndType(
+                            Uri.parse(cleanUrl),
+                            mimeType
+                        )
 
-        addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK
-        )
-    }
+                        addCategory(
+                            Intent.CATEGORY_BROWSABLE
+                        )
 
-startActivity(
-    Intent.createChooser(
-        intent,
-        "Open Stream With"
-    )
-)
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK
+                        )
+                    }
 
-} catch (t: Throwable) {
+                startActivity(
+                    Intent.createChooser(
+                        intent,
+                        "Open Stream With"
+                    )
+                )
 
-    Log.e(
-        "PLAYER_OPEN",
-        "failed",
-        t
-    )
-}
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "PLAYER_OPEN",
+                    "failed",
+                    t
+                )
+            }
         }
 
         .show()
@@ -1102,82 +1129,109 @@ binding.contentMain.shareStream.setOnClickListener {
         return@setOnClickListener
     }
 
+    val sortedStreams =
+        mutableListOf<String>()
+
+    // =====================================
+    // VIDEOS
+    // =====================================
+
+    sortedStreams.addAll(
+        detectedVideos
+    )
+
+    // =====================================
+    // AUDIO
+    // =====================================
+
+    sortedStreams.addAll(
+        detectedAudio
+    )
+
+    // =====================================
+    // IMAGES
+    // =====================================
+
+    sortedStreams.addAll(
+        detectedImages
+    )
+
     val streamList =
-    detectedStreams.toTypedArray()
+        sortedStreams.toTypedArray()
 
-val checkedItems =
-    BooleanArray(streamList.size)
+    val checkedItems =
+        BooleanArray(streamList.size)
 
-val selected =
-    mutableListOf<String>()
+    val selected =
+        mutableListOf<String>()
 
-androidx.appcompat.app.AlertDialog.Builder(this)
+    androidx.appcompat.app.AlertDialog.Builder(this)
 
-    .setTitle("Select Streams To Share")
+        .setTitle("Select Streams To Share")
 
-    .setMultiChoiceItems(
-        streamList,
-        checkedItems
-    ) { _, which, isChecked ->
+        .setMultiChoiceItems(
+            streamList,
+            checkedItems
+        ) { _, which, isChecked ->
 
-        val url =
-            streamList[which]
+            val url =
+                streamList[which]
 
-        if (isChecked) {
+            if (isChecked) {
 
-            if (!selected.contains(url)) {
-                selected.add(url)
-            }
-
-        } else {
-
-            selected.remove(url)
-        }
-    }
-
-    .setPositiveButton("SHARE") { _, _ ->
-
-        if (selected.isEmpty()) {
-            return@setPositiveButton
-        }
-
-        try {
-
-            val allUrls =
-                selected.joinToString("\n\n")
-
-            val shareIntent =
-                Intent(Intent.ACTION_SEND).apply {
-
-                    type = "text/plain"
-
-                    putExtra(
-                        Intent.EXTRA_TEXT,
-                        allUrls
-                    )
+                if (!selected.contains(url)) {
+                    selected.add(url)
                 }
 
-            startActivity(
-                Intent.createChooser(
-                    shareIntent,
-                    "Share Streams With"
-                )
-            )
+            } else {
 
-        } catch (t: Throwable) {
-
-            Log.e(
-                "SHARE_STREAM",
-                "failed",
-                t
-            )
+                selected.remove(url)
+            }
         }
-    }
 
-    .setNegativeButton("CANCEL", null)
+        .setPositiveButton("SHARE") { _, _ ->
 
-    .show()
-    }
+            if (selected.isEmpty()) {
+                return@setPositiveButton
+            }
+
+            try {
+
+                val allUrls =
+                    selected.joinToString("\n\n")
+
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+
+                        type = "text/plain"
+
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            allUrls
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        shareIntent,
+                        "Share Streams With"
+                    )
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "SHARE_STREAM",
+                    "failed",
+                    t
+                )
+            }
+        }
+
+        .setNegativeButton("CANCEL", null)
+
+        .show()
+}
 
 // =====================================
 // EXPORT M3U
