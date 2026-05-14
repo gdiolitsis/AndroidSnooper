@@ -683,16 +683,20 @@ if (!window.__gelXHRHooked) {
 
 if (
     autoRefreshEnabled &&
-    !monitorRunning
+    !monitorRunning &&
+    (
+        url?.contains(".m3u8") == true ||
+        url?.contains(".mpd") == true ||
+        url?.contains("player") == true ||
+        url?.contains("embed") == true ||
+        detectedStreams.isNotEmpty()
+    )
 ) {
 
     monitorRunning = true
 
     startStreamMonitor()
 }
-
-        }
-    }
     
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
@@ -2515,10 +2519,10 @@ private fun startStreamMonitor() {
                 } catch (_: Throwable) {}
 
                 binding.contentMain.webview
-                    .postDelayed(
-                        this,
-                        4000
-                    )
+    .postDelayed(
+        this,
+        10000
+    )
             }
 
         },
