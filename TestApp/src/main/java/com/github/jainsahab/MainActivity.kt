@@ -1110,46 +1110,78 @@ binding.contentMain.shareStream.setOnClickListener {
     val streamList =
     detectedStreams.toTypedArray()
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
-        .setTitle("Select Stream To Share")
+val checkedItems =
+    BooleanArray(streamList.size)
 
-        .setItems(streamList) { _, which ->
+val selected =
+    mutableListOf<String>()
 
-            val url =
-                streamList[which]
+androidx.appcompat.app.AlertDialog.Builder(this)
 
-            try {
+    .setTitle("Select Streams To Share")
 
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
+    .setMultiChoiceItems(
+        streamList,
+        checkedItems
+    ) { _, which, isChecked ->
 
-                        type = "text/plain"
+        val url =
+            streamList[which]
 
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            url
-                        )
-                    }
+        if (isChecked) {
 
-                startActivity(
-                    Intent.createChooser(
-                        shareIntent,
-                        "Share Stream With"
-                    )
-                )
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "SHARE_STREAM",
-                    "failed",
-                    t
-                )
+            if (!selected.contains(url)) {
+                selected.add(url)
             }
+
+        } else {
+
+            selected.remove(url)
+        }
+    }
+
+    .setPositiveButton("SHARE") { _, _ ->
+
+        if (selected.isEmpty()) {
+            return@setPositiveButton
         }
 
-        .show()
-}
+        try {
+
+            val allUrls =
+                selected.joinToString("\n\n")
+
+            val shareIntent =
+                Intent(Intent.ACTION_SEND).apply {
+
+                    type = "text/plain"
+
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        allUrls
+                    )
+                }
+
+            startActivity(
+                Intent.createChooser(
+                    shareIntent,
+                    "Share Streams With"
+                )
+            )
+
+        } catch (t: Throwable) {
+
+            Log.e(
+                "SHARE_STREAM",
+                "failed",
+                t
+            )
+        }
+    }
+
+    .setNegativeButton("CANCEL", null)
+
+    .show()
 
 // =====================================
 // EXPORT M3U
