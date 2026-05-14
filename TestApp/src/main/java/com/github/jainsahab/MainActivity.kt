@@ -689,7 +689,6 @@ if (
         url?.contains(".mpd") == true ||
         url?.contains("player") == true ||
         url?.contains("embed") == true ||
-        detectedStreams.isNotEmpty()
     )
 ) {
 
