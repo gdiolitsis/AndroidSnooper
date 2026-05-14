@@ -32,7 +32,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
-import org.json.JSONArray
 import java.io.IOException
 import java.util.Date
 
@@ -188,6 +187,29 @@ binding.contentMain.result.movementMethod =
         setSupportActionBar(
             binding.toolbar
         )
+        
+onBackPressedDispatcher.addCallback(this) {
+
+    when {
+
+        customView != null -> {
+
+            binding.contentMain.webview
+                .webChromeClient
+                ?.onHideCustomView()
+        }
+
+        binding.contentMain.webview.canGoBack() -> {
+
+            binding.contentMain.webview.goBack()
+        }
+
+        else -> {
+
+            finish()
+        }
+    }
+}
 
 // =====================================
 // WEBVIEW SETTINGS
@@ -2561,30 +2583,4 @@ private fun startStreamMonitor() {
         )
 }
 
-// =====================================
-// BACK BUTTON
-// =====================================
-
-override fun onBackPressed() {
-
-    when {
-
-        customView != null -> {
-
-            binding.contentMain.webview
-                .webChromeClient
-                ?.onHideCustomView()
-        }
-
-        binding.contentMain.webview.canGoBack() -> {
-
-            binding.contentMain.webview.goBack()
-        }
-
-        else -> {
-
-            super.onBackPressed()
-        }
-    }
-}
 }
