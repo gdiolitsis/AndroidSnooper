@@ -68,6 +68,26 @@ private var lastSelectedUrl =
   
 private val streamHeaders =  
 linkedMapOf<String, MutableMap<String, String>>()  
+
+// =====================================
+// STREAM META
+// =====================================
+
+private val streamResolution =
+    linkedMapOf<String, String>()
+
+private val streamBandwidth =
+    linkedMapOf<String, String>()
+
+private val streamCodec =
+    linkedMapOf<String, String>()
+
+// =====================================
+// STREAM VALIDATION CACHE
+// =====================================
+
+private val streamValidation =
+    linkedMapOf<String, String>()
   
 private var monitorRunning =  
 false  
@@ -391,6 +411,34 @@ override fun shouldOverrideUrlLoading(
 
 let results = [];  
 
+// =====================================
+// GLOBAL MEDIA CACHE
+// =====================================
+
+if (!window.__gelMediaResults) {
+
+    window.__gelMediaResults = [];
+}
+
+// =====================================
+// SAFE PUSH
+// =====================================
+
+function gelPush(url) {
+
+    try {
+
+        if (!url) {
+            return;
+        }
+
+        window.__gelMediaResults.push(url);
+
+        results.push(url);
+
+    } catch(e) {}
+}
+
 // =====================================  
 // IMG  
 // =====================================  
@@ -600,67 +648,1011 @@ results =
     [...new Set(results)];
 
 // =====================================
-// FETCH HOOK
+// FETCH LOGGER
 // =====================================
 
 if (!window.__gelFetchHooked) {
 
-window.__gelFetchHooked = true;  
+    window.__gelFetchHooked = true;
 
-const originalFetch =  
-    window.fetch;  
+    const originalFetch =
+        window.fetch;
 
-window.fetch =  
-    function() {  
+    window.fetch =
+        function() {
 
-        try {  
+            try {
 
-            const url =  
-                arguments[0];  
+                const req =
+                    arguments[0];
 
-            if (typeof url === "string") {  
+                let url = "";
 
-                results.push(url);  
-            }  
+                if (typeof req === "string") {
 
-        } catch(e) {}  
+                    url = req;
 
-        return originalFetch.apply(  
-            this,  
-            arguments  
-        );  
-    };
+                } else if (req && req.url) {
 
+                    url = req.url;
+                }
+
+                if (url) {
+
+                    results.push(url);
+
+                    console.log(
+                        "GEL_FETCH:",
+                        url
+                    );
+                }
+
+            } catch(e) {}
+
+            return originalFetch.apply(
+                this,
+                arguments
+            );
+        };
 }
 
 // =====================================
-// XHR HOOK
+// XHR LOGGER
 // =====================================
 
 if (!window.__gelXHRHooked) {
 
-window.__gelXHRHooked = true;  
+    window.__gelXHRHooked = true;
 
-const originalOpen =  
-    XMLHttpRequest.prototype.open;  
+    const originalOpen =
+        XMLHttpRequest.prototype.open;
 
-XMLHttpRequest.prototype.open =  
-    function(method, url) {  
+    XMLHttpRequest.prototype.open =
+        function(method, url) {
 
-        try {  
+            try {
 
-            if (url) {  
-                results.push(url);  
-            }  
+                if (url) {
 
-        } catch(e) {}  
+                    results.push(url);
 
-        return originalOpen.apply(  
-            this,  
-            arguments  
-        );  
-    };
+                    console.log(
+                        "GEL_XHR:",
+                        method,
+                        url
+                    );
+                }
 
+            } catch(e) {}
+
+            return originalOpen.apply(
+                this,
+                arguments
+            );
+        };
+}
+
+// =====================================
+// BLOB URL HOOK
+// =====================================
+
+if (!window.__gelBlobHooked) {
+
+    window.__gelBlobHooked = true;
+
+    const originalCreateObjectURL =
+        URL.createObjectURL;
+
+    URL.createObjectURL =
+        function(obj) {
+
+            const blobUrl =
+                originalCreateObjectURL(obj);
+
+            try {
+
+                results.push(blobUrl);
+
+                console.log(
+                    "GEL_BLOB:",
+                    blobUrl
+                );
+
+            } catch(e) {}
+
+            return blobUrl;
+        };
+}
+
+// =====================================
+// MEDIA SOURCE HOOK
+// =====================================
+
+if (!window.__gelMediaSourceHooked) {
+
+    window.__gelMediaSourceHooked = true;
+
+    const originalAddSourceBuffer =
+        MediaSource.prototype.addSourceBuffer;
+
+    MediaSource.prototype.addSourceBuffer =
+        function(type) {
+
+            try {
+
+                console.log(
+                    "GEL_MEDIA_SOURCE:",
+                    type
+                );
+
+                results.push(
+                    "mediasource://" + type
+                );
+
+            } catch(e) {}
+
+            return originalAddSourceBuffer.apply(
+                this,
+                arguments
+            );
+        };
+}
+
+// =====================================
+// VIDEO SRC WATCHER
+// =====================================
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (v.src) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_VIDEO_SRC:",
+                        v.src
+                    );
+                }
+
+                if (v.currentSrc) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_VIDEO_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+// =====================================
+// DELAYED RESCAN QUEUE
+// =====================================
+
+try {
+
+    setTimeout(function() {
+
+        try {
+
+            document
+                .querySelectorAll("video, audio, source, iframe")
+                .forEach(function(el) {
+
+                    try {
+
+                        if (el.src) {
+                            results.push(el.src);
+                        }
+
+                        if (el.currentSrc) {
+                            results.push(el.currentSrc);
+                        }
+
+                    } catch(e) {}
+                });
+
+        } catch(e) {}
+
+    }, 1500);
+
+    setTimeout(function() {
+
+        try {
+
+            document
+                .querySelectorAll("video, audio, source, iframe")
+                .forEach(function(el) {
+
+                    try {
+
+                        if (el.src) {
+                            results.push(el.src);
+                        }
+
+                        if (el.currentSrc) {
+                            results.push(el.currentSrc);
+                        }
+
+                    } catch(e) {}
+                });
+
+        } catch(e) {}
+
+    }, 4000);
+
+    setTimeout(function() {
+
+        try {
+
+            document
+                .querySelectorAll("video, audio, source, iframe")
+                .forEach(function(el) {
+
+                    try {
+
+                        if (el.src) {
+                            results.push(el.src);
+                        }
+
+                        if (el.currentSrc) {
+                            results.push(el.currentSrc);
+                        }
+
+                    } catch(e) {}
+                });
+
+        } catch(e) {}
+
+    }, 8000);
+
+} catch(e) {}
+
+// =====================================
+// IFRAME DEEP SCAN
+// =====================================
+
+try {
+
+    document
+        .querySelectorAll("iframe")
+        .forEach(function(frame) {
+
+            try {
+
+                const src =
+                    frame.src;
+
+                if (src) {
+
+                    results.push(src);
+
+                    console.log(
+                        "GEL_IFRAME:",
+                        src
+                    );
+                }
+
+                const doc =
+                    frame.contentDocument ||
+                    frame.contentWindow?.document;
+
+                if (!doc) {
+                    return;
+                }
+
+                // =========================
+                // VIDEO
+                // =========================
+
+                doc
+                    .querySelectorAll(
+                        "video, source, audio"
+                    )
+                    .forEach(function(el) {
+
+                        try {
+
+                            if (el.src) {
+
+                                results.push(el.src);
+
+                                console.log(
+                                    "GEL_IFRAME_MEDIA:",
+                                    el.src
+                                );
+                            }
+
+                            if (el.currentSrc) {
+
+                                results.push(
+                                    el.currentSrc
+                                );
+
+                                console.log(
+                                    "GEL_IFRAME_CURRENT:",
+                                    el.currentSrc
+                                );
+                            }
+
+                        } catch(e) {}
+                    });
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+// =====================================
+// PERFORMANCE NETWORK SCAN
+// =====================================
+
+try {
+
+    const perfEntries =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perfEntries.forEach(function(entry) {
+
+        try {
+
+            const url =
+                entry.name;
+
+            if (!url) {
+                return;
+            }
+
+            const lower =
+                url.toLowerCase();
+
+            if (
+
+                lower.includes(".m3u8") ||
+                lower.includes(".mpd") ||
+                lower.includes(".mp4") ||
+                lower.includes(".m4s") ||
+                lower.includes(".ts") ||
+                lower.includes("playlist") ||
+                lower.includes("chunklist") ||
+                lower.includes("manifest") ||
+                lower.includes("video") ||
+                lower.includes("live")
+
+            ) {
+
+                results.push(url);
+
+                console.log(
+                    "GEL_PERF:",
+                    url
+                );
+            }
+
+        } catch(e) {}
+
+    });
+
+} catch(e) {}
+
+// =====================================
+// LIVE VIDEO OBSERVER
+// =====================================
+
+if (!window.__gelVideoObserver) {
+
+    window.__gelVideoObserver = true;
+
+    try {
+
+        const observeVideo =
+            function(video) {
+
+                try {
+
+                    // =====================
+                    // INITIAL SRC
+                    // =====================
+
+                    if (video.src) {
+
+                        results.push(video.src);
+
+                        console.log(
+                            "GEL_VIDEO_INIT:",
+                            video.src
+                        );
+                    }
+
+                    if (video.currentSrc) {
+
+                        results.push(
+                            video.currentSrc
+                        );
+
+                        console.log(
+                            "GEL_VIDEO_CURRENT:",
+                            video.currentSrc
+                        );
+                    }
+
+                    // =====================
+                    // ATTRIBUTE WATCH
+                    // =====================
+
+                    const observer =
+                        new MutationObserver(
+                            function() {
+
+                                try {
+
+                                    if (video.src) {
+
+                                        results.push(
+                                            video.src
+                                        );
+
+                                        console.log(
+                                            "GEL_VIDEO_SRC_CHANGE:",
+                                            video.src
+                                        );
+                                    }
+
+                                    if (video.currentSrc) {
+
+                                        results.push(
+                                            video.currentSrc
+                                        );
+
+                                        console.log(
+                                            "GEL_VIDEO_CURRENT_CHANGE:",
+                                            video.currentSrc
+                                        );
+                                    }
+
+                                } catch(e) {}
+                            }
+                        );
+
+                    observer.observe(
+                        video,
+                        {
+                            attributes: true,
+                            attributeFilter: [
+                                "src"
+                            ]
+                        }
+                    );
+
+                    // =====================
+                    // PLAY EVENT
+                    // =====================
+
+                    video.addEventListener(
+                        "play",
+                        function() {
+
+                            try {
+
+                                if (video.currentSrc) {
+
+                                    results.push(
+                                        video.currentSrc
+                                    );
+
+                                    console.log(
+                                        "GEL_VIDEO_PLAY:",
+                                        video.currentSrc
+                                    );
+                                }
+
+                            } catch(e) {}
+                        }
+                    );
+
+                } catch(e) {}
+            };
+
+        // =========================
+        // EXISTING VIDEOS
+        // =========================
+
+        document
+            .querySelectorAll("video")
+            .forEach(function(v) {
+
+                observeVideo(v);
+            });
+
+        // =========================
+        // NEW VIDEOS
+        // =========================
+
+        const pageObserver =
+            new MutationObserver(
+                function(mutations) {
+
+                    mutations.forEach(
+                        function(m) {
+
+                            m.addedNodes
+                                .forEach(function(node) {
+
+                                    try {
+
+                                        if (
+                                            node.tagName === "VIDEO"
+                                        ) {
+
+                                            observeVideo(node);
+                                        }
+
+                                    } catch(e) {}
+                                });
+                        });
+                }
+            );
+
+        pageObserver.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+    } catch(e) {}
+}
+
+// =====================================
+// WEBSOCKET HOOK
+// =====================================
+
+if (!window.__gelWebSocketHooked) {
+
+    window.__gelWebSocketHooked = true;
+
+    const OriginalWebSocket =
+        window.WebSocket;
+
+    window.WebSocket =
+        function(url, protocols) {
+
+            try {
+
+                if (url) {
+
+                    results.push(url);
+
+                    console.log(
+                        "GEL_WS_CONNECT:",
+                        url
+                    );
+                }
+
+            } catch(e) {}
+
+            const ws =
+                protocols
+                    ? new OriginalWebSocket(
+                        url,
+                        protocols
+                    )
+                    : new OriginalWebSocket(
+                        url
+                    );
+
+            // =========================
+            // INCOMING MESSAGES
+            // =========================
+
+            ws.addEventListener(
+                "message",
+                function(event) {
+
+                    try {
+
+                        const data =
+                            String(event.data);
+
+                        console.log(
+                            "GEL_WS_MESSAGE:",
+                            data
+                        );
+
+                        const regex =
+/https?:\/\/[^"' ]+/gi;
+
+                        const found =
+                            data.match(regex);
+
+                        if (found) {
+
+                            found.forEach(
+                                function(x) {
+
+                                    results.push(x);
+                                }
+                            );
+                        }
+
+                    } catch(e) {}
+                }
+            );
+
+            return ws;
+        };
+}
+
+// =====================================
+// FETCH RESPONSE PARSER
+// =====================================
+
+if (!window.__gelFetchResponseHooked) {
+
+    window.__gelFetchResponseHooked = true;
+
+    const originalFetch =
+        window.fetch;
+
+    window.fetch =
+        async function() {
+
+            const response =
+                await originalFetch.apply(
+                    this,
+                    arguments
+                );
+
+            try {
+
+                const clone =
+                    response.clone();
+
+                clone.text()
+                    .then(function(txt) {
+
+                        try {
+
+                            const regex =
+/https?:\/\/[^"'\\ ]+/gi;
+
+                            const found =
+                                txt.match(regex);
+
+                            if (found) {
+
+                                found.forEach(
+                                    function(url) {
+
+                                        const lower =
+                                            url.toLowerCase();
+
+                                        if (
+
+                                            lower.includes(".m3u8") ||
+                                            lower.includes(".mpd") ||
+                                            lower.includes(".mp4") ||
+                                            lower.includes(".m4s") ||
+                                            lower.includes(".ts") ||
+                                            lower.includes("manifest") ||
+                                            lower.includes("playlist") ||
+                                            lower.includes("chunklist") ||
+                                            lower.includes("live")
+
+                                        ) {
+
+                                            results.push(url);
+
+                                            console.log(
+                                                "GEL_FETCH_RESPONSE:",
+                                                url
+                                            );
+                                        }
+                                    }
+                                );
+                            }
+
+                        } catch(e) {}
+                    });
+
+            } catch(e) {}
+
+            return response;
+        };
+}
+
+// =====================================
+// SERVICE WORKER HOOK
+// =====================================
+
+if (
+
+    'serviceWorker' in navigator &&
+    !window.__gelServiceWorkerHooked
+
+) {
+
+    window.__gelServiceWorkerHooked = true;
+
+    try {
+
+        navigator.serviceWorker
+            .getRegistrations()
+            .then(function(registrations) {
+
+                registrations.forEach(
+                    function(reg) {
+
+                        try {
+
+                            const scope =
+                                reg.scope;
+
+                            if (scope) {
+
+                                results.push(scope);
+
+                                console.log(
+                                    "GEL_SW_SCOPE:",
+                                    scope
+                                );
+                            }
+
+                            // =====================
+                            // ACTIVE WORKER
+                            // =====================
+
+                            const worker =
+                                reg.active;
+
+                            if (worker) {
+
+                                console.log(
+                                    "GEL_SW_ACTIVE:",
+                                    worker.scriptURL
+                                );
+
+                                results.push(
+                                    worker.scriptURL
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+                );
+            });
+
+    } catch(e) {}
+}
+
+// =====================================
+// DRM / EME HOOK
+// =====================================
+
+if (!window.__gelEMEHooked) {
+
+    window.__gelEMEHooked = true;
+
+    try {
+
+        const originalRequestMediaKeySystemAccess =
+            navigator.requestMediaKeySystemAccess;
+
+        navigator.requestMediaKeySystemAccess =
+            function(keySystem, configs) {
+
+                try {
+
+                    console.log(
+                        "GEL_DRM:",
+                        keySystem
+                    );
+
+                    results.push(
+                        "drm://" + keySystem
+                    );
+
+                } catch(e) {}
+
+                return originalRequestMediaKeySystemAccess.apply(
+                    this,
+                    arguments
+                );
+            };
+
+    } catch(e) {}
+}
+
+// =====================================
+// ENCRYPTED EVENT WATCHER
+// =====================================
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(video) {
+
+            try {
+
+                video.addEventListener(
+                    "encrypted",
+                    function(event) {
+
+                        try {
+
+                            console.log(
+                                "GEL_ENCRYPTED_MEDIA"
+                            );
+
+                            results.push(
+                                "encrypted://media"
+                            );
+
+                        } catch(e) {}
+                    }
+                );
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+// =====================================
+// JSON.parse HOOK
+// =====================================
+
+if (!window.__gelJSONHooked) {
+
+    window.__gelJSONHooked = true;
+
+    const originalJSONParse =
+        JSON.parse;
+
+    JSON.parse =
+        function(text) {
+
+            try {
+
+                if (typeof text === "string") {
+
+                    const regex =
+/https?:\/\/[^"'\\ ]+/gi;
+
+                    const found =
+                        text.match(regex);
+
+                    if (found) {
+
+                        found.forEach(
+                            function(url) {
+
+                                results.push(url);
+
+                                console.log(
+                                    "GEL_JSON_URL:",
+                                    url
+                                );
+                            }
+                        );
+                    }
+                }
+
+            } catch(e) {}
+
+            return originalJSONParse.apply(
+                this,
+                arguments
+            );
+        };
+}
+
+// =====================================
+// atob HOOK
+// =====================================
+
+if (!window.__gelAtobHooked) {
+
+    window.__gelAtobHooked = true;
+
+    const originalAtob =
+        window.atob;
+
+    window.atob =
+        function(str) {
+
+            const decoded =
+                originalAtob(str);
+
+            try {
+
+                const regex =
+/https?:\/\/[^"'\\ ]+/gi;
+
+                const found =
+                    decoded.match(regex);
+
+                if (found) {
+
+                    found.forEach(
+                        function(url) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_ATOB_URL:",
+                                url
+                            );
+                        }
+                    );
+                }
+
+            } catch(e) {}
+
+            return decoded;
+        };
+}
+
+// =====================================
+// eval HOOK
+// =====================================
+
+if (!window.__gelEvalHooked) {
+
+    window.__gelEvalHooked = true;
+
+    const originalEval =
+        window.eval;
+
+    window.eval =
+        function(code) {
+
+            try {
+
+                if (typeof code === "string") {
+
+                    const regex =
+/https?:\/\/[^"'\\ ]+/gi;
+
+                    const found =
+                        code.match(regex);
+
+                    if (found) {
+
+                        found.forEach(
+                            function(url) {
+
+                                results.push(url);
+
+                                console.log(
+                                    "GEL_EVAL_URL:",
+                                    url
+                                );
+                            }
+                        );
+                    }
+                }
+
+            } catch(e) {}
+
+            return originalEval.apply(
+                this,
+                arguments
+            );
+        };
 }
 
 return JSON.stringify(results);
@@ -1338,60 +2330,86 @@ binding.contentMain.testStream.setOnClickListener {
 
 binding.contentMain.exportM3u.setOnClickListener {
 
-if (detectedStreams.isEmpty()) {  
+    if (detectedStreams.isEmpty()) {
 
-    binding.contentMain.result.append(  
-        "\n\nNO STREAMS DETECTED\n"  
-    )  
+        binding.contentMain.result.append(
+            "\n\nNO STREAMS DETECTED\n"
+        )
 
-    return@setOnClickListener  
-}  
+        return@setOnClickListener
+    }
 
-try {  
+    try {
 
-    val sb =  
-        StringBuilder()  
+        val sb =
+            StringBuilder()
 
-    sb.append("#EXTM3U\n\n")  
+        sb.append("#EXTM3U\n\n")
 
-    detectedChannels  
-.forEach { (name, url) ->  
-
-    sb.append(  
-        "#EXTINF:-1,$name\n"  
-    )  
-
-    sb.append("$url\n\n")  
-}  
-
-    val shareIntent =  
-        Intent(Intent.ACTION_SEND).apply {  
-
-            type = "text/plain"  
-
-            putExtra(  
-                Intent.EXTRA_TEXT,  
-                sb.toString()  
-            )  
-        }  
-
-    startActivity(  
-
-        Intent.createChooser(  
-            shareIntent,  
-            "Export M3U"  
-        )  
-    )  
-
-} catch (t: Throwable) {  
-
-    Log.e(  
-        "EXPORT_M3U",  
-        "failed",  
-        t  
-    )  
+        detectedStreams.forEachIndexed { index, url ->
+        if (!isExportableStream(url)) {
+    return@forEachIndexed
 }
 
+            val label =
+                buildMediaLabel(url)
+                    .replace("🟢", "")
+                    .replace("🟡", "")
+                    .replace("🔒", "")
+                    .replace("❌", "")
+                    .replace("⚠", "")
+                    .trim()
+
+            val streamType =
+                buildStreamType(url)
+
+            val channelName =
+                buildChannelName(url)
+
+            val name =
+                "$channelName [$streamType] - $label"
+
+            val groupTitle =
+                buildGroupTitle(url)
+
+            val logoUrl =
+                buildLogoUrl(url)
+
+            sb.append(
+                "#EXTINF:-1 tvg-name=\"$name\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$name\n"
+            )
+
+            sb.append(url)
+
+            sb.append("\n\n")
+        }
+
+        val shareIntent =
+            Intent(Intent.ACTION_SEND).apply {
+
+                type = "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    sb.toString()
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Export M3U"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "EXPORT_M3U",
+            "failed",
+            t
+        )
+    }
 }
 
 // =====================================  
@@ -1867,24 +2885,24 @@ builder.header(
 val request =  
     builder.build()  
 
-// =====================================  
-// EXECUTE  
-// =====================================  
+// =====================================
+// EXECUTE
+// =====================================
 
-okHttpClient  
-    .newCall(request)  
-    .enqueue(  
+okHttpClient
+    .newCall(request)
+    .enqueue(
 
-        object : Callback {  
+        object : Callback {
 
-            override fun onFailure(  
-                call: Call,  
-                e: IOException  
-            ) {  
+            override fun onFailure(
+                call: Call,
+                e: IOException
+            ) {
 
-                runOnUiThread {  
+                runOnUiThread {
 
-                    binding.contentMain.result.append(  
+                    binding.contentMain.result.append(
 
                         """
 
@@ -1899,62 +2917,149 @@ ${e.message}
 ────────────────────
 
 """.trimIndent()
-)
-}
-}
+                    )
+                }
+            }
 
-override fun onResponse(  
-                call: Call,  
-                response: Response  
-            ) {  
+            override fun onResponse(
+                call: Call,
+                response: Response
+            ) {
 
-                try {  
+                try {
 
-                    val code =  
-                        response.code  
+                    val code =
+                        response.code
 
-                    val contentType =  
-                        response.header(  
-                            "Content-Type"  
-                        ).orEmpty()  
+                    val contentType =
+                        response.header(
+                            "Content-Type"
+                        ).orEmpty()
 
-                    val contentLength =  
-                        response.header(  
-                            "Content-Length"  
-                        ).orEmpty()  
+                    val contentLength =
+                        response.header(
+                            "Content-Length"
+                        ).orEmpty()
 
-                    val location =  
-                        response.header(  
-                            "Location"  
-                        ).orEmpty()  
+                    val location =
+                        response.header(
+                            "Location"
+                        ).orEmpty()
 
-                    val server =  
-                        response.header(  
-                            "Server"  
-                        ).orEmpty()  
+                    val server =
+                        response.header(
+                            "Server"
+                        ).orEmpty()
 
-                    val finalStatus =  
-                        when {  
+                    val responseBody =
+                        response.body
+                            ?.string()
+                            .orEmpty()
 
-                            code in 200..299 ->  
-                                "✅ STREAM OK"  
+                    val m3u8Variants =
+    if (
 
-                            code in 300..399 ->  
-                                "↪ REDIRECT"  
+        cleanedUrl.contains(".m3u8") &&
+        responseBody.contains("#EXTM3U")
 
-                            code == 403 ->  
-                                "🔒 FORBIDDEN"  
+    ) {
 
-                            code == 404 ->  
-                                "❌ NOT FOUND"  
+        val extractedVariants =
+            extractVariantUrls(
+                cleanedUrl,
+                responseBody
+            )
 
-                            else ->  
-                                "⚠ RESPONSE RECEIVED"  
-                        }  
+        extractedVariants.forEach {
 
-                    runOnUiThread {  
+            detectAndSaveUrl(it)
+        }
 
-                        binding.contentMain.result.append(  
+        parseM3u8Variants(
+            cleanedUrl,
+            responseBody
+        )
+
+    } else {
+
+        ""
+    }
+
+                    val finalStatus =
+    when {
+
+        // =========================
+        // PERFECT
+        // =========================
+
+        code in 200..299 &&
+        (
+            contentType.contains("mpegurl", true) ||
+            contentType.contains("dash", true) ||
+            contentType.contains("video", true)
+        ) ->
+            "🟢 PLAYABLE STREAM"
+
+        // =========================
+        // HLS MANIFEST
+        // =========================
+
+        code in 200..299 &&
+        responseBody.contains("#EXTM3U") ->
+            "🟢 VALID HLS MANIFEST"
+
+        // =========================
+        // DASH MANIFEST
+        // =========================
+
+        code in 200..299 &&
+        responseBody.contains("<MPD") ->
+            "🟢 VALID DASH MANIFEST"
+
+        // =========================
+        // TOKEN
+        // =========================
+
+        code == 401 ||
+        code == 403 ->
+            "🔒 TOKEN / AUTH REQUIRED"
+
+        // =========================
+        // GEO
+        // =========================
+
+        responseBody.contains("geoblock", true) ||
+        responseBody.contains("geo blocked", true) ->
+            "🌍 GEO BLOCKED"
+
+        // =========================
+        // DEAD
+        // =========================
+
+        code == 404 ->
+            "❌ DEAD STREAM"
+
+        // =========================
+        // REDIRECT
+        // =========================
+
+        code in 300..399 ->
+            "↪ REDIRECT"
+
+        // =========================
+        // PARTIAL
+        // =========================
+
+        code in 200..299 ->
+            "🟡 RESPONSE RECEIVED"
+
+        else ->
+            "⚠ UNKNOWN RESPONSE"
+    }
+
+                    runOnUiThread {
+
+                        binding.contentMain.result.append(
 
                             """
 
@@ -1978,23 +3083,25 @@ $location
 HEADERS:
 ${streamHeaders[cleanedUrl]}
 
+$m3u8Variants
+
 ────────────────────
 
 """.trimIndent()
-)
-}
+                        )
+                    }
 
-} catch (t: Throwable) {  
+                } catch (t: Throwable) {
 
-                    Log.e(  
-                        "STREAM_TEST",  
-                        "parse failed",  
-                        t  
-                    )  
+                    Log.e(
+                        "STREAM_TEST",
+                        "parse failed",
+                        t
+                    )
 
-                    runOnUiThread {  
+                    runOnUiThread {
 
-                        binding.contentMain.result.append(  
+                        binding.contentMain.result.append(
 
                             """
 
@@ -2005,17 +3112,427 @@ ${t.message}
 ────────────────────
 
 """.trimIndent()
-)
-}
+                        )
+                    }
 
-} finally {  
+                } finally {
 
-                    response.close()  
-                }  
-            }  
-        }  
+                    response.close()
+                }
+            }
+        }
     )
 
+}
+    
+// =====================================
+// AUTO VALIDATE STREAM
+// =====================================
+
+private fun autoValidateStream(
+    url: String
+) {
+
+    if (
+        streamValidation.containsKey(url)
+    ) {
+        return
+    }
+
+    streamValidation[url] =
+        "⏳ TESTING"
+
+    try {
+
+        val request =
+            Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+        okHttpClient
+            .newCall(request)
+            .enqueue(
+
+                object : Callback {
+
+                    override fun onFailure(
+                        call: Call,
+                        e: IOException
+                    ) {
+
+                        streamValidation[url] =
+                            "❌ DEAD"
+                    }
+
+                    override fun onResponse(
+                        call: Call,
+                        response: Response
+                    ) {
+
+                        try {
+
+                            val code =
+                                response.code
+
+                            val body =
+                                response.body
+                                    ?.string()
+                                    .orEmpty()
+
+                            val result =
+                                when {
+
+                                    code in 200..299 &&
+                                    body.contains("#EXTM3U") ->
+                                        "🟢 VERIFIED"
+
+                                    code in 200..299 &&
+                                    body.contains("<MPD") ->
+                                        "🟢 VERIFIED"
+
+                                    code == 401 ||
+                                    code == 403 ->
+                                        "🔒 TOKEN"
+
+                                    code == 404 ->
+                                        "❌ DEAD"
+
+                                    else ->
+                                        "🟡 PARTIAL"
+                                }
+
+streamValidation[url] =
+    result
+
+runOnUiThread {
+
+    try {
+
+        showAllMedia()
+
+    } catch (_: Throwable) {}
+}
+
+} catch (_: Throwable) {
+
+    streamValidation[url] =
+        "⚠ ERROR"
+
+    runOnUiThread {
+
+        try {
+
+            showAllMedia()
+
+        } catch (_: Throwable) {}
+    }
+
+} finally {
+
+    response.close()
+}
+
+// =====================================
+// M3U8 PARSER ENGINE
+// =====================================
+
+private fun parseM3u8Variants(
+    manifestUrl: String,
+    body: String
+): String {
+
+    val sb =
+        StringBuilder()
+
+    val isMaster =
+        body.contains("#EXT-X-STREAM-INF")
+
+    val isLive =
+        !body.contains("#EXT-X-ENDLIST")
+
+    val playlistType =
+        when {
+
+            isMaster && isLive ->
+                "📡 LIVE MASTER PLAYLIST"
+
+            isMaster ->
+                "📺 MASTER PLAYLIST"
+
+            isLive ->
+                "🔴 LIVE MEDIA PLAYLIST"
+
+            else ->
+                "🎞 MEDIA PLAYLIST"
+        }
+
+    sb.append("\n\n")
+    sb.append(playlistType)
+    sb.append("\n\n")
+
+    val lines =
+        body.lines()
+
+    var lastInfo = ""
+
+    // =====================================
+    // VIDEO VARIANTS
+    // =====================================
+
+    lines.forEach { rawLine ->
+
+        val line =
+            rawLine.trim()
+
+        when {
+
+            line.startsWith("#EXT-X-STREAM-INF") -> {
+
+                lastInfo =
+                    line
+            }
+
+            lastInfo.isNotBlank() &&
+            line.isNotBlank() &&
+            !line.startsWith("#") -> {
+
+                val resolution =
+                    Regex("RESOLUTION=([0-9]+x[0-9]+)")
+                        .find(lastInfo)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?: "AUTO"
+
+                val bandwidth =
+                    Regex("BANDWIDTH=([0-9]+)")
+                        .find(lastInfo)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.toIntOrNull()
+                        ?.let { "${it / 1000} kbps" }
+                        ?: "UNKNOWN"
+
+                val codecs =
+                    Regex("CODECS=\"([^\"]+)\"")
+                        .find(lastInfo)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?: "UNKNOWN"
+
+                val variantUrl =
+                    resolveRelativeUrl(
+                        manifestUrl,
+                        line
+                    )
+                    
+streamResolution[variantUrl] =
+    resolution
+
+streamBandwidth[variantUrl] =
+    bandwidth
+
+streamCodec[variantUrl] =
+    codecs
+
+                sb.append("QUALITY: ")
+                sb.append(resolution)
+                sb.append("\n")
+
+                sb.append("BITRATE: ")
+                sb.append(bandwidth)
+                sb.append("\n")
+
+                sb.append("CODECS: ")
+                sb.append(codecs)
+                sb.append("\n")
+
+                sb.append("URL:\n")
+                sb.append(variantUrl)
+
+                sb.append(
+                    "\n\n────────────────────\n\n"
+                )
+
+                lastInfo = ""
+            }
+        }
+    }
+
+    // =====================================
+    // AUDIO / SUBTITLE TRACKS
+    // =====================================
+
+    lines.forEach { rawLine ->
+
+        val line =
+            rawLine.trim()
+
+        if (
+            line.startsWith("#EXT-X-MEDIA")
+        ) {
+
+            val type =
+                Regex("TYPE=([^,]+)")
+                    .find(line)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?: "UNKNOWN"
+
+            val name =
+                Regex("NAME=\"([^\"]+)\"")
+                    .find(line)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?: "UNKNOWN"
+
+            val language =
+                Regex("LANGUAGE=\"([^\"]+)\"")
+                    .find(line)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?: "UNKNOWN"
+
+            val uri =
+                Regex("URI=\"([^\"]+)\"")
+                    .find(line)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?: ""
+
+            sb.append("TRACK TYPE: ")
+            sb.append(type)
+            sb.append("\n")
+
+            sb.append("NAME: ")
+            sb.append(name)
+            sb.append("\n")
+
+            sb.append("LANGUAGE: ")
+            sb.append(language)
+            sb.append("\n")
+
+            if (uri.isNotBlank()) {
+
+                sb.append("URI:\n")
+
+                sb.append(
+                    resolveRelativeUrl(
+                        manifestUrl,
+                        uri
+                    )
+                )
+
+                sb.append("\n")
+            }
+
+            sb.append(
+                "\n────────────────────\n\n"
+            )
+        }
+    }
+
+    return sb.toString()
+}
+
+// =====================================
+// EXTRACT M3U8 VARIANT URLS
+// =====================================
+
+private fun extractVariantUrls(
+    manifestUrl: String,
+    body: String
+): List<String> {
+
+    val results =
+        mutableListOf<String>()
+
+    val lines =
+        body.lines()
+
+    var lastInfo = ""
+
+    lines.forEach { rawLine ->
+
+        val line =
+            rawLine.trim()
+
+        when {
+
+            line.startsWith("#EXT-X-STREAM-INF") -> {
+
+                lastInfo = line
+            }
+
+            lastInfo.isNotBlank() &&
+            line.isNotBlank() &&
+            !line.startsWith("#") -> {
+
+                val finalUrl =
+                    resolveRelativeUrl(
+                        manifestUrl,
+                        line
+                    )
+
+                results.add(finalUrl)
+
+                lastInfo = ""
+            }
+        }
+    }
+
+    return results
+}
+
+// =====================================
+// RESOLVE RELATIVE PLAYLIST URL
+// =====================================
+
+private fun resolveRelativeUrl(
+    baseUrl: String,
+    childUrl: String
+): String {
+
+    if (
+        childUrl.startsWith("http://") ||
+        childUrl.startsWith("https://")
+    ) {
+        return childUrl
+    }
+
+    return try {
+
+        val base =
+            Uri.parse(baseUrl)
+
+        val basePath =
+            base.path ?: ""
+
+        val folder =
+            if (basePath.contains("/")) {
+                basePath.substringBeforeLast("/")
+            } else {
+                ""
+            }
+
+        val finalPath =
+            if (childUrl.startsWith("/")) {
+                childUrl
+            } else {
+                "$folder/$childUrl"
+            }
+
+        base.buildUpon()
+            .path(finalPath)
+            .encodedQuery(null)
+            .fragment(null)
+            .build()
+            .toString()
+
+    } catch (_: Throwable) {
+
+        childUrl
+    }
 }
 
 // =====================================
@@ -2036,9 +3553,126 @@ val cleanedUrl =
         .replace("\\u0026", "&")  
         .replace("\\/", "/")  
         .trim()  
+        
+// =====================================
+// NORMALIZED URL
+// =====================================
+
+val normalizedUrl =
+    cleanedUrl
+        .substringBefore("?token=")
+        .substringBefore("&token=")
+        .substringBefore("?expires=")
+        .substringBefore("&expires=")
+        .substringBefore("?signature=")
+        .substringBefore("&signature=")
+        .substringBefore("?policy=")
+        .substringBefore("&policy=")
+        .substringBefore("?hdnts=")
+        .substringBefore("&hdnts=")
+        .substringBefore("?auth=")
+        .substringBefore("&auth=")
 
 val lower =  
     cleanedUrl.lowercase()  
+    
+// =====================================
+// STREAM SCORE ENGINE
+// =====================================
+
+val streamPriority =
+    when {
+
+        // =========================
+        // LIVE MASTER HLS
+        // =========================
+
+        lower.contains("master.m3u8") &&
+        !lower.contains("/vod/") ->
+            1000
+
+        // =========================
+        // LIVE HLS
+        // =========================
+
+        lower.contains(".m3u8") &&
+        (
+            lower.contains("live") ||
+            lower.contains("channel") ||
+            lower.contains("index")
+        ) ->
+            950
+
+        // =========================
+        // DASH LIVE
+        // =========================
+
+        lower.contains(".mpd") &&
+        (
+            lower.contains("live") ||
+            lower.contains("manifest")
+        ) ->
+            900
+
+        // =========================
+        // PLAYLISTS
+        // =========================
+
+        lower.contains("playlist") ->
+            850
+
+        lower.contains("chunklist") ->
+            800
+
+        // =========================
+        // DIRECT VIDEO
+        // =========================
+
+        lower.contains(".mp4") &&
+        !lower.contains("/vod/") &&
+        !lower.contains("trailer") &&
+        !lower.contains("intro") &&
+        !lower.contains("original.mp4") ->
+            700
+
+        // =========================
+        // SEGMENTS
+        // =========================
+
+        lower.contains(".m4s") ||
+        lower.contains(".ts") ->
+            300
+
+        // =========================
+        // AUDIO STREAMS
+        // =========================
+
+        lower.contains(".mp3") ||
+        lower.contains(".aac") ->
+            250
+
+        // =========================
+        // IMAGES
+        // =========================
+
+        lower.contains(".jpg") ||
+        lower.contains(".png") ||
+        lower.contains(".webp") ->
+            50
+
+        // =========================
+        // STATIC VOD
+        // =========================
+
+        lower.contains("/vod/") ->
+            20
+
+        lower.contains("original.mp4") ->
+            10
+
+        else ->
+            1
+    }
 
 // =====================================  
 // MEDIA TYPES  
@@ -2142,13 +3776,32 @@ if (
 // DUPLICATES  
 // =====================================  
 
-if (  
-    detectedStreams.contains(cleanedUrl)  
-) {  
-    return  
-}  
+if (
+    detectedStreams.any {
+
+        it.startsWith(normalizedUrl)
+    }
+) {
+    return
+}
 
 detectedStreams.add(cleanedUrl)  
+
+// =====================================
+// AUTO VALIDATE STREAM
+// =====================================
+
+if (
+
+    lower.contains(".m3u8") ||
+    lower.contains(".mpd")
+
+) {
+
+    autoValidateStream(
+        cleanedUrl
+    )
+}
 
 if (isVideo) {  
     detectedVideos.add(cleanedUrl)  
@@ -2170,68 +3823,71 @@ if (isMasterStream) {
 // QUALITY  
 // =====================================  
 
-val streamQuality =  
-    when {  
+val streamQuality =
 
-        lower.contains("2160p") ||  
-        lower.contains("4k") ->  
-            "4K"  
+    streamResolution[cleanedUrl]
 
-        lower.contains("1440p") ->  
-            "1440p"  
+        ?: when {
 
-        lower.contains("1080p") ->  
-            "1080p"  
+            lower.contains("2160p") ||
+            lower.contains("4k") ->
+                "4K"
 
-        lower.contains("900p") ->  
-            "900p"  
+            lower.contains("1440p") ->
+                "1440p"
 
-        lower.contains("720p") ->  
-            "720p"  
+            lower.contains("1080p") ->
+                "1080p"
 
-        lower.contains("540p") ->  
-            "540p"  
+            lower.contains("900p") ->
+                "900p"
 
-        lower.contains("480p") ->  
-            "480p"  
+            lower.contains("720p") ->
+                "720p"
 
-        lower.contains("360p") ->  
-            "360p"  
+            lower.contains("540p") ->
+                "540p"
 
-        lower.contains("240p") ->  
-            "240p"  
+            lower.contains("480p") ->
+                "480p"
 
-        lower.contains("144p") ->  
-            "144p"  
+            lower.contains("360p") ->
+                "360p"
 
-        lower.contains("hevc") ||  
-        lower.contains("h265") ->  
-            "HEVC"  
+            lower.contains("240p") ->
+                "240p"
 
-        lower.contains("av1") ->  
-            "AV1"  
+            lower.contains("144p") ->
+                "144p"
 
-        lower.contains("hdr") ->  
-            "HDR"  
+            lower.contains("hevc") ||
+            lower.contains("h265") ->
+                "HEVC"
 
-        lower.contains("aac") ->  
-            "AAC"  
+            lower.contains("av1") ->
+                "AV1"
 
-        lower.contains("ac3") ->  
-            "AC3"  
+            lower.contains("hdr") ->
+                "HDR"
 
-        lower.contains("opus") ->  
-            "OPUS"  
+            lower.contains("aac") ->
+                "AAC"
 
-        lower.contains("/audio/") ->  
-            "AUDIO"  
+            lower.contains("ac3") ->
+                "AC3"
 
-        lower.contains("chunklist") ->  
-            "ADAPTIVE"  
+            lower.contains("opus") ->
+                "OPUS"
 
-        else ->  
-            "AUTO"  
-    }  
+            lower.contains("/audio/") ->
+                "AUDIO"
+
+            lower.contains("chunklist") ->
+                "ADAPTIVE"
+
+            else ->
+                "AUTO"
+        }
 
 // =====================================  
 // BADGES  
@@ -2430,8 +4086,352 @@ val badge =
             "🎬 VIDEO"
     }
 
-return "$badge [$streamQuality] [$cdnType]"
+val validation =
+    streamValidation[url]
+        ?: ""
 
+return "$badge [$streamQuality] [$cdnType] $validation"
+
+}
+
+// =====================================
+// BUILD IPTV CHANNEL NAME
+// =====================================
+
+private fun buildChannelName(
+    url: String
+): String {
+
+    val lower =
+        url.lowercase()
+
+    val quality =
+        when {
+
+            lower.contains("2160") ||
+            lower.contains("4k") ->
+                "4K"
+
+            lower.contains("1440") ->
+                "1440p"
+
+            lower.contains("1080") ->
+                "1080p"
+
+            lower.contains("720") ->
+                "720p"
+
+            lower.contains("540") ->
+                "540p"
+
+            lower.contains("480") ->
+                "480p"
+
+            else ->
+                "AUTO"
+        }
+
+    val channel =
+        when {
+
+            // =====================================
+            // GREEK TV
+            // =====================================
+
+            lower.contains("megatv") ||
+            lower.contains("mega") ->
+                "MEGA"
+
+            lower.contains("ant1") ->
+                "ANT1"
+
+            lower.contains("skai") ->
+                "SKAI"
+
+            lower.contains("alphatv") ||
+            lower.contains("alpha") ->
+                "ALPHA"
+
+            lower.contains("star") ->
+                "STAR"
+
+            lower.contains("open") ->
+                "OPEN"
+
+            lower.contains("ert") ->
+                "ERT"
+
+            lower.contains("mad") ->
+                "MAD TV"
+
+            // =====================================
+            // SPORTS
+            // =====================================
+
+            lower.contains("sport") ->
+                "SPORT"
+
+            lower.contains("nova") ->
+                "NOVA"
+
+            lower.contains("cosmote") ->
+                "COSMOTE"
+
+            // =====================================
+            // FALLBACKS
+            // =====================================
+
+            lower.contains(".m3u8") ->
+                "HLS STREAM"
+
+            lower.contains(".mpd") ->
+                "DASH STREAM"
+
+            lower.contains(".mp4") ->
+                "VIDEO STREAM"
+
+            else ->
+                "LIVE STREAM"
+        }
+
+    val liveTag =
+        when {
+
+            lower.contains("live") ->
+                " LIVE"
+
+            lower.contains("/vod/") ->
+                " VOD"
+
+            else ->
+                ""
+        }
+
+    return "$channel $quality$liveTag"
+        .replace("  ", " ")
+        .trim()
+}
+
+// =====================================
+// BUILD IPTV GROUP
+// =====================================
+
+private fun buildGroupTitle(
+    url: String
+): String {
+
+    val lower =
+        url.lowercase()
+
+    return when {
+
+        // =====================================
+        // GREEK TV
+        // =====================================
+
+        lower.contains("mega") ||
+        lower.contains("ant1") ||
+        lower.contains("skai") ||
+        lower.contains("alpha") ||
+        lower.contains("star") ||
+        lower.contains("open") ||
+        lower.contains("ert") ->
+            "Greek TV"
+
+        // =====================================
+        // SPORTS
+        // =====================================
+
+        lower.contains("sport") ||
+        lower.contains("nova") ||
+        lower.contains("cosmote") ->
+            "Sports"
+
+        // =====================================
+        // AUDIO
+        // =====================================
+
+        lower.contains(".mp3") ||
+        lower.contains(".aac") ||
+        lower.contains(".m4a") ->
+            "Radio"
+
+        // =====================================
+        // VOD
+        // =====================================
+
+        lower.contains("/vod/") ||
+        lower.contains("original.mp4") ->
+            "VOD"
+
+        // =====================================
+        // LIVE
+        // =====================================
+
+        lower.contains(".m3u8") ->
+            "HLS Live"
+
+        lower.contains(".mpd") ->
+            "DASH Live"
+
+        // =====================================
+        // FALLBACK
+        // =====================================
+
+        else ->
+            "Live Streams"
+    }
+}
+
+// =====================================
+// BUILD STREAM TYPE
+// =====================================
+
+private fun buildStreamType(
+    url: String
+): String {
+
+    val lower =
+        url.lowercase()
+
+    return when {
+
+        lower.contains("drm") ||
+        lower.contains("widevine") ||
+        lower.contains("license") ->
+            "DRM"
+
+        lower.contains("/vod/") ||
+        lower.contains("original.mp4") ->
+            "VOD"
+
+        lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains("live") ->
+            "LIVE"
+
+        else ->
+            "MEDIA"
+    }
+}
+
+// =====================================
+// IS EXPORTABLE STREAM
+// =====================================
+
+private fun isExportableStream(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    val validation =
+        streamValidation[url]
+            ?: ""
+
+    // =====================================
+    // DEAD
+    // =====================================
+
+    if (
+        validation.contains("DEAD")
+    ) {
+        return false
+    }
+
+    // =====================================
+    // SEGMENTS
+    // =====================================
+
+    if (
+
+        lower.endsWith(".ts") ||
+        lower.endsWith(".m4s")
+
+    ) {
+        return false
+    }
+
+    // =====================================
+    // STATIC / VOD PLACEHOLDERS
+    // =====================================
+
+    if (
+
+        lower.contains("original.mp4") ||
+        lower.contains("/vod/")
+
+    ) {
+        return false
+    }
+
+    // =====================================
+    // IMAGES
+    // =====================================
+
+    if (
+
+        lower.contains(".jpg") ||
+        lower.contains(".jpeg") ||
+        lower.contains(".png") ||
+        lower.contains(".webp") ||
+        lower.contains(".gif")
+
+    ) {
+        return false
+    }
+
+    // =====================================
+    // GOOD STREAMS
+    // =====================================
+
+    return (
+
+        lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains(".mp4")
+
+    )
+}
+
+// =====================================
+// BUILD TVG LOGO
+// =====================================
+
+private fun buildLogoUrl(
+    url: String
+): String {
+
+    val lower =
+        url.lowercase()
+
+    return when {
+
+        lower.contains("mega") ->
+            "https://www.megatv.com/wp-content/uploads/2021/11/mega-logo.png"
+
+        lower.contains("ant1") ->
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/ANT1_logo_%282020%29.png/512px-ANT1_logo_%282020%29.png"
+
+        lower.contains("skai") ->
+            "https://upload.wikimedia.org/wikipedia/commons/2/24/Skai_TV_logo_2018.png"
+
+        lower.contains("alpha") ->
+            "https://upload.wikimedia.org/wikipedia/commons/8/89/Alpha_TV_logo.png"
+
+        lower.contains("star") ->
+            "https://upload.wikimedia.org/wikipedia/commons/7/7a/Star_Channel_logo.png"
+
+        lower.contains("open") ->
+            "https://upload.wikimedia.org/wikipedia/commons/5/50/Open_Beyond_logo.png"
+
+        lower.contains("ert") ->
+            "https://upload.wikimedia.org/wikipedia/commons/6/61/ERT_logo_2022.png"
+
+        else ->
+            ""
+    }
 }
 
 // =====================================
@@ -2440,68 +4440,85 @@ return "$badge [$streamQuality] [$cdnType]"
 
 private fun showAllMedia() {
 
-val sb = StringBuilder()  
+    val sb =
+        StringBuilder()
 
-// =====================================  
-// VIDEOS  
-// =====================================  
+    val sorted =
+    detectedStreams
+        .sortedByDescending { url ->
 
-detectedVideos.forEach { url ->  
+            val lower =
+                url.lowercase()
 
-    sb.append(  
-        buildMediaLabel(url)  
-    )  
+            when {
 
-    sb.append("\n\n")  
+                lower.contains("master.m3u8") &&
+                !lower.contains("/vod/") ->
+                    1000
 
-    sb.append(url)  
+                lower.contains(".m3u8") &&
+                (
+                    lower.contains("live") ||
+                    lower.contains("channel") ||
+                    lower.contains("index")
+                ) ->
+                    950
 
-    sb.append(  
-        "\n\n────────────────────\n\n"  
-    )  
-}  
+                lower.contains(".mpd") ->
+                    900
 
-// =====================================  
-// AUDIO  
-// =====================================  
+                lower.contains("playlist") ->
+                    850
 
-detectedAudio.forEach { url ->  
+                lower.contains("chunklist") ->
+                    800
 
-    sb.append(  
-        buildMediaLabel(url)  
-    )  
+                lower.contains(".mp4") &&
+                !lower.contains("/vod/") &&
+                !lower.contains("original.mp4") ->
+                    700
 
-    sb.append("\n\n")  
+                lower.contains(".m4s") ||
+                lower.contains(".ts") ->
+                    300
 
-    sb.append(url)  
+                lower.contains(".mp3") ||
+                lower.contains(".aac") ->
+                    250
 
-    sb.append(  
-        "\n\n────────────────────\n\n"  
-    )  
-}  
+                lower.contains(".jpg") ||
+                lower.contains(".png") ||
+                lower.contains(".webp") ->
+                    50
 
-// =====================================  
-// IMAGES  
-// =====================================  
+                lower.contains("/vod/") ->
+                    20
 
-detectedImages.forEach { url ->  
+                lower.contains("original.mp4") ->
+                    10
 
-    sb.append(  
-        buildMediaLabel(url)  
-    )  
+                else ->
+                    1
+            }
+        }
 
-    sb.append("\n\n")  
+    sorted.forEach { url ->
 
-    sb.append(url)  
+        sb.append(
+            buildMediaLabel(url)
+        )
 
-    sb.append(  
-        "\n\n────────────────────\n\n"  
-    )  
-}  
+        sb.append("\n\n")
 
-binding.contentMain.result.text =  
-    sb.toString()
+        sb.append(url)
 
+        sb.append(
+            "\n\n────────────────────\n\n"
+        )
+    }
+
+    binding.contentMain.result.text =
+        sb.toString()
 }
 
 // =====================================
@@ -2649,8 +4666,12 @@ document
         }  
     });  
 
-return JSON.stringify(  
-    [...new Set(results)]  
+return JSON.stringify(
+    [
+        ...new Set(
+            window.__gelMediaResults || results
+        )
+    ]
 );
 
 })();
