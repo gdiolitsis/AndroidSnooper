@@ -68,6 +68,9 @@ private val streamHeaders =
         String,
         MutableMap<String, String>
     >()
+  
+private var lastSelectedUrl =
+    ""
 
 // =====================================
 // STREAM META
