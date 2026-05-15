@@ -45,29 +45,29 @@ private lateinit var binding:
 // UNIQUE URL CACHE  
 // =====================================  
 
-private val detectedStreams =  
-    linkedSetOf<String>()  
+private val detectedStreams =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
 
-private val detectedVideos =  
-    linkedSetOf<String>()  
+private val detectedVideos =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
 
-private val detectedImages =  
-    linkedSetOf<String>()  
+private val detectedImages =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
 
-private val detectedAudio =  
-    linkedSetOf<String>()  
-      
-private val detectedMasterStreams =  
-linkedSetOf<String>()  
-  
-private val detectedChannels =  
-linkedMapOf<String, String>()  
-  
-private var lastSelectedUrl =  
-""  
-  
-private val streamHeaders =  
-linkedMapOf<String, MutableMap<String, String>>()  
+private val detectedAudio =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
+
+private val detectedMasterStreams =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
+
+private val detectedChannels =
+    java.util.concurrent.ConcurrentHashMap<String, String>()
+
+private val streamHeaders =
+    java.util.concurrent.ConcurrentHashMap<
+        String,
+        MutableMap<String, String>
+    >()
 
 // =====================================
 // STREAM META
@@ -3601,6 +3601,15 @@ val normalizedUrl =
 
 val lower =  
     cleanedUrl.lowercase()  
+    
+val streamsSnapshot =
+    detectedStreams.toList()
+
+val headersSnapshot =
+    streamHeaders.toMap()
+
+val channelsSnapshot =
+    detectedChannels.toMap()
     
 // =====================================
 // STREAM SCORE ENGINE
