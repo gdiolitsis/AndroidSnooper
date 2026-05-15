@@ -2350,7 +2350,9 @@ binding.contentMain.exportM3u.setOnClickListener {
 
         sb.append("#EXTM3U\n\n")
 
-        detectedStreams.forEachIndexed { index, url ->
+        detectedStreams
+    .toList()
+    .forEachIndexed { index, url ->
         if (!isExportableStream(url)) {
     return@forEachIndexed
 }
