@@ -2722,10 +2722,10 @@ if (
     !this@MainActivity.isDestroyed  
 ) {  
 
-    this@MainActivity.binding  
-        .contentMain  
-        .result  
-        .text = text  
+    this@MainActivity.binding
+    .contentMain
+    .result
+    .setText(text)
 }
 
 }
