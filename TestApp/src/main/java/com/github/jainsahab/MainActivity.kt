@@ -2853,8 +2853,9 @@ val builder =
         .url(cleanedUrl)  
         .get()  
 
-streamHeaders[cleanedUrl]  
-    ?.forEach { (k, v) ->  
+streamHeaders[cleanedUrl]
+    ?.toMap()
+    ?.forEach { (k, v) ->
 
         builder.header(k, v)  
     }  
