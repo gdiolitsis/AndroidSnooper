@@ -74,6 +74,9 @@ false
   
 private var autoRefreshEnabled =  
 false  
+
+private var lastTouchX = 0f
+private var lastTouchY = 0f
       
 // =====================================  
 // FULLSCREEN VIDEO  
@@ -236,43 +239,66 @@ when {
 
 binding.contentMain.webview.settings.apply {
 
-javaScriptEnabled = true  
+    javaScriptEnabled = true
 
-domStorageEnabled = true  
+    domStorageEnabled = true
 
-databaseEnabled = true  
+    databaseEnabled = true
 
-allowFileAccess = true  
+    allowFileAccess = true
 
-allowContentAccess = true  
+    allowContentAccess = true
 
-mediaPlaybackRequiresUserGesture = false  
+    mediaPlaybackRequiresUserGesture = false
 
-loadsImagesAutomatically = true  
+    loadsImagesAutomatically = true
 
-useWideViewPort = true  
+    useWideViewPort = true
 
-loadWithOverviewMode = true  
+    loadWithOverviewMode = false
 
-builtInZoomControls = true  
+    setSupportZoom(true)
 
-displayZoomControls = false  
+    builtInZoomControls = true
 
-javaScriptCanOpenWindowsAutomatically = true  
+    displayZoomControls = false
 
-setSupportMultipleWindows(false)  
+    javaScriptCanOpenWindowsAutomatically = true
 
-mixedContentMode =  
-    WebSettings.MIXED_CONTENT_ALWAYS_ALLOW  
+    setSupportMultipleWindows(false)
 
-userAgentString =  
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +  
-    "AppleWebKit/537.36 (KHTML, like Gecko) " +  
-    "Chrome/137.0.0.0 Safari/537.36"  
+    mixedContentMode =
+        WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
 
-cacheMode =  
-    WebSettings.LOAD_DEFAULT
+    userAgentString =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/137.0.0.0 Safari/537.36"
 
+    cacheMode =
+        WebSettings.LOAD_DEFAULT
+}
+
+// =====================================
+// WEBVIEW SCROLL FIX
+// =====================================
+
+binding.contentMain.webview.isVerticalScrollBarEnabled =
+    true
+
+binding.contentMain.webview.isScrollbarFadingEnabled =
+    false
+
+binding.contentMain.webview.overScrollMode =
+    View.OVER_SCROLL_ALWAYS
+
+binding.contentMain.webview.setOnTouchListener { v, _ ->
+
+    v.parent?.requestDisallowInterceptTouchEvent(
+        true
+    )
+
+    false
 }
 
 // =====================================
@@ -1155,7 +1181,7 @@ if (detectedStreams.isEmpty()) {
 
 val sortedStreams =  
     mutableListOf<String>()  
-
+    
 // =====================================  
 // VIDEOS  
 // =====================================  
@@ -1256,6 +1282,54 @@ androidx.appcompat.app.AlertDialog.Builder(this)
 
     .show()
 
+}
+
+// =====================================
+// TEST STREAM BUTTON
+// =====================================
+
+binding.contentMain.testStream.setOnClickListener {
+
+    if (detectedStreams.isEmpty()) {
+
+        binding.contentMain.result.append(
+            "\n\nNO STREAMS DETECTED\n"
+        )
+
+        return@setOnClickListener
+    }
+
+    val sortedStreams =
+        mutableListOf<String>()
+
+    sortedStreams.addAll(
+        detectedVideos
+    )
+
+    sortedStreams.addAll(
+        detectedAudio
+    )
+
+    sortedStreams.addAll(
+        detectedImages
+    )
+
+    val streamList =
+        sortedStreams.toTypedArray()
+
+    androidx.appcompat.app.AlertDialog.Builder(this)
+
+        .setTitle("Select Stream To Test")
+
+        .setItems(streamList) { _, which ->
+
+            val selectedUrl =
+                streamList[which]
+
+            testStream(selectedUrl)
+        }
+
+        .show()
 }
 
 // =====================================
@@ -1392,106 +1466,165 @@ Toast.makeText(
 // RESULT LONG PRESS MENU
 // =====================================
 
+binding.contentMain.result.setOnTouchListener { _, event ->
+
+    lastTouchX = event.x
+    lastTouchY = event.y
+
+    false
+}
+
 binding.contentMain.result.setOnLongClickListener { v ->
 
-val selectedUrl =  
-    extractUrlFromText(  
-        binding.contentMain.result.text.toString()  
-    )  
+    val textView =
+        binding.contentMain.result
 
-if (selectedUrl.isBlank()) {  
-    return@setOnLongClickListener true  
-}  
+    val text =
+        textView.text.toString()
 
-val popup =  
-    PopupMenu(this, v)  
+    if (text.isBlank()) {
+        return@setOnLongClickListener true
+    }
 
-popup.menu.add("OPEN PLAYER")  
+    val layout =
+        textView.layout
+            ?: return@setOnLongClickListener true
 
-popup.menu.add("TEST STREAM")  
+    val x =
+    lastTouchX.toInt()
 
-popup.menu.add("SHARE URL")  
+    val y =
+    lastTouchY.toInt()
 
-popup.menu.add("COPY URL")  
+    val line =
+        layout.getLineForVertical(y)
 
-popup.setOnMenuItemClickListener {  
+    val offset =
+        layout.getOffsetForHorizontal(
+            line,
+            x.toFloat()
+        )
 
-    when (it.title.toString()) {  
+    val regex =
+        "(https?://[^\\s]+)".toRegex()
 
-        "OPEN PLAYER" -> {  
+    var selectedUrl = ""
 
-            val intent =  
-                Intent(Intent.ACTION_VIEW).apply {  
+    regex.findAll(text).forEach {
 
-                    setDataAndType(  
-                        Uri.parse(selectedUrl),  
-                        "video/*"  
-                    )  
-                }  
+        if (
+            offset >= it.range.first &&
+            offset <= it.range.last
+        ) {
 
-            startActivity(  
-                Intent.createChooser(  
-                    intent,  
-                    "Open With"  
-                )  
-            )  
-        }  
+            selectedUrl =
+                it.value
+        }
+    }
 
-        "TEST STREAM" -> {  
+    if (selectedUrl.isBlank()) {
 
-            testStream(selectedUrl)  
-        }  
+        selectedUrl =
+            regex.find(text)
+                ?.value
+                ?: ""
+    }
 
-        "SHARE URL" -> {  
+    if (selectedUrl.isBlank()) {
+        return@setOnLongClickListener true
+    }
 
-            val shareIntent =  
-                Intent(Intent.ACTION_SEND).apply {  
+    lastSelectedUrl =
+        selectedUrl
 
-                    type = "text/plain"  
+    val popup =
+        PopupMenu(this, v)
 
-                    putExtra(  
-                        Intent.EXTRA_TEXT,  
-                        selectedUrl  
-                    )  
-                }  
+    popup.menu.add("OPEN PLAYER")
 
-            startActivity(  
-                Intent.createChooser(  
-                    shareIntent,  
-                    "Share URL"  
-                )  
-            )  
-        }  
+    popup.menu.add("TEST STREAM")
 
-        "COPY URL" -> {  
+    popup.menu.add("SHARE URL")
 
-            val clipboard =  
-                getSystemService(  
-                    CLIPBOARD_SERVICE  
-                ) as ClipboardManager  
+    popup.menu.add("COPY URL")
 
-            clipboard.setPrimaryClip(  
-                ClipData.newPlainText(  
-                    "stream",  
-                    selectedUrl  
-                )  
-            )  
+    popup.setOnMenuItemClickListener {
 
-            Toast.makeText(  
-                this,  
-                "Copied",  
-                Toast.LENGTH_SHORT  
-            ).show()  
-        }  
-    }  
+        when (it.title.toString()) {
 
-    true  
-}  
+            "OPEN PLAYER" -> {
 
-popup.show()  
+                val intent =
+                    Intent(Intent.ACTION_VIEW).apply {
 
-true
+                        setDataAndType(
+                            Uri.parse(selectedUrl),
+                            "video/*"
+                        )
+                    }
 
+                startActivity(
+                    Intent.createChooser(
+                        intent,
+                        "Open With"
+                    )
+                )
+            }
+
+            "TEST STREAM" -> {
+
+                testStream(selectedUrl)
+            }
+
+            "SHARE URL" -> {
+
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+
+                        type = "text/plain"
+
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            selectedUrl
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        shareIntent,
+                        "Share URL"
+                    )
+                )
+            }
+
+            "COPY URL" -> {
+
+                val clipboard =
+                    getSystemService(
+                        CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText(
+                        "stream",
+                        selectedUrl
+                    )
+                )
+
+                Toast.makeText(
+                    this,
+                    "Copied",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        true
+    }
+
+    popup.show()
+
+    true
 }
 
 } // END onCreate()
@@ -2266,30 +2399,36 @@ val cdnType =
             "Generic CDN"  
     }  
 
-val badge =  
-    when {  
+val badge =
+    when {
 
-        lower.contains(".m3u8") ->  
-            "📺 HLS"  
+        lower.contains(".m3u8") ->
+            "📺 HLS"
 
-        lower.contains(".mpd") ->  
-            "📡 DASH"  
+        lower.contains(".mpd") ->
+            "📡 DASH"
 
-        lower.contains(".jpg") ||  
-        lower.contains(".jpeg") ||  
-        lower.contains(".png") ||  
-        lower.contains(".webp") ||  
-        lower.contains(".gif") ->  
-            "🖼 IMAGE"  
+        lower.contains("/vod/") ->
+            "📼 VOD"
 
-        lower.contains(".mp3") ||  
-        lower.contains(".aac") ||  
-        lower.contains(".m4a") ->  
-            "🎵 AUDIO"  
+        lower.contains("original.mp4") ->
+            "📼 STATIC VIDEO"
 
-        else ->  
-            "🎬 VIDEO"  
-    }  
+        lower.contains(".jpg") ||
+        lower.contains(".jpeg") ||
+        lower.contains(".png") ||
+        lower.contains(".webp") ||
+        lower.contains(".gif") ->
+            "🖼 IMAGE"
+
+        lower.contains(".mp3") ||
+        lower.contains(".aac") ||
+        lower.contains(".m4a") ->
+            "🎵 AUDIO"
+
+        else ->
+            "🎬 VIDEO"
+    }
 
 return "$badge [$streamQuality] [$cdnType]"
 
