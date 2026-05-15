@@ -1,41 +1,233 @@
-pportActionBar(
-            binding.toolbar
-        )
-        
+package com.github.jainsahab
+
+import androidx.activity.addCallback
+import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.net.Uri
+import android.os.Bundle
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.widget.FrameLayout
+import android.widget.PopupMenu
+import android.widget.Toast
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
+import com.github.jainsahab.databinding.ActivityMainBinding
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import org.json.JSONObject
+import java.io.IOException
+import java.util.Date
+
+class MainActivity : AppCompatActivity() {
+
+private lateinit var binding:  
+        ActivityMainBinding  
+
+// =====================================  
+// UNIQUE URL CACHE  
+// =====================================  
+
+private val detectedStreams =  
+    linkedSetOf<String>()  
+
+private val detectedVideos =  
+    linkedSetOf<String>()  
+
+private val detectedImages =  
+    linkedSetOf<String>()  
+
+private val detectedAudio =  
+    linkedSetOf<String>()  
+      
+private val detectedMasterStreams =  
+linkedSetOf<String>()  
+  
+private val detectedChannels =  
+linkedMapOf<String, String>()  
+  
+private var lastSelectedUrl =  
+""  
+  
+private val streamHeaders =  
+linkedMapOf<String, MutableMap<String, String>>()  
+  
+private var monitorRunning =  
+false  
+  
+private var autoRefreshEnabled =  
+false  
+      
+// =====================================  
+// FULLSCREEN VIDEO  
+// =====================================  
+
+private var customView: View? = null  
+
+private var customViewCallback:  
+        WebChromeClient.CustomViewCallback? = null  
+
+// =====================================  
+// REQUEST BODY  
+// =====================================  
+
+private val requestBody: JSONObject  
+    get() {  
+
+        return JSONObject().apply {  
+
+            put(  
+                "name",  
+                "test${Date().time}"  
+            )  
+
+            put(  
+                "job",  
+                "Investment manager"  
+            )  
+
+            put(  
+                "age",  
+                "23"  
+            )  
+        }  
+    }  
+
+// =====================================  
+// OKHTTP  
+// =====================================  
+
+private val okHttpClient:  
+        OkHttpClient  
+
+    get() {  
+
+        val builder =  
+            OkHttpClient.Builder()  
+
+        builder.networkInterceptors().add(  
+            object : Interceptor {  
+
+                @Throws(IOException::class)  
+                override fun intercept(  
+                    chain: Interceptor.Chain  
+                ): Response {  
+
+                    val response =  
+                        chain.proceed(  
+                            chain.request()  
+                        )  
+
+                    val body =  
+                        response.body  
+                            ?.string()  
+                            .orEmpty()  
+
+                    return response.newBuilder()  
+                        .removeHeader(  
+                            "Content-type"  
+                        )  
+                        .addHeader(  
+                            "Content-type",  
+                            "application/json; charset=utf-8"  
+                        )  
+                        .body(  
+                            body.toResponseBody(  
+                                response.body  
+                                    ?.contentType()  
+                            )  
+                        )  
+                        .build()  
+                }  
+            }  
+        )  
+
+        return builder.build()  
+    }  
+
+// =====================================  
+// ON CREATE  
+// =====================================  
+
+override fun onCreate(  
+    savedInstanceState: Bundle?  
+) {  
+
+    super.onCreate(  
+        savedInstanceState  
+    )  
+
+    binding =  
+        ActivityMainBinding.inflate(  
+            layoutInflater  
+        )  
+
+    setContentView(  
+binding.root
+
+)
+
+binding.contentMain.result.isVerticalScrollBarEnabled = true
+
+binding.contentMain.result.movementMethod =
+android.text.method.ScrollingMovementMethod()
+
+setSupportActionBar(  
+        binding.toolbar  
+    )
+
 onBackPressedDispatcher.addCallback(this) {
 
-    when {
+when {  
 
-        customView != null -> {
+    customView != null -> {  
 
-            customView?.visibility =
-                View.GONE
+        customView?.visibility =  
+            View.GONE  
 
-            (customView?.parent as? ViewGroup)
-                ?.removeView(customView)
+        (customView?.parent as? ViewGroup)  
+            ?.removeView(customView)  
 
-            customView = null
+        customView = null  
 
-            binding.contentMain.webview.visibility =
-                View.VISIBLE
+        binding.contentMain.webview.visibility =  
+            View.VISIBLE  
 
-            window.decorView.systemUiVisibility =
-                View.SYSTEM_UI_FLAG_VISIBLE
+        window.decorView.systemUiVisibility =  
+            View.SYSTEM_UI_FLAG_VISIBLE  
 
-            customViewCallback
-                ?.onCustomViewHidden()
-        }
+        customViewCallback  
+            ?.onCustomViewHidden()  
+    }  
 
-        binding.contentMain.webview.canGoBack() -> {
+    binding.contentMain.webview.canGoBack() -> {  
 
-            binding.contentMain.webview.goBack()
-        }
+        binding.contentMain.webview.goBack()  
+    }  
 
-        else -> {
+    else -> {  
 
-            finish()
-        }
-    }
+        finish()  
+    }  
+}
+
 }
 
 // =====================================
@@ -44,42 +236,43 @@ onBackPressedDispatcher.addCallback(this) {
 
 binding.contentMain.webview.settings.apply {
 
-    javaScriptEnabled = true
+javaScriptEnabled = true  
 
-    domStorageEnabled = true
+domStorageEnabled = true  
 
-    databaseEnabled = true
+databaseEnabled = true  
 
-    allowFileAccess = true
+allowFileAccess = true  
 
-    allowContentAccess = true
+allowContentAccess = true  
 
-    mediaPlaybackRequiresUserGesture = false
+mediaPlaybackRequiresUserGesture = false  
 
-    loadsImagesAutomatically = true
+loadsImagesAutomatically = true  
 
-    useWideViewPort = true
+useWideViewPort = true  
 
-    loadWithOverviewMode = true
+loadWithOverviewMode = true  
 
-    builtInZoomControls = true
+builtInZoomControls = true  
 
-    displayZoomControls = false
+displayZoomControls = false  
 
-    javaScriptCanOpenWindowsAutomatically = true
+javaScriptCanOpenWindowsAutomatically = true  
 
-    setSupportMultipleWindows(false)
+setSupportMultipleWindows(false)  
 
-    mixedContentMode =
-        WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+mixedContentMode =  
+    WebSettings.MIXED_CONTENT_ALWAYS_ALLOW  
 
-    userAgentString =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-        "AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/137.0.0.0 Safari/537.36"
+userAgentString =  
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +  
+    "AppleWebKit/537.36 (KHTML, like Gecko) " +  
+    "Chrome/137.0.0.0 Safari/537.36"  
 
-    cacheMode =
-        WebSettings.LOAD_DEFAULT
+cacheMode =  
+    WebSettings.LOAD_DEFAULT
+
 }
 
 // =====================================
@@ -87,260 +280,263 @@ binding.contentMain.webview.settings.apply {
 // =====================================
 
 CookieManager
-    .getInstance()
-    .setAcceptCookie(true)
+.getInstance()
+.setAcceptCookie(true)
 
 CookieManager
-    .getInstance()
-    .setAcceptThirdPartyCookies(
-        binding.contentMain.webview,
-        true
-    )
+.getInstance()
+.setAcceptThirdPartyCookies(
+binding.contentMain.webview,
+true
+)
 
 // =====================================
 // WEBVIEW CLIENT
 // =====================================
 
 binding.contentMain.webview.webViewClient =
-    object : WebViewClient() {
+object : WebViewClient() {
 
-        override fun shouldOverrideUrlLoading(
-            view: WebView?,
-            request: WebResourceRequest?
-        ): Boolean {
+override fun shouldOverrideUrlLoading(  
+        view: WebView?,  
+        request: WebResourceRequest?  
+    ): Boolean {  
 
-            val url =
-                request?.url.toString()
+        val url =  
+            request?.url.toString()  
 
-            return try {
+        return try {  
 
-                view?.loadUrl(url)
+            view?.loadUrl(url)  
 
-                true
+            true  
 
-            } catch (_: Throwable) {
+        } catch (_: Throwable) {  
 
-                false
-            }
-        }
+            false  
+        }  
+    }  
 
-        override fun shouldInterceptRequest(
-            view: WebView?,
-            request: WebResourceRequest?
-        ): WebResourceResponse? {
+    override fun shouldInterceptRequest(  
+        view: WebView?,  
+        request: WebResourceRequest?  
+    ): WebResourceResponse? {  
 
-            val url =
-                request?.url.toString()
+        val url =  
+            request?.url.toString()  
 
-            try {
+        try {  
 
-                val headers =
-                    mutableMapOf<String, String>()
+            val headers =  
+                mutableMapOf<String, String>()  
 
-                request?.requestHeaders
-                    ?.forEach { (k, v) ->
+            request?.requestHeaders  
+                ?.forEach { (k, v) ->  
 
-                        headers[k] = v
-                    }
+                    headers[k] = v  
+                }  
 
-                streamHeaders[url] =
-                    headers
+            streamHeaders[url] =  
+                headers  
 
-            } catch (_: Throwable) {}
+        } catch (_: Throwable) {}  
 
-            detectAndSaveUrl(url)
+        detectAndSaveUrl(url)  
 
-            return super.shouldInterceptRequest(
-                view,
-                request
-            )
-        }
+        return super.shouldInterceptRequest(  
+            view,  
+            request  
+        )  
+    }  
 
-        override fun onPageFinished(
-            view: WebView?,
-            url: String?
-        ) {
+    override fun onPageFinished(  
+        view: WebView?,  
+        url: String?  
+    ) {  
 
-            super.onPageFinished(
-                view,
-                url
-            )
+        super.onPageFinished(  
+            view,  
+            url  
+        )  
 
-            val js = """
+        val js = """
 
 (function() {
 
-    let results = [];
+let results = [];  
 
-    // =====================================
-    // IMG
-    // =====================================
+// =====================================  
+// IMG  
+// =====================================  
 
-    document
-        .querySelectorAll("img")
-        .forEach(function(el) {
+document  
+    .querySelectorAll("img")  
+    .forEach(function(el) {  
 
-            if (el.src) {
-                results.push(el.src);
-            }
-        });
+        if (el.src) {  
+            results.push(el.src);  
+        }  
+    });  
 
-    // =====================================
-    // VIDEO
-    // =====================================
+// =====================================  
+// VIDEO  
+// =====================================  
 
-    document
-        .querySelectorAll("video")
-        .forEach(function(el) {
+document  
+    .querySelectorAll("video")  
+    .forEach(function(el) {  
 
-            if (el.src) {
-                results.push(el.src);
-            }
+        if (el.src) {  
+            results.push(el.src);  
+        }  
 
-            if (el.currentSrc) {
-                results.push(el.currentSrc);
-            }
+        if (el.currentSrc) {  
+            results.push(el.currentSrc);  
+        }  
 
-            if (el.poster) {
-                results.push(el.poster);
-            }
-        });
+        if (el.poster) {  
+            results.push(el.poster);  
+        }  
+    });  
 
-    // =====================================
-    // AUDIO
-    // =====================================
+// =====================================  
+// AUDIO  
+// =====================================  
 
-    document
-        .querySelectorAll("audio")
-        .forEach(function(el) {
+document  
+    .querySelectorAll("audio")  
+    .forEach(function(el) {  
 
-            if (el.src) {
-                results.push(el.src);
-            }
-        });
+        if (el.src) {  
+            results.push(el.src);  
+        }  
+    });  
 
-    // =====================================
-    // SOURCE
-    // =====================================
+// =====================================  
+// SOURCE  
+// =====================================  
 
-    document
-        .querySelectorAll("source")
-        .forEach(function(el) {
+document  
+    .querySelectorAll("source")  
+    .forEach(function(el) {  
 
-            if (el.src) {
-                results.push(el.src);
-            }
-        });
-        
+        if (el.src) {  
+            results.push(el.src);  
+        }  
+    });
+
 // =====================================
 // IFRAME DETECTION
 // =====================================
 
 document
-    .querySelectorAll("iframe")
-    .forEach(function(el) {
+.querySelectorAll("iframe")
+.forEach(function(el) {
 
-        try {
+try {  
 
-            if (el.src) {
+        if (el.src) {  
 
-                results.push(el.src);
-            }
+            results.push(el.src);  
+        }  
 
-        } catch(e) {}
-    });
+    } catch(e) {}  
+});  
 
-    // =====================================
-    // LINKS
-    // =====================================
+// =====================================  
+// LINKS  
+// =====================================  
 
-    document
-        .querySelectorAll("a")
-        .forEach(function(el) {
+document  
+    .querySelectorAll("a")  
+    .forEach(function(el) {  
 
-            if (el.href) {
+        if (el.href) {  
 
-                if (
-    el.href.includes(".m3u8") ||
-    el.href.includes(".mpd") ||
-    el.href.includes(".mp4") ||
-    el.href.includes("master.m3u8") ||
-    el.href.includes("playlist.m3u8") ||
-    el.href.includes("index.m3u8") ||
-    el.href.includes("chunklist")
+            if (  
+el.href.includes(".m3u8") ||  
+el.href.includes(".mpd") ||  
+el.href.includes(".mp4") ||  
+el.href.includes("master.m3u8") ||  
+el.href.includes("playlist.m3u8") ||  
+el.href.includes("index.m3u8") ||  
+el.href.includes("chunklist")
+
 ) {
 
-    results.push(el.href);
+results.push(el.href);
+
 }
-            }
-        });
+}
+});
 
-    // =====================================
-    // SCRIPT CONTENT
-    // =====================================
+// =====================================  
+// SCRIPT CONTENT  
+// =====================================  
 
-    document
-        .querySelectorAll("script")
-        .forEach(function(el) {
+document  
+    .querySelectorAll("script")  
+    .forEach(function(el) {  
 
-            const txt =
-                el.innerHTML;
+        const txt =  
+            el.innerHTML;  
 
-            const regex =
-/(https?:\/\/[^"' ]+\.(m3u8|mpd|mp4)(\?[^"' ]*)?)/gi;
+        const regex =
 
-            const found =
-                txt.match(regex);
+/(https?://[^"' ]+.(m3u8|mpd|mp4)(?[^"' ]*)?)/gi;
 
-            if (found) {
+const found =  
+            txt.match(regex);  
 
-                found.forEach(function(x) {
+        if (found) {  
 
-                    results.push(x);
-                });
-            }
-        });
+            found.forEach(function(x) {  
 
-    // =====================================
-    // JWPLAYER
-    // =====================================
+                results.push(x);  
+            });  
+        }  
+    });  
 
-    if (window.jwplayer) {
+// =====================================  
+// JWPLAYER  
+// =====================================  
 
-        try {
+if (window.jwplayer) {  
 
-            const players =
-                jwplayer().getPlaylist();
+    try {  
 
-            if (players) {
+        const players =  
+            jwplayer().getPlaylist();  
 
-                players.forEach(function(p) {
+        if (players) {  
 
-                    if (p.file) {
-                        results.push(p.file);
-                    }
-                });
-            }
+            players.forEach(function(p) {  
 
-        } catch(e) {}
-    }
-    
+                if (p.file) {  
+                    results.push(p.file);  
+                }  
+            });  
+        }  
+
+    } catch(e) {}  
+}
+
 // =====================================
 // AUTO PLAY TRIGGER
 // =====================================
 
 try {
 
-    document
-        .querySelectorAll(
-            "button, .play, .vjs-big-play-button, .jw-icon-playback, .ytp-large-play-button"
-        )
-        .forEach(function(el) {
+document  
+    .querySelectorAll(  
+        "button, .play, .vjs-big-play-button, .jw-icon-playback, .ytp-large-play-button"  
+    )  
+    .forEach(function(el) {  
 
-            try {
-                el.click();
-            } catch(e) {}
-        });
+        try {  
+            el.click();  
+        } catch(e) {}  
+    });
 
 } catch(e) {}
 
@@ -350,64 +546,65 @@ try {
 
 try {
 
-    document
-        .querySelectorAll("video")
-        .forEach(function(v) {
+document  
+    .querySelectorAll("video")  
+    .forEach(function(v) {  
 
-            try {
+        try {  
 
-                v.muted = true;
+            v.muted = true;  
 
-                const p =
-                    v.play();
+            const p =  
+                v.play();  
 
-                if (p) {
-                    p.catch(function(){});
-                }
+            if (p) {  
+                p.catch(function(){});  
+            }  
 
-            } catch(e) {}
-        });
+        } catch(e) {}  
+    });
 
 } catch(e) {}
 
-    // =====================================
-    // REMOVE DUPLICATES
-    // =====================================
+// =====================================  
+// REMOVE DUPLICATES  
+// =====================================  
 
-    results =
-        [...new Set(results)];
-        
+results =  
+    [...new Set(results)];
+
 // =====================================
 // FETCH HOOK
 // =====================================
 
 if (!window.__gelFetchHooked) {
 
-    window.__gelFetchHooked = true;
+window.__gelFetchHooked = true;  
 
-    const originalFetch =
-        window.fetch;
+const originalFetch =  
+    window.fetch;  
 
-    window.fetch =
-        function() {
+window.fetch =  
+    function() {  
 
-            try {
+        try {  
 
-                const url =
-                    arguments[0];
+            const url =  
+                arguments[0];  
 
-                if (typeof url === "string") {
+            if (typeof url === "string") {  
 
-                    results.push(url);
-                }
+                results.push(url);  
+            }  
 
-            } catch(e) {}
+        } catch(e) {}  
 
-            return originalFetch.apply(
-                this,
-                arguments
-            );
-        };
+        return originalFetch.apply(  
+            this,  
+            arguments  
+        );  
+    };
+
 }
 
 // =====================================
@@ -416,191 +613,196 @@ if (!window.__gelFetchHooked) {
 
 if (!window.__gelXHRHooked) {
 
-    window.__gelXHRHooked = true;
+window.__gelXHRHooked = true;  
 
-    const originalOpen =
-        XMLHttpRequest.prototype.open;
+const originalOpen =  
+    XMLHttpRequest.prototype.open;  
 
-    XMLHttpRequest.prototype.open =
-        function(method, url) {
+XMLHttpRequest.prototype.open =  
+    function(method, url) {  
 
-            try {
+        try {  
 
-                if (url) {
-                    results.push(url);
-                }
+            if (url) {  
+                results.push(url);  
+            }  
 
-            } catch(e) {}
+        } catch(e) {}  
 
-            return originalOpen.apply(
-                this,
-                arguments
-            );
-        };
+        return originalOpen.apply(  
+            this,  
+            arguments  
+        );  
+    };
+
 }
 
-    return JSON.stringify(results);
+return JSON.stringify(results);
 
 })();
 
-            """.trimIndent()
+""".trimIndent()  
 
-            view?.evaluateJavascript(
-                js
-            ) { value ->
+        view?.evaluateJavascript(  
+            js  
+        ) { value ->  
 
-                Log.e(
-                    "JS_MEDIA_SCAN",
-                    value
-                )
+            Log.e(  
+                "JS_MEDIA_SCAN",  
+                value  
+            )  
 
-                try {
+            try {  
 
-                    val cleaned =
-                        value
-                            ?.replace("\\u003C", "<")
-                            ?.replace("\\/", "/")
-                            ?.replace("\"[", "[")
-                            ?.replace("]\"", "]")
-                            ?: return@evaluateJavascript
+                val cleaned =  
+                    value  
+                        ?.replace("\\u003C", "<")  
+                        ?.replace("\\/", "/")  
+                        ?.replace("\"[", "[")  
+                        ?.replace("]\"", "]")  
+                        ?: return@evaluateJavascript  
 
-                    val jsonArray =
-                        org.json.JSONArray(cleaned)
+                val jsonArray =  
+                    org.json.JSONArray(cleaned)  
 
-                    for (i in 0 until jsonArray.length()) {
+                for (i in 0 until jsonArray.length()) {  
 
-                        val foundUrl =
-                            jsonArray.getString(i)
+                    val foundUrl =  
+                        jsonArray.getString(i)  
 
-                        detectAndSaveUrl(
-    foundUrl
+                    detectAndSaveUrl(  
+foundUrl
+
 )
-                    }
+}
 
-               } catch (t: Throwable) {
+} catch (t: Throwable) {  
 
-                    Log.e(
-                        "JS_PARSE",
-                        "failed",
-                        t
-                    )
-                }
-            }
+                Log.e(  
+                    "JS_PARSE",  
+                    "failed",  
+                    t  
+                )  
+            }  
+        }
 
 // =====================================
 // AUTO MONITOR
 // =====================================
 
 if (
-    autoRefreshEnabled &&
-    !monitorRunning &&
-    (
-        url?.contains(".m3u8") == true ||
-        url?.contains(".mpd") == true
-    )
+autoRefreshEnabled &&
+!monitorRunning &&
+(
+url?.contains(".m3u8") == true ||
+url?.contains(".mpd") == true
+)
 ) {
 
-    monitorRunning = true
+monitorRunning = true  
 
-    startStreamMonitor()
+startStreamMonitor()
+
 }
 
-        }
-    }
+}  
+}
 
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
 // =====================================
 
 binding.contentMain.webview.webChromeClient =
-    object : WebChromeClient() {
-    
-    override fun onCreateWindow(
-    view: WebView?,
-    isDialog: Boolean,
-    isUserGesture: Boolean,
-    resultMsg: android.os.Message?
+object : WebChromeClient() {
+
+override fun onCreateWindow(  
+view: WebView?,  
+isDialog: Boolean,  
+isUserGesture: Boolean,  
+resultMsg: android.os.Message?
+
 ): Boolean {
 
-    return try {
+return try {  
 
-        val transport =
-            resultMsg?.obj
-                as? WebView.WebViewTransport
+    val transport =  
+        resultMsg?.obj  
+            as? WebView.WebViewTransport  
 
-        transport?.webView =
-            binding.contentMain.webview
+    transport?.webView =  
+        binding.contentMain.webview  
 
-        resultMsg?.sendToTarget()
+    resultMsg?.sendToTarget()  
 
-        true
+    true  
 
-    } catch (_: Throwable) {
+} catch (_: Throwable) {  
 
-        false
-    }
+    false  
 }
 
-        override fun onShowCustomView(
-            view: View?,
-            callback: CustomViewCallback?
-        ) {
+}
 
-            if (customView != null) {
+override fun onShowCustomView(  
+        view: View?,  
+        callback: CustomViewCallback?  
+    ) {  
 
-                callback?.onCustomViewHidden()
-                return
-            }
+        if (customView != null) {  
 
-            customView = view
+            callback?.onCustomViewHidden()  
+            return  
+        }  
 
-            customViewCallback = callback
+        customView = view  
 
-            window.decorView.systemUiVisibility =
-                (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                )
+        customViewCallback = callback  
 
-            addContentView(
-                view,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-            )
+        window.decorView.systemUiVisibility =  
+            (  
+                View.SYSTEM_UI_FLAG_FULLSCREEN  
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION  
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY  
+            )  
 
-            binding.contentMain.webview.visibility =
-                View.GONE
-        }
+        addContentView(  
+            view,  
+            FrameLayout.LayoutParams(  
+                ViewGroup.LayoutParams.MATCH_PARENT,  
+                ViewGroup.LayoutParams.MATCH_PARENT  
+            )  
+        )  
 
-        override fun onHideCustomView() {
+        binding.contentMain.webview.visibility =  
+            View.GONE  
+    }  
 
-            customView?.visibility =
-                View.GONE
+    override fun onHideCustomView() {  
 
-            (customView?.parent as? ViewGroup)
-                ?.removeView(customView)
+        customView?.visibility =  
+            View.GONE  
 
-            customView = null
+        (customView?.parent as? ViewGroup)  
+            ?.removeView(customView)  
 
-            binding.contentMain.webview.visibility =
-                View.VISIBLE
+        customView = null  
 
-            window.decorView.systemUiVisibility =
-                View.SYSTEM_UI_FLAG_VISIBLE
+        binding.contentMain.webview.visibility =  
+            View.VISIBLE  
 
-            customViewCallback
-                ?.onCustomViewHidden()
-        }
-    }
+        window.decorView.systemUiVisibility =  
+            View.SYSTEM_UI_FLAG_VISIBLE  
 
-        // =====================================
-        // HANDLE INCOMING INTENT
-        // =====================================
+        customViewCallback  
+            ?.onCustomViewHidden()  
+    }  
+}  
 
-        handleIncomingIntent()
+    // =====================================  
+    // HANDLE INCOMING INTENT  
+    // =====================================  
+
+    handleIncomingIntent()
 
 // =====================================
 // OPEN PAGE
@@ -608,160 +810,161 @@ binding.contentMain.webview.webChromeClient =
 
 binding.contentMain.openBrowser.setOnClickListener {
 
-    detectedStreams.clear()
+detectedStreams.clear()  
 
-    detectedVideos.clear()
+detectedVideos.clear()  
 
-    detectedImages.clear()
+detectedImages.clear()  
 
-    detectedAudio.clear()
+detectedAudio.clear()  
 
-    detectedMasterStreams.clear()
+detectedMasterStreams.clear()  
 
-    detectedChannels.clear()
+detectedChannels.clear()  
 
-    binding.contentMain.result.text = ""
+binding.contentMain.result.text = ""  
 
-    val enteredText =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
+val enteredText =  
+    binding.contentMain.urlInput  
+        .text  
+        .toString()  
+        .trim()  
 
-    val finalUrl =
-        when {
+val finalUrl =  
+    when {  
 
-            enteredText.isEmpty() -> {
+        enteredText.isEmpty() -> {  
 
-                "https://www.google.com"
-            }
+            "https://www.google.com"  
+        }  
 
-            enteredText.startsWith("http") -> {
+        enteredText.startsWith("http") -> {  
 
-                enteredText
-            }
+            enteredText  
+        }  
 
-            enteredText.contains(".") &&
-            !enteredText.contains(" ") -> {
+        enteredText.contains(".") &&  
+        !enteredText.contains(" ") -> {  
 
-                "https://$enteredText"
-            }
+            "https://$enteredText"  
+        }  
 
-            else -> {
+        else -> {  
 
-                val query =
-                    enteredText.replace(
-                        " ",
-                        "+"
-                    )
+            val query =  
+                enteredText.replace(  
+                    " ",  
+                    "+"  
+                )  
 
-                "https://www.google.com/search?q=$query"
-            }
-        }
+            "https://www.google.com/search?q=$query"  
+        }  
+    }  
 
-    // =====================================
-    // DESKTOP MODE
-    // =====================================
+// =====================================  
+// DESKTOP MODE  
+// =====================================  
 
-    val desktopMode = true
+val desktopMode = true  
 
-    if (desktopMode) {
+if (desktopMode) {  
 
-        binding.contentMain.webview.settings.userAgentString =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    binding.contentMain.webview.settings.userAgentString =  
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"  
 
-    } else {
+} else {  
 
-        binding.contentMain.webview.settings.userAgentString =
-            null
-    }
+    binding.contentMain.webview.settings.userAgentString =  
+        null  
+}  
 
-    // =====================================
-    // HIDE KEYBOARD
-    // =====================================
+// =====================================  
+// HIDE KEYBOARD  
+// =====================================  
 
-    try {
+try {  
 
-        val imm =
-            getSystemService(
-                INPUT_METHOD_SERVICE
-            ) as android.view.inputmethod.InputMethodManager
+    val imm =  
+        getSystemService(  
+            INPUT_METHOD_SERVICE  
+        ) as android.view.inputmethod.InputMethodManager  
 
-        imm.hideSoftInputFromWindow(
-            currentFocus?.windowToken,
-            0
-        )
+    imm.hideSoftInputFromWindow(  
+        currentFocus?.windowToken,  
+        0  
+    )  
 
-    } catch (_: Throwable) {}
+} catch (_: Throwable) {}  
 
-    // =====================================
-    // REMOVE INPUT FOCUS
-    // =====================================
+// =====================================  
+// REMOVE INPUT FOCUS  
+// =====================================  
 
-    binding.contentMain.urlInput.clearFocus()
+binding.contentMain.urlInput.clearFocus()  
 
-    // =====================================
-    // LOAD PAGE
-    // =====================================
+// =====================================  
+// LOAD PAGE  
+// =====================================  
 
-    binding.contentMain.webview.loadUrl(
-        finalUrl
-    )
+binding.contentMain.webview.loadUrl(  
+    finalUrl  
+)
+
 }
 
-        // =====================================
-        // OPEN CHROME
-        // =====================================
+// =====================================  
+    // OPEN CHROME  
+    // =====================================  
 
-        binding.contentMain.openChrome.setOnClickListener {
+    binding.contentMain.openChrome.setOnClickListener {  
 
-            val enteredText =
-                binding.contentMain.urlInput
-                    .text
-                    .toString()
-                    .trim()
+        val enteredText =  
+            binding.contentMain.urlInput  
+                .text  
+                .toString()  
+                .trim()  
 
-            val finalUrl =
-                when {
+        val finalUrl =  
+            when {  
 
-                    enteredText.isEmpty() -> {
-                        "https://www.google.com"
-                    }
+                enteredText.isEmpty() -> {  
+                    "https://www.google.com"  
+                }  
 
-                    enteredText.startsWith("http") -> {
-                        enteredText
-                    }
+                enteredText.startsWith("http") -> {  
+                    enteredText  
+                }  
 
-                    enteredText.contains(".") &&
-                    !enteredText.contains(" ") -> {
-                        "https://$enteredText"
-                    }
+                enteredText.contains(".") &&  
+                !enteredText.contains(" ") -> {  
+                    "https://$enteredText"  
+                }  
 
-                    else -> {
+                else -> {  
 
-                        val query =
-                            enteredText.replace(
-                                " ",
-                                "+"
-                            )
+                    val query =  
+                        enteredText.replace(  
+                            " ",  
+                            "+"  
+                        )  
 
-                        "https://www.google.com/search?q=$query"
-                    }
-                }
+                    "https://www.google.com/search?q=$query"  
+                }  
+            }  
 
-            val browserIntent =
-    Intent(
-        Intent.ACTION_VIEW,
-        Uri.parse(finalUrl)
-    )
+        val browserIntent =  
+Intent(  
+    Intent.ACTION_VIEW,  
+    Uri.parse(finalUrl)  
+)
 
 startActivity(
-    Intent.createChooser(
-        browserIntent,
-        "Open With Browser"
-    )
+Intent.createChooser(
+browserIntent,
+"Open With Browser"
 )
-        }
+)
+}
 
 // =====================================
 // OPEN PLAYER
@@ -769,169 +972,170 @@ startActivity(
 
 binding.contentMain.openPlayer.setOnClickListener {
 
-    if (detectedStreams.isEmpty()) {
+if (detectedStreams.isEmpty()) {  
 
-        binding.contentMain.result.append(
-            "\n\nNO STREAMS DETECTED\n"
-        )
+    binding.contentMain.result.append(  
+        "\n\nNO STREAMS DETECTED\n"  
+    )  
 
-        return@setOnClickListener
-    }
+    return@setOnClickListener  
+}  
 
-    val sortedStreams =
-        mutableListOf<String>()
+val sortedStreams =  
+    mutableListOf<String>()  
 
-    // =====================================
-    // VIDEOS
-    // =====================================
+// =====================================  
+// VIDEOS  
+// =====================================  
 
-    sortedStreams.addAll(
-        detectedVideos
-    )
+sortedStreams.addAll(  
+    detectedVideos  
+)  
 
-    // =====================================
-    // AUDIO
-    // =====================================
+// =====================================  
+// AUDIO  
+// =====================================  
 
-    sortedStreams.addAll(
-        detectedAudio
-    )
+sortedStreams.addAll(  
+    detectedAudio  
+)  
 
-    // =====================================
-    // IMAGES
-    // =====================================
+// =====================================  
+// IMAGES  
+// =====================================  
 
-    sortedStreams.addAll(
-        detectedImages
-    )
+sortedStreams.addAll(  
+    detectedImages  
+)  
 
-    val streamList =
-        sortedStreams.toTypedArray()
+val streamList =  
+    sortedStreams.toTypedArray()  
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
-        .setTitle("Select Stream")
+androidx.appcompat.app.AlertDialog.Builder(this)  
+    .setTitle("Select Stream")  
 
-        .setItems(streamList) { _, which ->
+    .setItems(streamList) { _, which ->  
 
-            val url =
-                streamList[which]
+        val url =  
+            streamList[which]  
 
-            try {
+        try {  
 
-                val lower =
-                    url.lowercase()
+            val lower =  
+                url.lowercase()  
 
-                val mimeType =
-                    when {
+            val mimeType =  
+                when {  
 
-                        // =========================
-                        // STREAMS / VIDEO
-                        // =========================
+                    // =========================  
+                    // STREAMS / VIDEO  
+                    // =========================  
 
-                        lower.contains(".m3u8") ->
-                            "video/*"
+                    lower.contains(".m3u8") ->  
+                        "video/*"  
 
-                        lower.contains(".mpd") ->
-                            "video/*"
+                    lower.contains(".mpd") ->  
+                        "video/*"  
 
-                        lower.contains(".mp4") ->
-                            "video/*"
+                    lower.contains(".mp4") ->  
+                        "video/*"  
 
-                        lower.contains(".mkv") ->
-                            "video/*"
+                    lower.contains(".mkv") ->  
+                        "video/*"  
 
-                        lower.contains(".webm") ->
-                            "video/*"
+                    lower.contains(".webm") ->  
+                        "video/*"  
 
-                        lower.contains(".ts") ->
-                            "video/*"
+                    lower.contains(".ts") ->  
+                        "video/*"  
 
-                        // =========================
-                        // AUDIO
-                        // =========================
+                    // =========================  
+                    // AUDIO  
+                    // =========================  
 
-                        lower.contains(".mp3") ->
-                            "audio/mpeg"
+                    lower.contains(".mp3") ->  
+                        "audio/mpeg"  
 
-                        lower.contains(".aac") ->
-                            "audio/aac"
+                    lower.contains(".aac") ->  
+                        "audio/aac"  
 
-                        lower.contains(".wav") ->
-                            "audio/wav"
+                    lower.contains(".wav") ->  
+                        "audio/wav"  
 
-                        lower.contains(".ogg") ->
-                            "audio/ogg"
+                    lower.contains(".ogg") ->  
+                        "audio/ogg"  
 
-                        lower.contains(".flac") ->
-                            "audio/flac"
+                    lower.contains(".flac") ->  
+                        "audio/flac"  
 
-                        // =========================
-                        // IMAGES
-                        // =========================
+                    // =========================  
+                    // IMAGES  
+                    // =========================  
 
-                        lower.contains(".jpg") ||
-                        lower.contains(".jpeg") ->
-                            "image/jpeg"
+                    lower.contains(".jpg") ||  
+                    lower.contains(".jpeg") ->  
+                        "image/jpeg"  
 
-                        lower.contains(".png") ->
-                            "image/png"
+                    lower.contains(".png") ->  
+                        "image/png"  
 
-                        lower.contains(".webp") ->
-                            "image/webp"
+                    lower.contains(".webp") ->  
+                        "image/webp"  
 
-                        lower.contains(".gif") ->
-                            "image/gif"
+                    lower.contains(".gif") ->  
+                        "image/gif"  
 
-                        // =========================
-                        // FALLBACK
-                        // =========================
+                    // =========================  
+                    // FALLBACK  
+                    // =========================  
 
-                        else ->
-                            "*/*"
-                    }
+                    else ->  
+                        "*/*"  
+                }  
 
-                val cleanUrl =
-                    url
-                        .trim()
-                        .replace("\n", "")
-                        .replace("\r", "")
-                        .replace(" ", "")
+            val cleanUrl =  
+                url  
+                    .trim()  
+                    .replace("\n", "")  
+                    .replace("\r", "")  
+                    .replace(" ", "")  
 
-                val intent =
-                    Intent(Intent.ACTION_VIEW).apply {
+            val intent =  
+                Intent(Intent.ACTION_VIEW).apply {  
 
-                        setDataAndType(
-                            Uri.parse(cleanUrl),
-                            mimeType
-                        )
+                    setDataAndType(  
+                        Uri.parse(cleanUrl),  
+                        mimeType  
+                    )  
 
-                        addCategory(
-                            Intent.CATEGORY_BROWSABLE
-                        )
+                    addCategory(  
+                        Intent.CATEGORY_BROWSABLE  
+                    )  
 
-                        addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                        )
-                    }
+                    addFlags(  
+                        Intent.FLAG_ACTIVITY_NEW_TASK  
+                    )  
+                }  
 
-                startActivity(
-                    Intent.createChooser(
-                        intent,
-                        "Open Stream With"
-                    )
-                )
+            startActivity(  
+                Intent.createChooser(  
+                    intent,  
+                    "Open Stream With"  
+                )  
+            )  
 
-            } catch (t: Throwable) {
+        } catch (t: Throwable) {  
 
-                Log.e(
-                    "PLAYER_OPEN",
-                    "failed",
-                    t
-                )
-            }
-        }
+            Log.e(  
+                "PLAYER_OPEN",  
+                "failed",  
+                t  
+            )  
+        }  
+    }  
 
-        .show()
+    .show()
+
 }
 
 // =====================================
@@ -940,117 +1144,118 @@ binding.contentMain.openPlayer.setOnClickListener {
 
 binding.contentMain.shareStream.setOnClickListener {
 
-    if (detectedStreams.isEmpty()) {
+if (detectedStreams.isEmpty()) {  
 
-        binding.contentMain.result.append(
-            "\n\nNO STREAMS DETECTED\n"
-        )
+    binding.contentMain.result.append(  
+        "\n\nNO STREAMS DETECTED\n"  
+    )  
 
-        return@setOnClickListener
-    }
+    return@setOnClickListener  
+}  
 
-    val sortedStreams =
-        mutableListOf<String>()
+val sortedStreams =  
+    mutableListOf<String>()  
 
-    // =====================================
-    // VIDEOS
-    // =====================================
+// =====================================  
+// VIDEOS  
+// =====================================  
 
-    sortedStreams.addAll(
-        detectedVideos
-    )
+sortedStreams.addAll(  
+    detectedVideos  
+)  
 
-    // =====================================
-    // AUDIO
-    // =====================================
+// =====================================  
+// AUDIO  
+// =====================================  
 
-    sortedStreams.addAll(
-        detectedAudio
-    )
+sortedStreams.addAll(  
+    detectedAudio  
+)  
 
-    // =====================================
-    // IMAGES
-    // =====================================
+// =====================================  
+// IMAGES  
+// =====================================  
 
-    sortedStreams.addAll(
-        detectedImages
-    )
+sortedStreams.addAll(  
+    detectedImages  
+)  
 
-    val streamList =
-        sortedStreams.toTypedArray()
+val streamList =  
+    sortedStreams.toTypedArray()  
 
-    val checkedItems =
-        BooleanArray(streamList.size)
+val checkedItems =  
+    BooleanArray(streamList.size)  
 
-    val selected =
-        mutableListOf<String>()
+val selected =  
+    mutableListOf<String>()  
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
+androidx.appcompat.app.AlertDialog.Builder(this)  
 
-        .setTitle("Select Streams To Share")
+    .setTitle("Select Streams To Share")  
 
-        .setMultiChoiceItems(
-            streamList,
-            checkedItems
-        ) { _, which, isChecked ->
+    .setMultiChoiceItems(  
+        streamList,  
+        checkedItems  
+    ) { _, which, isChecked ->  
 
-            val url =
-                streamList[which]
+        val url =  
+            streamList[which]  
 
-            if (isChecked) {
+        if (isChecked) {  
 
-                if (!selected.contains(url)) {
-                    selected.add(url)
-                }
+            if (!selected.contains(url)) {  
+                selected.add(url)  
+            }  
 
-            } else {
+        } else {  
 
-                selected.remove(url)
-            }
-        }
+            selected.remove(url)  
+        }  
+    }  
 
-        .setPositiveButton("SHARE") { _, _ ->
+    .setPositiveButton("SHARE") { _, _ ->  
 
-            if (selected.isEmpty()) {
-                return@setPositiveButton
-            }
+        if (selected.isEmpty()) {  
+            return@setPositiveButton  
+        }  
 
-            try {
+        try {  
 
-                val allUrls =
-                    selected.joinToString("\n\n")
+            val allUrls =  
+                selected.joinToString("\n\n")  
 
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
+            val shareIntent =  
+                Intent(Intent.ACTION_SEND).apply {  
 
-                        type = "text/plain"
+                    type = "text/plain"  
 
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            allUrls
-                        )
-                    }
+                    putExtra(  
+                        Intent.EXTRA_TEXT,  
+                        allUrls  
+                    )  
+                }  
 
-                startActivity(
-                    Intent.createChooser(
-                        shareIntent,
-                        "Share Streams With"
-                    )
-                )
+            startActivity(  
+                Intent.createChooser(  
+                    shareIntent,  
+                    "Share Streams With"  
+                )  
+            )  
 
-            } catch (t: Throwable) {
+        } catch (t: Throwable) {  
 
-                Log.e(
-                    "SHARE_STREAM",
-                    "failed",
-                    t
-                )
-            }
-        }
+            Log.e(  
+                "SHARE_STREAM",  
+                "failed",  
+                t  
+            )  
+        }  
+    }  
 
-        .setNegativeButton("CANCEL", null)
+    .setNegativeButton("CANCEL", null)  
 
-        .show()
+    .show()
+
 }
 
 // =====================================
@@ -1059,96 +1264,98 @@ binding.contentMain.shareStream.setOnClickListener {
 
 binding.contentMain.exportM3u.setOnClickListener {
 
-    if (detectedStreams.isEmpty()) {
+if (detectedStreams.isEmpty()) {  
 
-        binding.contentMain.result.append(
-            "\n\nNO STREAMS DETECTED\n"
-        )
+    binding.contentMain.result.append(  
+        "\n\nNO STREAMS DETECTED\n"  
+    )  
 
-        return@setOnClickListener
-    }
+    return@setOnClickListener  
+}  
 
-    try {
+try {  
 
-        val sb =
-            StringBuilder()
+    val sb =  
+        StringBuilder()  
 
-        sb.append("#EXTM3U\n\n")
+    sb.append("#EXTM3U\n\n")  
 
-        detectedChannels
-    .forEach { (name, url) ->
+    detectedChannels  
+.forEach { (name, url) ->  
 
-        sb.append(
-            "#EXTINF:-1,$name\n"
-        )
+    sb.append(  
+        "#EXTINF:-1,$name\n"  
+    )  
 
-        sb.append("$url\n\n")
-    }
+    sb.append("$url\n\n")  
+}  
 
-        val shareIntent =
-            Intent(Intent.ACTION_SEND).apply {
+    val shareIntent =  
+        Intent(Intent.ACTION_SEND).apply {  
 
-                type = "text/plain"
+            type = "text/plain"  
 
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    sb.toString()
-                )
-            }
+            putExtra(  
+                Intent.EXTRA_TEXT,  
+                sb.toString()  
+            )  
+        }  
 
-        startActivity(
+    startActivity(  
 
-            Intent.createChooser(
-                shareIntent,
-                "Export M3U"
-            )
-        )
+        Intent.createChooser(  
+            shareIntent,  
+            "Export M3U"  
+        )  
+    )  
 
-    } catch (t: Throwable) {
+} catch (t: Throwable) {  
 
-        Log.e(
-            "EXPORT_M3U",
-            "failed",
-            t
-        )
-    }
+    Log.e(  
+        "EXPORT_M3U",  
+        "failed",  
+        t  
+    )  
 }
 
-        // =====================================
-        // FILTER BUTTONS
-        // =====================================
+}
 
-        binding.contentMain.btnAll.setOnClickListener {
+// =====================================  
+    // FILTER BUTTONS  
+    // =====================================  
 
-            showAllMedia()
-        }
+    binding.contentMain.btnAll.setOnClickListener {  
 
-        binding.contentMain.btnVideos.setOnClickListener {
+        showAllMedia()  
+    }  
 
-            showVideos()
-        }
+    binding.contentMain.btnVideos.setOnClickListener {  
 
-        binding.contentMain.btnImages.setOnClickListener {
+        showVideos()  
+    }  
 
-            showImages()
-        }
+    binding.contentMain.btnImages.setOnClickListener {  
 
-        binding.contentMain.btnAudio.setOnClickListener {
+        showImages()  
+    }  
 
-            showAudio()
-        }
+    binding.contentMain.btnAudio.setOnClickListener {  
 
-        binding.contentMain.btnClear.setOnClickListener {
+        showAudio()  
+    }  
 
-    detectedStreams.clear()
+    binding.contentMain.btnClear.setOnClickListener {  
 
-    detectedVideos.clear()
+detectedStreams.clear()  
 
-    detectedImages.clear()
+detectedVideos.clear()  
 
-    detectedAudio.clear()
+detectedImages.clear()  
 
-    binding.contentMain.result.text = ""
+detectedAudio.clear()  
+
+binding.contentMain.result.text = ""
+
 }
 
 // =====================================
@@ -1157,27 +1364,28 @@ binding.contentMain.exportM3u.setOnClickListener {
 
 binding.contentMain.result.setOnClickListener {
 
-    if (lastSelectedUrl.isBlank()) {
-        return@setOnClickListener
-    }
+if (lastSelectedUrl.isBlank()) {  
+    return@setOnClickListener  
+}  
 
-    val clipboard =
-        getSystemService(
-            CLIPBOARD_SERVICE
-        ) as ClipboardManager
+val clipboard =  
+    getSystemService(  
+        CLIPBOARD_SERVICE  
+    ) as ClipboardManager  
 
-    clipboard.setPrimaryClip(
-        ClipData.newPlainText(
-            "stream",
-            lastSelectedUrl
-        )
-    )
+clipboard.setPrimaryClip(  
+    ClipData.newPlainText(  
+        "stream",  
+        lastSelectedUrl  
+    )  
+)  
 
-    Toast.makeText(
-        this,
-        "URL copied",
-        Toast.LENGTH_SHORT
-    ).show()
+Toast.makeText(  
+    this,  
+    "URL copied",  
+    Toast.LENGTH_SHORT  
+).show()
+
 }
 
 // =====================================
@@ -1186,285 +1394,289 @@ binding.contentMain.result.setOnClickListener {
 
 binding.contentMain.result.setOnLongClickListener { v ->
 
-    val selectedUrl =
-        extractUrlFromText(
-            binding.contentMain.result.text.toString()
-        )
+val selectedUrl =  
+    extractUrlFromText(  
+        binding.contentMain.result.text.toString()  
+    )  
 
-    if (selectedUrl.isBlank()) {
-        return@setOnLongClickListener true
-    }
+if (selectedUrl.isBlank()) {  
+    return@setOnLongClickListener true  
+}  
 
-    val popup =
-        PopupMenu(this, v)
+val popup =  
+    PopupMenu(this, v)  
 
-    popup.menu.add("OPEN PLAYER")
+popup.menu.add("OPEN PLAYER")  
 
-    popup.menu.add("TEST STREAM")
+popup.menu.add("TEST STREAM")  
 
-    popup.menu.add("SHARE URL")
+popup.menu.add("SHARE URL")  
 
-    popup.menu.add("COPY URL")
+popup.menu.add("COPY URL")  
 
-    popup.setOnMenuItemClickListener {
+popup.setOnMenuItemClickListener {  
 
-        when (it.title.toString()) {
+    when (it.title.toString()) {  
 
-            "OPEN PLAYER" -> {
+        "OPEN PLAYER" -> {  
 
-                val intent =
-                    Intent(Intent.ACTION_VIEW).apply {
+            val intent =  
+                Intent(Intent.ACTION_VIEW).apply {  
 
-                        setDataAndType(
-                            Uri.parse(selectedUrl),
-                            "video/*"
-                        )
-                    }
+                    setDataAndType(  
+                        Uri.parse(selectedUrl),  
+                        "video/*"  
+                    )  
+                }  
 
-                startActivity(
-                    Intent.createChooser(
-                        intent,
-                        "Open With"
-                    )
-                )
-            }
+            startActivity(  
+                Intent.createChooser(  
+                    intent,  
+                    "Open With"  
+                )  
+            )  
+        }  
 
-            "TEST STREAM" -> {
+        "TEST STREAM" -> {  
 
-                testStream(selectedUrl)
-            }
+            testStream(selectedUrl)  
+        }  
 
-            "SHARE URL" -> {
+        "SHARE URL" -> {  
 
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
+            val shareIntent =  
+                Intent(Intent.ACTION_SEND).apply {  
 
-                        type = "text/plain"
+                    type = "text/plain"  
 
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            selectedUrl
-                        )
-                    }
+                    putExtra(  
+                        Intent.EXTRA_TEXT,  
+                        selectedUrl  
+                    )  
+                }  
 
-                startActivity(
-                    Intent.createChooser(
-                        shareIntent,
-                        "Share URL"
-                    )
-                )
-            }
+            startActivity(  
+                Intent.createChooser(  
+                    shareIntent,  
+                    "Share URL"  
+                )  
+            )  
+        }  
 
-            "COPY URL" -> {
+        "COPY URL" -> {  
 
-                val clipboard =
-                    getSystemService(
-                        CLIPBOARD_SERVICE
-                    ) as ClipboardManager
+            val clipboard =  
+                getSystemService(  
+                    CLIPBOARD_SERVICE  
+                ) as ClipboardManager  
 
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(
-                        "stream",
-                        selectedUrl
-                    )
-                )
+            clipboard.setPrimaryClip(  
+                ClipData.newPlainText(  
+                    "stream",  
+                    selectedUrl  
+                )  
+            )  
 
-                Toast.makeText(
-                    this,
-                    "Copied",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
+            Toast.makeText(  
+                this,  
+                "Copied",  
+                Toast.LENGTH_SHORT  
+            ).show()  
+        }  
+    }  
 
-        true
-    }
+    true  
+}  
 
-    popup.show()
+popup.show()  
 
-    true
+true
+
 }
 
 } // END onCreate()
 
 private fun extractUrlFromText(
-    text: String
+text: String
 ): String {
 
-    val regex =
-        "(https?://[^\\s]+)".toRegex()
+val regex =  
+    "(https?://[^\\s]+)".toRegex()  
 
-    return regex.find(text)
-        ?.value
-        ?.trim()
-        ?: ""
+return regex.find(text)  
+    ?.value  
+    ?.trim()  
+    ?: ""
+
 }
 
-    // =====================================
-    // HANDLE NEW INTENTS
-    // =====================================
+// =====================================  
+// HANDLE NEW INTENTS  
+// =====================================  
 
-    override fun onNewIntent(
-        intent: Intent?
-    ) {
+override fun onNewIntent(  
+    intent: Intent?  
+) {  
 
-        super.onNewIntent(intent)
+    super.onNewIntent(intent)  
 
-        setIntent(intent)
+    setIntent(intent)  
 
-        handleIncomingIntent()
-    }
+    handleIncomingIntent()  
+}  
 
-    // =====================================
-    // HANDLE SHARE / OPEN WITH
-    // =====================================
+// =====================================  
+// HANDLE SHARE / OPEN WITH  
+// =====================================  
 
-    private fun handleIncomingIntent() {
+private fun handleIncomingIntent() {  
 
-        try {
+    try {  
 
-            val action =
-                intent?.action
+        val action =  
+            intent?.action  
 
-            val type =
-                intent?.type
+        val type =  
+            intent?.type  
 
-            Log.e(
-                "INTENT_DEBUG",
-                "action=$action type=$type data=${intent?.dataString}"
-            )
+        Log.e(  
+            "INTENT_DEBUG",  
+            "action=$action type=$type data=${intent?.dataString}"  
+        )  
 
-            // =====================================
-            // SHARE TEXT
-            // =====================================
+        // =====================================  
+        // SHARE TEXT  
+        // =====================================  
 
-            if (
-                Intent.ACTION_SEND == action
-            ) {
+        if (  
+            Intent.ACTION_SEND == action  
+        ) {  
 
-                val sharedText =
-                    intent.getStringExtra(
-                        Intent.EXTRA_TEXT
-                    )
+            val sharedText =  
+                intent.getStringExtra(  
+                    Intent.EXTRA_TEXT  
+                )  
 
-                if (
-                    !sharedText.isNullOrBlank()
-                ) {
+            if (  
+                !sharedText.isNullOrBlank()  
+            ) {  
 
-                    binding.contentMain.urlInput
-                        .setText(sharedText)
+                binding.contentMain.urlInput  
+                    .setText(sharedText)  
 
-                    detectAndSaveUrl(
-                        sharedText
-                    )
+                detectAndSaveUrl(  
+                    sharedText  
+                )  
 
-                    binding.contentMain.webview
-                        .loadUrl(sharedText)
+                binding.contentMain.webview  
+                    .loadUrl(sharedText)  
 
-                    return
-                }
-            }
+                return  
+            }  
+        }  
 
-            // =====================================
-            // ACTION VIEW
-            // =====================================
+        // =====================================  
+        // ACTION VIEW  
+        // =====================================  
 
-            if (
-                Intent.ACTION_VIEW == action
-            ) {
+        if (  
+            Intent.ACTION_VIEW == action  
+        ) {  
 
-                val data =
-                    intent?.dataString
+            val data =  
+                intent?.dataString  
 
-              Log.e(
-    "PLAYER_INTENT",
-    "incoming stream -> $data"
+          Log.e(  
+"PLAYER_INTENT",  
+"incoming stream -> $data"
+
 )
 
 if (
-    type?.contains("video") == true ||
-    type?.contains("audio") == true ||
-    data?.contains(".m3u8") == true ||
-    data?.contains(".mpd") == true ||
-    data?.contains(".mp4") == true ||
-    data?.contains(".ts") == true
+type?.contains("video") == true ||
+type?.contains("audio") == true ||
+data?.contains(".m3u8") == true ||
+data?.contains(".mpd") == true ||
+data?.contains(".mp4") == true ||
+data?.contains(".ts") == true
 ) {
 
-    binding.contentMain.result.append(
-        "\n\nPLAYER MODE:\n$data\n"
-    )
+binding.contentMain.result.append(  
+    "\n\nPLAYER MODE:\n$data\n"  
+)
+
 }
 
-                if (
-                    !data.isNullOrBlank()
-                ) {
+if (  
+                !data.isNullOrBlank()  
+            ) {  
 
-                    binding.contentMain.urlInput
-                        .setText(data)
+                binding.contentMain.urlInput  
+                    .setText(data)  
 
-                    detectAndSaveUrl(
-                        data
-                    )
+                detectAndSaveUrl(  
+                    data  
+                )  
 
-                    binding.contentMain.webview
-                        .loadUrl(data)
+                binding.contentMain.webview  
+                    .loadUrl(data)  
 
-                    return
-                }
-            }
+                return  
+            }  
+        }  
 
-            // =====================================
-            // EXTRA STREAM
-            // =====================================
+        // =====================================  
+        // EXTRA STREAM  
+        // =====================================  
 
-            val streamUri =
-                intent?.getParcelableExtra<Uri>(
-                    Intent.EXTRA_STREAM
-                )
+        val streamUri =  
+            intent?.getParcelableExtra<Uri>(  
+                Intent.EXTRA_STREAM  
+            )  
 
-            if (streamUri != null) {
+        if (streamUri != null) {  
 
-                val url =
-                    streamUri.toString()
+            val url =  
+                streamUri.toString()  
 
-                binding.contentMain.urlInput
-                    .setText(url)
+            binding.contentMain.urlInput  
+                .setText(url)  
 
-                detectAndSaveUrl(
-                    url
-                )
+            detectAndSaveUrl(  
+                url  
+            )  
 
-                binding.contentMain.webview
-                    .loadUrl(url)
-            }
+            binding.contentMain.webview  
+                .loadUrl(url)  
+        }  
 
-        } catch (t: Throwable) {
+    } catch (t: Throwable) {  
 
-            Log.e(
-                "INTENT_HANDLER",
-                "failed",
-                t
-            )
-        }
-    }
-    
+        Log.e(  
+            "INTENT_HANDLER",  
+            "failed",  
+            t  
+        )  
+    }  
+}
+
 // =====================================
 // TEST STREAM ENGINE
 // =====================================
 
 private fun testStream(
-    url: String
+url: String
 ) {
 
-    val cleanedUrl =
-        url
-            .replace("\\u0026", "&")
-            .replace("\\/", "/")
-            .trim()
+val cleanedUrl =  
+    url  
+        .replace("\\u0026", "&")  
+        .replace("\\/", "/")  
+        .trim()  
 
-    binding.contentMain.result.append(
+binding.contentMain.result.append(  
 
-        """
+    """
 
 🧪 TESTING STREAM
 
@@ -1473,75 +1685,75 @@ $cleanedUrl
 ────────────────────
 
 """.trimIndent()
-    )
+)
 
-    // =====================================
-    // REQUEST
-    // =====================================
+// =====================================  
+// REQUEST  
+// =====================================  
 
-    val builder =
-        Request.Builder()
-            .url(cleanedUrl)
-            .get()
+val builder =  
+    Request.Builder()  
+        .url(cleanedUrl)  
+        .get()  
 
-    streamHeaders[cleanedUrl]
-        ?.forEach { (k, v) ->
+streamHeaders[cleanedUrl]  
+    ?.forEach { (k, v) ->  
 
-            builder.header(k, v)
-        }
+        builder.header(k, v)  
+    }  
 
-    builder.header(
-        "User-Agent",
-        binding.contentMain.webview
-            .settings
-            .userAgentString
-    )
+builder.header(  
+    "User-Agent",  
+    binding.contentMain.webview  
+        .settings  
+        .userAgentString  
+)  
 
-    builder.header(
-        "Referer",
-        binding.contentMain.webview.url
-            ?: cleanedUrl
-    )
+builder.header(  
+    "Referer",  
+    binding.contentMain.webview.url  
+        ?: cleanedUrl  
+)  
 
-    builder.header(
-        "Origin",
-        binding.contentMain.webview.url
-            ?: cleanedUrl
-    )
+builder.header(  
+    "Origin",  
+    binding.contentMain.webview.url  
+        ?: cleanedUrl  
+)  
 
-    builder.header(
-        "Accept",
-        "*/*"
-    )
+builder.header(  
+    "Accept",  
+    "*/*"  
+)  
 
-    builder.header(
-        "Connection",
-        "keep-alive"
-    )
+builder.header(  
+    "Connection",  
+    "keep-alive"  
+)  
 
-    val request =
-        builder.build()
+val request =  
+    builder.build()  
 
-    // =====================================
-    // EXECUTE
-    // =====================================
+// =====================================  
+// EXECUTE  
+// =====================================  
 
-    okHttpClient
-        .newCall(request)
-        .enqueue(
+okHttpClient  
+    .newCall(request)  
+    .enqueue(  
 
-            object : Callback {
+        object : Callback {  
 
-                override fun onFailure(
-                    call: Call,
-                    e: IOException
-                ) {
+            override fun onFailure(  
+                call: Call,  
+                e: IOException  
+            ) {  
 
-                    runOnUiThread {
+                runOnUiThread {  
 
-                        binding.contentMain.result.append(
+                    binding.contentMain.result.append(  
 
-                            """
+                        """
 
 ❌ TEST FAILED
 
@@ -1554,64 +1766,64 @@ ${e.message}
 ────────────────────
 
 """.trimIndent()
-                        )
-                    }
-                }
+)
+}
+}
 
-                override fun onResponse(
-                    call: Call,
-                    response: Response
-                ) {
+override fun onResponse(  
+                call: Call,  
+                response: Response  
+            ) {  
 
-                    try {
+                try {  
 
-                        val code =
-                            response.code
+                    val code =  
+                        response.code  
 
-                        val contentType =
-                            response.header(
-                                "Content-Type"
-                            ).orEmpty()
+                    val contentType =  
+                        response.header(  
+                            "Content-Type"  
+                        ).orEmpty()  
 
-                        val contentLength =
-                            response.header(
-                                "Content-Length"
-                            ).orEmpty()
+                    val contentLength =  
+                        response.header(  
+                            "Content-Length"  
+                        ).orEmpty()  
 
-                        val location =
-                            response.header(
-                                "Location"
-                            ).orEmpty()
+                    val location =  
+                        response.header(  
+                            "Location"  
+                        ).orEmpty()  
 
-                        val server =
-                            response.header(
-                                "Server"
-                            ).orEmpty()
+                    val server =  
+                        response.header(  
+                            "Server"  
+                        ).orEmpty()  
 
-                        val finalStatus =
-                            when {
+                    val finalStatus =  
+                        when {  
 
-                                code in 200..299 ->
-                                    "✅ STREAM OK"
+                            code in 200..299 ->  
+                                "✅ STREAM OK"  
 
-                                code in 300..399 ->
-                                    "↪ REDIRECT"
+                            code in 300..399 ->  
+                                "↪ REDIRECT"  
 
-                                code == 403 ->
-                                    "🔒 FORBIDDEN"
+                            code == 403 ->  
+                                "🔒 FORBIDDEN"  
 
-                                code == 404 ->
-                                    "❌ NOT FOUND"
+                            code == 404 ->  
+                                "❌ NOT FOUND"  
 
-                                else ->
-                                    "⚠ RESPONSE RECEIVED"
-                            }
+                            else ->  
+                                "⚠ RESPONSE RECEIVED"  
+                        }  
 
-                        runOnUiThread {
+                    runOnUiThread {  
 
-                            binding.contentMain.result.append(
+                        binding.contentMain.result.append(  
 
-                                """
+                            """
 
 $finalStatus
 
@@ -1636,22 +1848,22 @@ ${streamHeaders[cleanedUrl]}
 ────────────────────
 
 """.trimIndent()
-                            )
-                        }
+)
+}
 
-                    } catch (t: Throwable) {
+} catch (t: Throwable) {  
 
-                        Log.e(
-                            "STREAM_TEST",
-                            "parse failed",
-                            t
-                        )
+                    Log.e(  
+                        "STREAM_TEST",  
+                        "parse failed",  
+                        t  
+                    )  
 
-                        runOnUiThread {
+                    runOnUiThread {  
 
-                            binding.contentMain.result.append(
+                        binding.contentMain.result.append(  
 
-                                """
+                            """
 
 ❌ PARSE FAILED
 
@@ -1660,16 +1872,17 @@ ${t.message}
 ────────────────────
 
 """.trimIndent()
-                            )
-                        }
+)
+}
 
-                    } finally {
+} finally {  
 
-                        response.close()
-                    }
-                }
-            }
-        )
+                    response.close()  
+                }  
+            }  
+        }  
+    )
+
 }
 
 // =====================================
@@ -1677,289 +1890,289 @@ ${t.message}
 // =====================================
 
 private fun detectAndSaveUrl(
-    url: String
+url: String
 ) {
 
-    Log.e(
-        "MEDIA_DETECT",
-        url
-    )
+Log.e(  
+    "MEDIA_DETECT",  
+    url  
+)  
 
-    val cleanedUrl =
-        url
-            .replace("\\u0026", "&")
-            .replace("\\/", "/")
-            .trim()
+val cleanedUrl =  
+    url  
+        .replace("\\u0026", "&")  
+        .replace("\\/", "/")  
+        .trim()  
 
-    val lower =
-        cleanedUrl.lowercase()
+val lower =  
+    cleanedUrl.lowercase()  
 
-    // =====================================
-    // MEDIA TYPES
-    // =====================================
+// =====================================  
+// MEDIA TYPES  
+// =====================================  
 
-    val isVideo =
-        lower.contains(".m3u") ||
-        lower.contains(".m3u8") ||
-        lower.contains(".mpd") ||
-        lower.contains(".m4s") ||
-        lower.endsWith(".ts") ||
-        lower.contains(".ts?") ||
-        lower.contains(".mp4") ||
-        lower.contains(".webm") ||
-        lower.contains(".mkv") ||
-        lower.contains("playlist") ||
-        lower.contains("chunklist")
+val isVideo =  
+    lower.contains(".m3u") ||  
+    lower.contains(".m3u8") ||  
+    lower.contains(".mpd") ||  
+    lower.contains(".m4s") ||  
+    lower.endsWith(".ts") ||  
+    lower.contains(".ts?") ||  
+    lower.contains(".mp4") ||  
+    lower.contains(".webm") ||  
+    lower.contains(".mkv") ||  
+    lower.contains("playlist") ||  
+    lower.contains("chunklist")  
 
-    val isImage =
-        lower.contains(".jpg") ||
-        lower.contains(".jpeg") ||
-        lower.contains(".png") ||
-        lower.contains(".webp") ||
-        lower.contains(".gif") ||
-        lower.contains(".bmp") ||
-        lower.contains(".svg") ||
-        lower.contains(".ico")
+val isImage =  
+    lower.contains(".jpg") ||  
+    lower.contains(".jpeg") ||  
+    lower.contains(".png") ||  
+    lower.contains(".webp") ||  
+    lower.contains(".gif") ||  
+    lower.contains(".bmp") ||  
+    lower.contains(".svg") ||  
+    lower.contains(".ico")  
 
-    val isAudio =
-        lower.contains(".mp3") ||
-        lower.contains(".m4a") ||
-        lower.contains(".aac") ||
-        lower.contains(".opus") ||
-        lower.contains(".wav") ||
-        lower.contains(".ogg") ||
-        lower.contains(".flac")
+val isAudio =  
+    lower.contains(".mp3") ||  
+    lower.contains(".m4a") ||  
+    lower.contains(".aac") ||  
+    lower.contains(".opus") ||  
+    lower.contains(".wav") ||  
+    lower.contains(".ogg") ||  
+    lower.contains(".flac")  
 
-    // =====================================
-    // SEGMENTS
-    // =====================================
+// =====================================  
+// SEGMENTS  
+// =====================================  
 
-    val isSegmentTs =
-    (
-        lower.endsWith(".ts") ||
-        lower.contains(".ts?") ||
-        lower.endsWith(".m4s") ||
-        lower.contains(".m4s?")
-    ) &&
-    (
-        lower.contains("seg") ||
-        lower.contains("chunk") ||
-        lower.contains("frag") ||
-        lower.contains("segment")
-    )
+val isSegmentTs =  
+(  
+    lower.endsWith(".ts") ||  
+    lower.contains(".ts?") ||  
+    lower.endsWith(".m4s") ||  
+    lower.contains(".m4s?")  
+) &&  
+(  
+    lower.contains("seg") ||  
+    lower.contains("chunk") ||  
+    lower.contains("frag") ||  
+    lower.contains("segment")  
+)  
 
-    // =====================================
-    // MASTER STREAM
-    // =====================================
+// =====================================  
+// MASTER STREAM  
+// =====================================  
 
-    val isMasterStream =
-        lower.contains(".m3u8") ||
-        lower.contains(".mpd") ||
-        lower.contains("master")
+val isMasterStream =  
+    lower.contains(".m3u8") ||  
+    lower.contains(".mpd") ||  
+    lower.contains("master")  
 
-    // =====================================
-    // GARBAGE FILTER
-    // =====================================
+// =====================================  
+// GARBAGE FILTER  
+// =====================================  
 
-    val isGarbage =
-        lower.contains("doubleclick") ||
-        lower.contains("googleads") ||
-        lower.contains("analytics") ||
-        lower.contains("facebook") ||
-        lower.contains("tracker") ||
-        lower.contains("adsystem") ||
-        lower.contains(".css") ||
-        lower.contains(".js") ||
-        lower.contains("favicon") ||
-        lower.contains("logo") ||
-        lower.contains("banner") ||
-        lower.contains("recaptcha") ||
-        lower.contains("gstatic")
+val isGarbage =  
+    lower.contains("doubleclick") ||  
+    lower.contains("googleads") ||  
+    lower.contains("analytics") ||  
+    lower.contains("facebook") ||  
+    lower.contains("tracker") ||  
+    lower.contains("adsystem") ||  
+    lower.contains(".css") ||  
+    lower.contains(".js") ||  
+    lower.contains("favicon") ||  
+    lower.contains("logo") ||  
+    lower.contains("banner") ||  
+    lower.contains("recaptcha") ||  
+    lower.contains("gstatic")  
 
-    if (isSegmentTs) {
-        return
+if (isSegmentTs) {  
+    return  
+}  
+
+if (isGarbage) {  
+    return  
+}  
+
+if (  
+    !isVideo &&  
+    !isImage &&  
+    !isAudio  
+) {  
+    return  
+}  
+
+// =====================================  
+// DUPLICATES  
+// =====================================  
+
+if (  
+    detectedStreams.contains(cleanedUrl)  
+) {  
+    return  
+}  
+
+detectedStreams.add(cleanedUrl)  
+
+if (isVideo) {  
+    detectedVideos.add(cleanedUrl)  
+}  
+
+if (isImage) {  
+    detectedImages.add(cleanedUrl)  
+}  
+
+if (isAudio) {  
+    detectedAudio.add(cleanedUrl)  
+}  
+
+if (isMasterStream) {  
+    detectedMasterStreams.add(cleanedUrl)  
+}  
+
+// =====================================  
+// QUALITY  
+// =====================================  
+
+val streamQuality =  
+    when {  
+
+        lower.contains("2160p") ||  
+        lower.contains("4k") ->  
+            "4K"  
+
+        lower.contains("1440p") ->  
+            "1440p"  
+
+        lower.contains("1080p") ->  
+            "1080p"  
+
+        lower.contains("900p") ->  
+            "900p"  
+
+        lower.contains("720p") ->  
+            "720p"  
+
+        lower.contains("540p") ->  
+            "540p"  
+
+        lower.contains("480p") ->  
+            "480p"  
+
+        lower.contains("360p") ->  
+            "360p"  
+
+        lower.contains("240p") ->  
+            "240p"  
+
+        lower.contains("144p") ->  
+            "144p"  
+
+        lower.contains("hevc") ||  
+        lower.contains("h265") ->  
+            "HEVC"  
+
+        lower.contains("av1") ->  
+            "AV1"  
+
+        lower.contains("hdr") ->  
+            "HDR"  
+
+        lower.contains("aac") ->  
+            "AAC"  
+
+        lower.contains("ac3") ->  
+            "AC3"  
+
+        lower.contains("opus") ->  
+            "OPUS"  
+
+        lower.contains("/audio/") ->  
+            "AUDIO"  
+
+        lower.contains("chunklist") ->  
+            "ADAPTIVE"  
+
+        else ->  
+            "AUTO"  
+    }  
+
+// =====================================  
+// BADGES  
+// =====================================  
+
+val streamBadge =  
+    when {  
+
+        lower.contains(".m3u8") ->  
+            "📺 HLS"  
+
+        lower.contains(".mpd") ->  
+            "📡 DASH"  
+
+        isVideo ->  
+            "🎬 VIDEO"  
+
+        isImage ->  
+            "🖼 IMAGE"  
+
+        isAudio ->  
+            "🎵 AUDIO"  
+
+        else ->  
+            "📦 MEDIA"  
+    }  
+
+val securityBadge =  
+    when {  
+
+        lower.contains("token") ||  
+        lower.contains("signature") ||  
+        lower.contains("expires") ||  
+        lower.contains("policy") ->  
+            " 🔒 SIGNED"  
+
+        else ->  
+            ""  
+    }  
+
+val segmentBadge =  
+    if (isSegmentTs)  
+        " 🧩 SEGMENT"  
+    else  
+        ""  
+
+val cdnType =  
+    when {  
+
+        lower.contains("cloudfront") ->  
+            "CloudFront"  
+
+        lower.contains("akamai") ->  
+            "Akamai"  
+
+        lower.contains("cloudflare") ->  
+            "Cloudflare"  
+
+        lower.contains("bunny") ->  
+            "Bunny"  
+
+        lower.contains("broadpeak") ->  
+            "Broadpeak"  
+
+        else ->  
+            "Generic CDN"  
     }
-
-    if (isGarbage) {
-        return
-    }
-
-    if (
-        !isVideo &&
-        !isImage &&
-        !isAudio
-    ) {
-        return
-    }
-
-    // =====================================
-    // DUPLICATES
-    // =====================================
-
-    if (
-        detectedStreams.contains(cleanedUrl)
-    ) {
-        return
-    }
-
-    detectedStreams.add(cleanedUrl)
-
-    if (isVideo) {
-        detectedVideos.add(cleanedUrl)
-    }
-
-    if (isImage) {
-        detectedImages.add(cleanedUrl)
-    }
-
-    if (isAudio) {
-        detectedAudio.add(cleanedUrl)
-    }
-
-    if (isMasterStream) {
-        detectedMasterStreams.add(cleanedUrl)
-    }
-
-    // =====================================
-    // QUALITY
-    // =====================================
-
-    val streamQuality =
-        when {
-
-            lower.contains("2160p") ||
-            lower.contains("4k") ->
-                "4K"
-
-            lower.contains("1440p") ->
-                "1440p"
-
-            lower.contains("1080p") ->
-                "1080p"
-
-            lower.contains("900p") ->
-                "900p"
-
-            lower.contains("720p") ->
-                "720p"
-
-            lower.contains("540p") ->
-                "540p"
-
-            lower.contains("480p") ->
-                "480p"
-
-            lower.contains("360p") ->
-                "360p"
-
-            lower.contains("240p") ->
-                "240p"
-
-            lower.contains("144p") ->
-                "144p"
-
-            lower.contains("hevc") ||
-            lower.contains("h265") ->
-                "HEVC"
-
-            lower.contains("av1") ->
-                "AV1"
-
-            lower.contains("hdr") ->
-                "HDR"
-
-            lower.contains("aac") ->
-                "AAC"
-
-            lower.contains("ac3") ->
-                "AC3"
-
-            lower.contains("opus") ->
-                "OPUS"
-
-            lower.contains("/audio/") ->
-                "AUDIO"
-
-            lower.contains("chunklist") ->
-                "ADAPTIVE"
-
-            else ->
-                "AUTO"
-        }
-
-    // =====================================
-    // BADGES
-    // =====================================
-
-    val streamBadge =
-        when {
-
-            lower.contains(".m3u8") ->
-                "📺 HLS"
-
-            lower.contains(".mpd") ->
-                "📡 DASH"
-
-            isVideo ->
-                "🎬 VIDEO"
-
-            isImage ->
-                "🖼 IMAGE"
-
-            isAudio ->
-                "🎵 AUDIO"
-
-            else ->
-                "📦 MEDIA"
-        }
-
-    val securityBadge =
-        when {
-
-            lower.contains("token") ||
-            lower.contains("signature") ||
-            lower.contains("expires") ||
-            lower.contains("policy") ->
-                " 🔒 SIGNED"
-
-            else ->
-                ""
-        }
-
-    val segmentBadge =
-        if (isSegmentTs)
-            " 🧩 SEGMENT"
-        else
-            ""
-
-    val cdnType =
-        when {
-
-            lower.contains("cloudfront") ->
-                "CloudFront"
-
-            lower.contains("akamai") ->
-                "Akamai"
-
-            lower.contains("cloudflare") ->
-                "Cloudflare"
-
-            lower.contains("bunny") ->
-                "Bunny"
-
-            lower.contains("broadpeak") ->
-                "Broadpeak"
-
-            else ->
-                "Generic CDN"
-        }
 
 // =====================================
 // SAVE LAST URL
 // =====================================
 
 lastSelectedUrl =
-    cleanedUrl
+cleanedUrl
 
 // =====================================
 // UI OUTPUT
@@ -1967,118 +2180,118 @@ lastSelectedUrl =
 
 runOnUiThread {
 
-    // NO AUTO REFRESH
-}
+// NO AUTO REFRESH
 
-} // <- ΚΛΕΙΝΕΙ detectAndSaveUrl()
+}
 
 // =====================================
 // BUILD MEDIA LABEL
 // =====================================
 
 private fun buildMediaLabel(
-    url: String
+url: String
 ): String {
 
-    val lower =
-        url.lowercase()
+val lower =  
+    url.lowercase()  
 
-    val streamQuality =
-        when {
+val streamQuality =  
+    when {  
 
-            lower.contains("2160") ||
-            lower.contains("4k") ->
-                "4K"
+        lower.contains("2160") ||  
+        lower.contains("4k") ->  
+            "4K"  
 
-            lower.contains("1440") ->
-                "1440p"
+        lower.contains("1440") ->  
+            "1440p"  
 
-            lower.contains("1080") ->
-                "1080p"
+        lower.contains("1080") ->  
+            "1080p"  
 
-            lower.contains("900") ->
-                "900p"
+        lower.contains("900") ->  
+            "900p"  
 
-            lower.contains("720") ->
-                "720p"
+        lower.contains("720") ->  
+            "720p"  
 
-            lower.contains("540") ->
-                "540p"
+        lower.contains("540") ->  
+            "540p"  
 
-            lower.contains("480") ->
-                "480p"
+        lower.contains("480") ->  
+            "480p"  
 
-            lower.contains("360") ->
-                "360p"
+        lower.contains("360") ->  
+            "360p"  
 
-            lower.contains("240") ->
-                "240p"
+        lower.contains("240") ->  
+            "240p"  
 
-            lower.contains("144") ->
-                "144p"
+        lower.contains("144") ->  
+            "144p"  
 
-            lower.contains("hevc") ||
-            lower.contains("h265") ->
-                "HEVC"
+        lower.contains("hevc") ||  
+        lower.contains("h265") ->  
+            "HEVC"  
 
-            lower.contains("av1") ->
-                "AV1"
+        lower.contains("av1") ->  
+            "AV1"  
 
-            lower.contains("/audio/") ->
-                "AUDIO"
+        lower.contains("/audio/") ->  
+            "AUDIO"  
 
-            else ->
-                "AUTO"
-        }
+        else ->  
+            "AUTO"  
+    }  
 
-    val cdnType =
-        when {
+val cdnType =  
+    when {  
 
-            lower.contains("cloudfront") ->
-                "CloudFront"
+        lower.contains("cloudfront") ->  
+            "CloudFront"  
 
-            lower.contains("akamai") ->
-                "Akamai"
+        lower.contains("akamai") ->  
+            "Akamai"  
 
-            lower.contains("cloudflare") ->
-                "Cloudflare"
+        lower.contains("cloudflare") ->  
+            "Cloudflare"  
 
-            lower.contains("bunny") ->
-                "Bunny"
+        lower.contains("bunny") ->  
+            "Bunny"  
 
-            lower.contains("broadpeak") ->
-                "Broadpeak"
+        lower.contains("broadpeak") ->  
+            "Broadpeak"  
 
-            else ->
-                "Generic CDN"
-        }
+        else ->  
+            "Generic CDN"  
+    }  
 
-    val badge =
-        when {
+val badge =  
+    when {  
 
-            lower.contains(".m3u8") ->
-                "📺 HLS"
+        lower.contains(".m3u8") ->  
+            "📺 HLS"  
 
-            lower.contains(".mpd") ->
-                "📡 DASH"
+        lower.contains(".mpd") ->  
+            "📡 DASH"  
 
-            lower.contains(".jpg") ||
-            lower.contains(".jpeg") ||
-            lower.contains(".png") ||
-            lower.contains(".webp") ||
-            lower.contains(".gif") ->
-                "🖼 IMAGE"
+        lower.contains(".jpg") ||  
+        lower.contains(".jpeg") ||  
+        lower.contains(".png") ||  
+        lower.contains(".webp") ||  
+        lower.contains(".gif") ->  
+            "🖼 IMAGE"  
 
-            lower.contains(".mp3") ||
-            lower.contains(".aac") ||
-            lower.contains(".m4a") ->
-                "🎵 AUDIO"
+        lower.contains(".mp3") ||  
+        lower.contains(".aac") ||  
+        lower.contains(".m4a") ->  
+            "🎵 AUDIO"  
 
-            else ->
-                "🎬 VIDEO"
-        }
+        else ->  
+            "🎬 VIDEO"  
+    }  
 
-    return "$badge [$streamQuality] [$cdnType]"
+return "$badge [$streamQuality] [$cdnType]"
+
 }
 
 // =====================================
@@ -2087,67 +2300,68 @@ private fun buildMediaLabel(
 
 private fun showAllMedia() {
 
-    val sb = StringBuilder()
+val sb = StringBuilder()  
 
-    // =====================================
-    // VIDEOS
-    // =====================================
+// =====================================  
+// VIDEOS  
+// =====================================  
 
-    detectedVideos.forEach { url ->
+detectedVideos.forEach { url ->  
 
-        sb.append(
-            buildMediaLabel(url)
-        )
+    sb.append(  
+        buildMediaLabel(url)  
+    )  
 
-        sb.append("\n\n")
+    sb.append("\n\n")  
 
-        sb.append(url)
+    sb.append(url)  
 
-        sb.append(
-            "\n\n────────────────────\n\n"
-        )
-    }
+    sb.append(  
+        "\n\n────────────────────\n\n"  
+    )  
+}  
 
-    // =====================================
-    // AUDIO
-    // =====================================
+// =====================================  
+// AUDIO  
+// =====================================  
 
-    detectedAudio.forEach { url ->
+detectedAudio.forEach { url ->  
 
-        sb.append(
-            buildMediaLabel(url)
-        )
+    sb.append(  
+        buildMediaLabel(url)  
+    )  
 
-        sb.append("\n\n")
+    sb.append("\n\n")  
 
-        sb.append(url)
+    sb.append(url)  
 
-        sb.append(
-            "\n\n────────────────────\n\n"
-        )
-    }
+    sb.append(  
+        "\n\n────────────────────\n\n"  
+    )  
+}  
 
-    // =====================================
-    // IMAGES
-    // =====================================
+// =====================================  
+// IMAGES  
+// =====================================  
 
-    detectedImages.forEach { url ->
+detectedImages.forEach { url ->  
 
-        sb.append(
-            buildMediaLabel(url)
-        )
+    sb.append(  
+        buildMediaLabel(url)  
+    )  
 
-        sb.append("\n\n")
+    sb.append("\n\n")  
 
-        sb.append(url)
+    sb.append(url)  
 
-        sb.append(
-            "\n\n────────────────────\n\n"
-        )
-    }
+    sb.append(  
+        "\n\n────────────────────\n\n"  
+    )  
+}  
 
-    binding.contentMain.result.text =
-        sb.toString()
+binding.contentMain.result.text =  
+    sb.toString()
+
 }
 
 // =====================================
@@ -2156,25 +2370,26 @@ private fun showAllMedia() {
 
 private fun showVideos() {
 
-    val sb = StringBuilder()
+val sb = StringBuilder()  
 
-    detectedVideos.forEach { url ->
+detectedVideos.forEach { url ->  
 
-        sb.append(
-            buildMediaLabel(url)
-        )
+    sb.append(  
+        buildMediaLabel(url)  
+    )  
 
-        sb.append("\n\n")
+    sb.append("\n\n")  
 
-        sb.append(url)
+    sb.append(url)  
 
-        sb.append(
-            "\n\n────────────────────\n\n"
-        )
-    }
+    sb.append(  
+        "\n\n────────────────────\n\n"  
+    )  
+}  
 
-    binding.contentMain.result.text =
-        sb.toString()
+binding.contentMain.result.text =  
+    sb.toString()
+
 }
 
 // =====================================
@@ -2183,25 +2398,26 @@ private fun showVideos() {
 
 private fun showImages() {
 
-    val sb = StringBuilder()
+val sb = StringBuilder()  
 
-    detectedImages.forEach { url ->
+detectedImages.forEach { url ->  
 
-        sb.append(
-            buildMediaLabel(url)
-        )
+    sb.append(  
+        buildMediaLabel(url)  
+    )  
 
-        sb.append("\n\n")
+    sb.append("\n\n")  
 
-        sb.append(url)
+    sb.append(url)  
 
-        sb.append(
-            "\n\n────────────────────\n\n"
-        )
-    }
+    sb.append(  
+        "\n\n────────────────────\n\n"  
+    )  
+}  
 
-    binding.contentMain.result.text =
-        sb.toString()
+binding.contentMain.result.text =  
+    sb.toString()
+
 }
 
 // =====================================
@@ -2210,25 +2426,26 @@ private fun showImages() {
 
 private fun showAudio() {
 
-    val sb = StringBuilder()
+val sb = StringBuilder()  
 
-    detectedAudio.forEach { url ->
+detectedAudio.forEach { url ->  
 
-        sb.append(
-            buildMediaLabel(url)
-        )
+    sb.append(  
+        buildMediaLabel(url)  
+    )  
 
-        sb.append("\n\n")
+    sb.append("\n\n")  
 
-        sb.append(url)
+    sb.append(url)  
 
-        sb.append(
-            "\n\n────────────────────\n\n"
-        )
-    }
+    sb.append(  
+        "\n\n────────────────────\n\n"  
+    )  
+}  
 
-    binding.contentMain.result.text =
-        sb.toString()
+binding.contentMain.result.text =  
+    sb.toString()
+
 }
 
 // =====================================
@@ -2237,25 +2454,26 @@ private fun showAudio() {
 
 private fun showChannels() {
 
-    val sb =
-        StringBuilder()
+val sb =  
+    StringBuilder()  
 
-    detectedChannels
-        .forEach { (name, url) ->
+detectedChannels  
+    .forEach { (name, url) ->  
 
-            sb.append(
-                "📺 $name\n\n"
-            )
+        sb.append(  
+            "📺 $name\n\n"  
+        )  
 
-            sb.append(url)
+        sb.append(url)  
 
-            sb.append(
-                "\n────────────────────\n\n"
-            )
-        }
+        sb.append(  
+            "\n────────────────────\n\n"  
+        )  
+    }  
 
-    binding.contentMain.result.text =
-        sb.toString()
+binding.contentMain.result.text =  
+    sb.toString()
+
 }
 
 // =====================================
@@ -2264,265 +2482,270 @@ private fun showChannels() {
 
 private fun startStreamMonitor() {
 
-    binding.contentMain.webview.postDelayed(
+binding.contentMain.webview.postDelayed(  
 
-        object : Runnable {
+    object : Runnable {  
 
-            override fun run() {
+        override fun run() {  
 
-                try {
+            try {  
 
-                    val js = """
+                val js = """
 
 (function() {
 
-    let results = [];
+let results = [];  
 
-    document
-        .querySelectorAll("video")
-        .forEach(function(v) {
+document  
+    .querySelectorAll("video")  
+    .forEach(function(v) {  
 
-            if (v.currentSrc) {
-                results.push(v.currentSrc);
-            }
+        if (v.currentSrc) {  
+            results.push(v.currentSrc);  
+        }  
 
-            if (v.src) {
-                results.push(v.src);
-            }
-        });
+        if (v.src) {  
+            results.push(v.src);  
+        }  
+    });  
 
-    return JSON.stringify(
-        [...new Set(results)]
-    );
+return JSON.stringify(  
+    [...new Set(results)]  
+);
 
 })();
 
-                    """.trimIndent()
+""".trimIndent()  
 
-                    binding.contentMain.webview
-                        .evaluateJavascript(js) {
+                binding.contentMain.webview  
+                    .evaluateJavascript(js) {  
 
-                            value ->
+                        value ->  
 
-                            try {
+                        try {  
 
-                                val cleaned =
-                                    value
-                                        ?.replace("\\u003C", "<")
-                                        ?.replace("\\/", "/")
-                                        ?.replace("\"[", "[")
-                                        ?.replace("]\"", "]")
-                                        ?: ""
+                            val cleaned =  
+                                value  
+                                    ?.replace("\\u003C", "<")  
+                                    ?.replace("\\/", "/")  
+                                    ?.replace("\"[", "[")  
+                                    ?.replace("]\"", "]")  
+                                    ?: ""  
 
-                                val arr =
-                                    org.json.JSONArray(cleaned)
+                            val arr =  
+                                org.json.JSONArray(cleaned)  
 
-                                for (i in 0 until arr.length()) {
+                            for (i in 0 until arr.length()) {  
 
-                                    detectAndSaveUrl(
-                                        arr.getString(i)
-                                    )
-                                }
+                                detectAndSaveUrl(  
+                                    arr.getString(i)  
+                                )  
+                            }  
 
-                            } catch (_: Throwable) {}
-                        }
+                        } catch (_: Throwable) {}  
+                    }  
 
-                } catch (_: Throwable) {}
+            } catch (_: Throwable) {}  
 
-                binding.contentMain.webview
-    .postDelayed(
-        this,
-        10000
-    )
-            }
+            binding.contentMain.webview  
+.postDelayed(  
+    this,  
+    10000  
+)  
+        }  
 
-        },
-        4000
-    )
+    },  
+    4000  
+)
+
 }
 
-    // =====================================
-    // MENU
-    // =====================================
+// =====================================  
+// MENU  
+// =====================================  
 
-    override fun onCreateOptionsMenu(
-        menu: Menu
-    ): Boolean {
+override fun onCreateOptionsMenu(  
+    menu: Menu  
+): Boolean {  
 
-        menuInflater.inflate(
-            R.menu.menu_main,
-            menu
-        )
+    menuInflater.inflate(  
+        R.menu.menu_main,  
+        menu  
+    )  
 
-        return true
-    }
+    return true  
+}  
 
-    override fun onOptionsItemSelected(
-        item: MenuItem
-    ): Boolean {
+override fun onOptionsItemSelected(  
+    item: MenuItem  
+): Boolean {  
 
-        return when (item.itemId) {
+    return when (item.itemId) {  
 
-            R.id.action_settings ->
-                true
+        R.id.action_settings ->  
+            true  
 
-            else ->
-                super.onOptionsItemSelected(
-                    item
-                )
-        }
-    }
+        else ->  
+            super.onOptionsItemSelected(  
+                item  
+            )  
+    }  
+}  
 
-    // =====================================
-    // TEST REQUESTS
-    // =====================================
+// =====================================  
+// TEST REQUESTS  
+// =====================================  
 
-    fun fetchPosts(
-        view: View
-    ) {
+fun fetchPosts(  
+    view: View  
+) {  
 
-        val request =
-            Request.Builder()
-                .addHeader(
-                    "Accept-Encoding",
-                    "identity"
-                )
-                .addHeader(
-                    "Content-type",
-                    "application/json; charset=utf-8"
-                )
-                .url(
-                    "https://reqres.in/api/users?page=1&per_page=12"
-                )
-                .build()
+    val request =  
+        Request.Builder()  
+            .addHeader(  
+                "Accept-Encoding",  
+                "identity"  
+            )  
+            .addHeader(  
+                "Content-type",  
+                "application/json; charset=utf-8"  
+            )  
+            .url(  
+                "https://reqres.in/api/users?page=1&per_page=12"  
+            )  
+            .build()  
 
-        executeRequest(request)
-    }
+    executeRequest(request)  
+}  
 
-    fun fetchPostsFail(
-        view: View
-    ) {
+fun fetchPostsFail(  
+    view: View  
+) {  
 
-        val request =
-            Request.Builder()
-                .addHeader(
-                    "Accept-Encoding",
-                    "identity"
-                )
-                .addHeader(
-                    "Content-type",
-                    "application/json; charset=utf-8"
-                )
-                .url(
-                    "https://reqres.in/apii/use?page=1&per_page=12"
-                )
-                .build()
+    val request =  
+        Request.Builder()  
+            .addHeader(  
+                "Accept-Encoding",  
+                "identity"  
+            )  
+            .addHeader(  
+                "Content-type",  
+                "application/json; charset=utf-8"  
+            )  
+            .url(  
+                "https://reqres.in/apii/use?page=1&per_page=12"  
+            )  
+            .build()  
 
-        executeRequest(request)
-    }
+    executeRequest(request)  
+}  
 
-    fun createPost(
-        view: View
-    ) {
+fun createPost(  
+    view: View  
+) {  
 
-        val request =
-            Request.Builder()
-                .addHeader(
-                    "Accept-Encoding",
-                    "identity"
-                )
-                .addHeader(
-                    "Content-type",
-                    "application/json; charset=utf-8"
-                )
-                .url(
-                    "https://reqres.in/api/users"
-                )
-                .post(
-                    requestBody.toString()
-                        .toRequestBody(
-                            "application/json"
-                                .toMediaType()
-                        )
-                )
-                .build()
+    val request =  
+        Request.Builder()  
+            .addHeader(  
+                "Accept-Encoding",  
+                "identity"  
+            )  
+            .addHeader(  
+                "Content-type",  
+                "application/json; charset=utf-8"  
+            )  
+            .url(  
+                "https://reqres.in/api/users"  
+            )  
+            .post(  
+                requestBody.toString()  
+                    .toRequestBody(  
+                        "application/json"  
+                            .toMediaType()  
+                    )  
+            )  
+            .build()  
 
-        executeRequest(request)
-    }
+    executeRequest(request)  
+}  
 
-    // =====================================
-    // EXECUTE REQUEST
-    // =====================================
+// =====================================  
+// EXECUTE REQUEST  
+// =====================================  
 
-    private fun executeRequest(
-    request: Request
+private fun executeRequest(  
+request: Request
+
 ) {
 
-    okHttpClient
-        .newCall(request)
-        .enqueue(
-            object : Callback {
+okHttpClient  
+    .newCall(request)  
+    .enqueue(  
+        object : Callback {  
 
-                override fun onFailure(
-                    call: Call,
-                    e: IOException
-                ) {
+            override fun onFailure(  
+                call: Call,  
+                e: IOException  
+            ) {  
 
-                    Log.e(
-                        "MAIN",
-                        "failure ${e.message}",
-                        e
-                    )
-                }
+                Log.e(  
+                    "MAIN",  
+                    "failure ${e.message}",  
+                    e  
+                )  
+            }  
 
-                override fun onResponse(
-                    call: Call,
-                    response: Response
-                ) {
+            override fun onResponse(  
+                call: Call,  
+                response: Response  
+            ) {  
 
-                    try {
+                try {  
 
-                        if (
-    !response.isSuccessful &&
-    response.code !in 200..399
+                    if (  
+!response.isSuccessful &&  
+response.code !in 200..399
+
 ) {
-                            return
-                        }
-
-                        val text =
-                            response.body
-                                ?.string()
-                                .orEmpty()
-
-                        this@MainActivity.runOnUiThread {
-
-    if (
-        !this@MainActivity.isFinishing &&
-        !this@MainActivity.isDestroyed
-    ) {
-
-        this@MainActivity.binding
-            .contentMain
-            .result
-            .text = text
-    }
+return
 }
 
-                    } catch (t: Throwable) {
+val text =  
+                        response.body  
+                            ?.string()  
+                            .orEmpty()  
 
-                        Log.e(
-                            "MAIN",
-                            "response parse error",
-                            t
-                        )
+                    this@MainActivity.runOnUiThread {  
 
-                    } finally {
+if (  
+    !this@MainActivity.isFinishing &&  
+    !this@MainActivity.isDestroyed  
+) {  
 
-                        response.close()
-                    }
-                }
-            }
-        )
+    this@MainActivity.binding  
+        .contentMain  
+        .result  
+        .text = text  
+}
+
+}
+
+} catch (t: Throwable) {  
+
+                    Log.e(  
+                        "MAIN",  
+                        "response parse error",  
+                        t  
+                    )  
+
+                } finally {  
+
+                    response.close()  
+                }  
+            }  
+        }  
+    )
+
 }
 
 }
