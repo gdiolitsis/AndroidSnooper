@@ -2180,16 +2180,17 @@ cleanedUrl
 
 runOnUiThread {
 
-// NO AUTO REFRESH
-
+    // NO AUTO REFRESH
 }
+
+} // END detectAndSaveUrl()
 
 // =====================================
 // BUILD MEDIA LABEL
 // =====================================
 
 private fun buildMediaLabel(
-url: String
+    url: String
 ): String {
 
 val lower =  
