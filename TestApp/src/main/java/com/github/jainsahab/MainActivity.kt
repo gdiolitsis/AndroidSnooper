@@ -3163,6 +3163,15 @@ private fun autoValidateStream(
 
                         streamValidation[url] =
                             "❌ DEAD"
+
+                        runOnUiThread {
+
+                            try {
+
+                                showAllMedia()
+
+                            } catch (_: Throwable) {}
+                        }
                     }
 
                     override fun onResponse(
@@ -3202,35 +3211,45 @@ private fun autoValidateStream(
                                         "🟡 PARTIAL"
                                 }
 
-streamValidation[url] =
-    result
+                            streamValidation[url] =
+                                result
 
-runOnUiThread {
+                            runOnUiThread {
 
-    try {
+                                try {
 
-        showAllMedia()
+                                    showAllMedia()
 
-    } catch (_: Throwable) {}
-}
+                                } catch (_: Throwable) {}
+                            }
 
-} catch (_: Throwable) {
+                        } catch (_: Throwable) {
 
-    streamValidation[url] =
-        "⚠ ERROR"
+                            streamValidation[url] =
+                                "⚠ ERROR"
 
-    runOnUiThread {
+                            runOnUiThread {
 
-        try {
+                                try {
 
-            showAllMedia()
+                                    showAllMedia()
 
-        } catch (_: Throwable) {}
+                                } catch (_: Throwable) {}
+                            }
+
+                        } finally {
+
+                            response.close()
+                        }
+                    }
+                }
+            )
+
+    } catch (_: Throwable) {
+
+        streamValidation[url] =
+            "⚠ ERROR"
     }
-
-} finally {
-
-    response.close()
 }
 
 // =====================================
