@@ -207,6 +207,10 @@ binding.root
 
 )
 
+window.setSoftInputMode(
+    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+)
+
 binding.contentMain.result.isVerticalScrollBarEnabled = true
 
 binding.contentMain.result.movementMethod =
