@@ -4803,9 +4803,9 @@ return JSON.stringify(
 """.trimIndent()
 
                     binding.contentMain.webview
-                        .evaluateJavascript(js) {
-
-                            value ->
+    .evaluateJavascript(
+        js
+    ) { value ->
 
                             try {
 
