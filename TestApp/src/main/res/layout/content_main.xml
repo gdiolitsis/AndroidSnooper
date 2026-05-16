@@ -87,7 +87,7 @@
                 android:id="@+id/shareStreams"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="MULTI SHARE" />
+                android:text="COPY/SHARE" />
 
             <Button
                 android:id="@+id/exportM3u"
