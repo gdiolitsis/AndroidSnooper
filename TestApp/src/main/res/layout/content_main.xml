@@ -59,41 +59,51 @@
     <!-- PLAYER ACTIONS -->
     <!-- ===================================== -->
 
-    <LinearLayout
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="4">
+        android:fillViewport="true"
+        android:scrollbars="none">
 
-        <Button
-            android:id="@+id/openPlayer"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="OPEN WITH EXTERNAL PLAYER" />
+            android:orientation="horizontal"
+            android:weightSum="5">
 
-        <Button
-            android:id="@+id/testStream"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="TEST STREAM" />
+            <Button
+                android:id="@+id/openPlayer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OPEN PLAYER" />
 
-        <Button
-            android:id="@+id/shareStream"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="SHARE STREAMS" />
+            <Button
+                android:id="@+id/testStream"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TEST STREAM" />
 
-        <Button
-            android:id="@+id/exportM3u"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="EXPORT M3U" />
+            <Button
+                android:id="@+id/shareStream"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SHARE ALL" />
 
-    </LinearLayout>
+            <Button
+                android:id="@+id/shareStreams"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MULTI SHARE" />
+
+            <Button
+                android:id="@+id/exportM3u"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="EXPORT M3U" />
+
+        </LinearLayout>
+
+    </HorizontalScrollView>
 
     <!-- ===================================== -->
     <!-- FILTER BUTTONS -->
