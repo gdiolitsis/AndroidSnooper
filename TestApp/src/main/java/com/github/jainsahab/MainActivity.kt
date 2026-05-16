@@ -162,10 +162,8 @@ private val requestBody: JSONObject
 // OKHTTP  
 // =====================================  
 
-private val okHttpClient:  
-        OkHttpClient  
-
-    get() {  
+private val okHttpClient: OkHttpClient
+    get() {
 
         val builder =  
             OkHttpClient.Builder()  
