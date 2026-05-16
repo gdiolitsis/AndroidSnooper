@@ -3277,23 +3277,6 @@ streamScores[cleanedUrl] =
     streamPriority
 
 // =====================================
-// SORT STREAMS
-// =====================================
-
-val sortedStreams =
-    detectedStreams
-        .sortedByDescending {
-
-            streamScores[it] ?: 0
-        }
-
-detectedStreams.clear()
-
-detectedStreams.addAll(
-    sortedStreams
-)
-
-// =====================================
 // AUTO VALIDATE STREAM
 // =====================================
 
