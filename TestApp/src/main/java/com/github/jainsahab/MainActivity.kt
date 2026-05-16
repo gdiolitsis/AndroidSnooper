@@ -8282,6 +8282,8 @@ runOnUiThread {
     // NO AUTO REFRESH
 }
 
+}
+
 } // END detectAndSaveUrl()
 
 // =====================================
