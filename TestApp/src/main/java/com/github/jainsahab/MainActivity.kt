@@ -3455,7 +3455,26 @@ val cdnType =
 // =====================================
 
 lastSelectedUrl =
-cleanedUrl
+    cleanedUrl
+
+// =====================================
+// UI OUTPUT
+// =====================================
+
+runOnUiThread {
+
+    binding.contentMain.result.append(
+        """
+
+$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge
+
+$cleanedUrl
+
+────────────────────
+
+""".trimIndent()
+    )
+}
 
 } // END detectAndSaveUrl()
 
