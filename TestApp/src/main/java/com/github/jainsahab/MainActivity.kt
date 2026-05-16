@@ -5002,19 +5002,18 @@ val text =
                             ?.string()  
                             .orEmpty()  
 
-                    this@MainActivity.runOnUiThread {  
+                    runOnUiThread {
 
-if (  
-    !this@MainActivity.isFinishing &&  
-    !this@MainActivity.isDestroyed  
-) {  
+    if (
+        !isFinishing &&
+        !isDestroyed
+    ) {
 
-    this@MainActivity.binding
-    .contentMain
-    .result
-    .setText(text)
-}
-
+        binding
+            .contentMain
+            .result
+            .setText(text)
+    }
 }
 
 } catch (t: Throwable) {  
