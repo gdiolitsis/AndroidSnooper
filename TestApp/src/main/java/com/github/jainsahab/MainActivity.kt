@@ -3906,6 +3906,7 @@ val channel =
 
 return "$channel$quality"
     .trim()
+    }
 
 // =====================================
 // BUILD STREAM TYPE
