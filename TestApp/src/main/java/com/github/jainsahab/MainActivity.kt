@@ -6278,17 +6278,26 @@ sortedStreams.addAll(
 // AUDIO  
 // =====================================  
 
-sortedStreams.addAll(  
-    detectedAudio  
-)  
+binding.contentMain.shareStreams.setOnClickListener {
 
-// =====================================
-// IMAGES
-// =====================================
+val sortedStreams =
+    mutableListOf<String>()
+
+sortedStreams.addAll(
+    detectedVideos
+)
+
+sortedStreams.addAll(
+    detectedAudio
+)
 
 sortedStreams.addAll(
     detectedImages
 )
+
+// =====================================
+// SHARE STREAMS DIALOG
+// =====================================
 
 val streamList =
     sortedStreams.toTypedArray()
@@ -6507,6 +6516,7 @@ dialog.getButton(
             Toast.LENGTH_SHORT
         ).show()
     }
+}
 }
 
 // =====================================
