@@ -9821,18 +9821,18 @@ return JSON.stringify(
                         } catch (_: Throwable) {}  
                     }  
 
-            } catch (_: Throwable) {}  
+            } catch (_: Throwable) {}
 
-            binding.contentMain.webview  
-.postDelayed(  
-    this,  
-    4000  
-)  
-        }  
+            binding.contentMain.webview
+                .postDelayed(
+                    this,
+                    4000
+                )
+        }
 
-    },  
-    4000  
-)
+    }
+
+}, 4000)
 
 }
 
