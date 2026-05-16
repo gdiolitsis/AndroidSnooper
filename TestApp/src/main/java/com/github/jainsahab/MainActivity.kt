@@ -4771,7 +4771,7 @@ try {
                     v.src.startsWith("blob:")
                 ) {
 
-                    results.push(v.src);
+                    results.push(v.src)
 
                     console.log(
                         "GEL_BLOB_VIDEO:",
@@ -4831,19 +4831,12 @@ binding.contentMain.webview.evaluateJavascript(
 
     } catch (_: Throwable) {
     }
+
+    binding.contentMain.webview.postDelayed(
+        this,
+        4000
+    )
 }
-
-            } catch (_: Throwable) {
-            }
-
-            binding.contentMain.webview.postDelayed(
-                this,
-                4000
-            )
-        }
-    }
-
-}, 4000)
 
 }
 
