@@ -4776,7 +4776,7 @@ try {
                     console.log(
                         "GEL_BLOB_VIDEO:",
                         v.src
-                    );
+                    )
                 }
 
                 if (
@@ -4784,67 +4784,66 @@ try {
                     v.currentSrc.startsWith("blob:")
                 ) {
 
-                    results.push(v.currentSrc);
+                    results.push(v.currentSrc)
 
                     console.log(
                         "GEL_BLOB_CURRENT:",
                         v.currentSrc
-                    );
+                    )
                 }
 
             } catch(e) {}
-        });
+        })
 
 } catch(e) {}
 
 return JSON.stringify(
     [...new Set(results)]
-);
+)
 
-})();
+})()
 
 """.trimIndent()
 
-                    binding.contentMain.webview
-    .evaluateJavascript(
-        js
-    ) { value ->
+binding.contentMain.webview.evaluateJavascript(
+    js
+) { value ->
 
-                            try {
+    try {
 
-                                val cleaned =
-                                    value
-                                        ?.replace("\\u003C", "<")
-                                        ?.replace("\\/", "/")
-                                        ?.replace("\"[", "[")
-                                        ?.replace("]\"", "]")
-                                        ?: ""
+        val cleaned =
+            value
+                ?.replace("\\u003C", "<")
+                ?.replace("\\/", "/")
+                ?.replace("\"[", "[")
+                ?.replace("]\"", "]")
+                ?: ""
 
-                                val arr =
-                                    org.json.JSONArray(cleaned)
+        val arr =
+            org.json.JSONArray(cleaned)
 
-                                for (i in 0 until arr.length()) {
+        for (i in 0 until arr.length()) {
 
-                                    detectAndSaveUrl(
-                                        arr.getString(i)
-                                    )
-                                }
-
-                            } catch (_: Throwable) {}
-                        }
-
-                } catch (_: Throwable) {}
-
-                binding.contentMain.webview
-                    .postDelayed(
-                        this,
-                        4000
-                    )
-            }
-
+            detectAndSaveUrl(
+                arr.getString(i)
+            )
         }
 
-    }, 4000)
+    } catch (_: Throwable) {
+    }
+}
+
+            } catch (_: Throwable) {
+            }
+
+            binding.contentMain.webview.postDelayed(
+                this,
+                4000
+            )
+        }
+    }
+
+}, 4000)
 
 }
 
