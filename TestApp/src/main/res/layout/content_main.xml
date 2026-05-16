@@ -81,13 +81,7 @@
                 android:id="@+id/testStream"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TEST STREAM" />
-
-            <Button
-                android:id="@+id/shareStream"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="SHARE ALL" />
+                android:text="TEST STREAM" />           
 
             <Button
                 android:id="@+id/shareStreams"
