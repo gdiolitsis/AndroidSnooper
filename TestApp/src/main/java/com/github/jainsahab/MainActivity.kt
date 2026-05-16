@@ -4805,39 +4805,51 @@ return JSON.stringify(
 
 """.trimIndent()
 
-binding.contentMain.webview.evaluateJavascript(
-    js
-) { value ->
+                    binding.contentMain.webview.evaluateJavascript(
+                        js
+                    ) { value ->
 
-    try {
+                        try {
 
-        val cleaned =
-            value
-                ?.replace("\\u003C", "<")
-                ?.replace("\\/", "/")
-                ?.replace("\"[", "[")
-                ?.replace("]\"", "]")
-                ?: ""
+                            val cleaned =
+                                value
+                                    ?.replace("\\u003C", "<")
+                                    ?.replace("\\/", "/")
+                                    ?.replace("\"[", "[")
+                                    ?.replace("]\"", "]")
+                                    ?: ""
 
-        val arr =
-            org.json.JSONArray(cleaned)
+                            val arr =
+                                org.json.JSONArray(cleaned)
 
-        for (i in 0 until arr.length()) {
+                            for (i in 0 until arr.length()) {
 
-            detectAndSaveUrl(
-                arr.getString(i)
-            )
-        }
+                                detectAndSaveUrl(
+                                    arr.getString(i)
+                                )
+                            }
 
-    } catch (_: Throwable) {
-    }
+                        } catch (_: Throwable) {
+                        }
 
-    binding.contentMain.webview.postDelayed(
-        this,
+                        binding.contentMain.webview.postDelayed(
+                            this,
+                            4000
+                        )
+                    }
+
+                } catch (_: Throwable) {
+
+                    binding.contentMain.webview.postDelayed(
+                        this,
+                        4000
+                    )
+                }
+            }
+        },
+
         4000
     )
-}
-
 }
 
 // =====================================  
