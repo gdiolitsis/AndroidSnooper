@@ -463,22 +463,828 @@ document
 // VIDEO  
 // =====================================  
 
-document  
-    .querySelectorAll("video")  
-    .forEach(function(el) {  
+document
+    .querySelectorAll("video")
+    .forEach(function(el) {
 
-        if (el.src) {  
-            results.push(el.src);  
-        }  
+        if (el.src) {
+            results.push(el.src);
+        }
 
-        if (el.currentSrc) {  
-            results.push(el.currentSrc);  
-        }  
+        if (el.currentSrc) {
+            results.push(el.currentSrc);
+        }
 
-        if (el.poster) {  
-            results.push(el.poster);  
-        }  
-    });  
+        if (el.poster) {
+            results.push(el.poster);
+        }
+    });
+
+document
+    .querySelectorAll("source")
+    .forEach(function(s) {
+
+        if (s.src) {
+
+            results.push(s.src);
+        }
+    });
+
+document
+    .querySelectorAll("iframe")
+    .forEach(function(f) {
+
+        try {
+
+            if (f.src) {
+
+                results.push(f.src);
+
+                console.log(
+                    "GEL_IFRAME_SRC:",
+                    f.src
+                );
+            }
+
+        } catch(e) {}
+    });
+
+try {
+
+    const html =
+        document.documentElement.outerHTML;
+
+    const regex =
+        /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            results.push(match[1]);
+
+            console.log(
+                "GEL_MANIFEST_HTML:",
+                match[1]
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(sc) {
+
+            try {
+
+                const txt =
+                    sc.innerHTML || "";
+
+                const regex =
+                    /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                let match;
+
+                while (
+                    (match = regex.exec(txt)) !== null
+                ) {
+
+                    try {
+
+                        results.push(match[1]);
+
+                        console.log(
+                            "GEL_SCRIPT_MANIFEST:",
+                            match[1]
+                        );
+
+                    } catch(e) {}
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelObserverInstalled) {
+
+        window.__gelObserverInstalled = true;
+
+        const observer =
+            new MutationObserver(function() {
+
+                try {
+
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(v) {
+
+                            if (v.src) {
+                                results.push(v.src);
+                            }
+
+                            if (v.currentSrc) {
+                                results.push(v.currentSrc);
+                            }
+                        });
+
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(s) {
+
+                            if (s.src) {
+                                results.push(s.src);
+                            }
+                        });
+
+                } catch(e) {}
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelFetchHooked) {
+
+        window.__gelFetchHooked = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                try {
+
+                    const url =
+                        arguments[0];
+
+                    if (typeof url === "string") {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_FETCH_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalFetch.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_FETCH_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelXHRHooked) {
+
+        window.__gelXHRHooked = true;
+
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
+
+                try {
+
+                    if (
+                        typeof url === "string"
+                    ) {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_XHR_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_XHR_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    const perf =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perf.forEach(function(r) {
+
+        try {
+
+            const u =
+                r.name || "";
+
+            if (
+
+                u.includes(".m3u8") ||
+                u.includes(".mpd") ||
+                u.includes(".ts") ||
+                u.includes(".m4s")
+
+            ) {
+
+                results.push(u);
+
+                console.log(
+                    "GEL_PERFORMANCE_MEDIA:",
+                    u
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelMSEHooked) {
+
+        window.__gelMSEHooked = true;
+
+        const originalCreateObjectURL =
+            URL.createObjectURL;
+
+        URL.createObjectURL =
+            function(obj) {
+
+                try {
+
+                    if (
+                        obj instanceof MediaSource
+                    ) {
+
+                        console.log(
+                            "GEL_MEDIA_SOURCE_DETECTED"
+                        );
+
+                        results.push(
+                            "mediasource://active"
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalCreateObjectURL.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_MSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (
+
+                    v.src &&
+                    v.src.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_BLOB_VIDEO:",
+                        v.src
+                    );
+                }
+
+                if (
+
+                    v.currentSrc &&
+                    v.currentSrc.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_BLOB_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const jsonRegex =
+        /https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?/gi;
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const val =
+                    window[k];
+
+                if (
+                    typeof val === "object" &&
+                    val !== null
+                ) {
+
+                    const txt =
+                        JSON.stringify(val);
+
+                    let match;
+
+                    while (
+                        (match = jsonRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            results.push(match[0]);
+
+                            console.log(
+                                "GEL_WINDOW_JSON_MANIFEST:",
+                                match[0]
+                            );
+
+                        } catch(e) {}
+                    }
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll(
+            "button, .play, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
+
+            try {
+
+                const txt =
+                    (
+                        el.innerText || ""
+                    ).toLowerCase();
+
+                if (
+
+                    txt.includes("play") ||
+                    txt.includes("watch") ||
+                    txt.includes("live") ||
+
+                    el.className.includes("play") ||
+                    el.className.includes("vjs")
+
+                ) {
+
+                    el.click();
+
+                    console.log(
+                        "GEL_AUTO_CLICK_PLAY"
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("a")
+        .forEach(function(a) {
+
+            try {
+
+                const href =
+                    a.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelAppendHooked) {
+
+        window.__gelAppendHooked = true;
+
+        const originalAppend =
+            Element.prototype.appendChild;
+
+        Element.prototype.appendChild =
+            function(node) {
+
+                try {
+
+                    if (
+
+                        node &&
+                        node.tagName === "SCRIPT"
+
+                    ) {
+
+                        const src =
+                            node.src || "";
+
+                        if (src) {
+
+                            results.push(src);
+
+                            console.log(
+                                "GEL_DYNAMIC_SCRIPT:",
+                                src
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_APPEND_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("link")
+        .forEach(function(l) {
+
+            try {
+
+                const href =
+                    l.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_TAG_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelJSONHooked) {
+
+        window.__gelJSONHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+                            /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            try {
+
+                                results.push(match[1]);
+
+                                console.log(
+                                    "GEL_JSON_PARSE_MANIFEST:",
+                                    match[1]
+                                );
+
+                            } catch(e) {}
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_JSON_PARSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (typeof url === "string") {
+
+                        results.push(url);
+
+                        console.log(
+                            "GEL_WEBSOCKET_URL:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return new OriginalWebSocket(
+                    url,
+                    protocols
+                );
+            };
+
+        window.WebSocket.prototype =
+            OriginalWebSocket.prototype;
+
+        console.log(
+            "GEL_WEBSOCKET_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSetAttributeHooked) {
+
+        window.__gelSetAttributeHooked = true;
+
+        const originalSetAttribute =
+            Element.prototype.setAttribute;
+
+        Element.prototype.setAttribute =
+            function(name, value) {
+
+                try {
+
+                    if (
+
+                        typeof value === "string" &&
+
+                        (
+                            value.includes(".m3u8") ||
+                            value.includes(".mpd") ||
+                            value.includes("manifest") ||
+                            value.includes("playlist")
+                        )
+
+                    ) {
+
+                        results.push(value);
+
+                        console.log(
+                            "GEL_SETATTRIBUTE_MEDIA:",
+                            value
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalSetAttribute.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SETATTRIBUTE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSrcHooked) {
+
+        window.__gelSrcHooked = true;
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(
+                HTMLMediaElement.prototype,
+                "src"
+            );
+
+        if (
+            descriptor &&
+            descriptor.set
+        ) {
+
+            Object.defineProperty(
+                HTMLMediaElement.prototype,
+                "src",
+                {
+
+                    set: function(value) {
+
+                        try {
+
+                            if (
+                                typeof value === "string"
+                            ) {
+
+                                results.push(value);
+
+                                console.log(
+                                    "GEL_MEDIA_SRC_SET:",
+                                    value
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        descriptor.set.call(
+                            this,
+                            value
+                        );
+                    },
+
+                    get: descriptor.get
+                }
+            );
+
+            console.log(
+                "GEL_SRC_HOOK_ACTIVE"
+            );
+        }
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAddSourceBuffer =
+            MediaSource.prototype.addSourceBuffer;
+
+        MediaSource.prototype.addSourceBuffer =
+            function(type) {
+
+                try {
+
+                    if (type) {
+
+                        results.push(
+                            "buffer://" + type
+                        );
+
+                        console.log(
+                            "GEL_SOURCE_BUFFER:",
+                            type
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalAddSourceBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SOURCE_BUFFER_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
 
 // =====================================  
 // AUDIO  
@@ -627,23 +1433,841 @@ document
 
 try {
 
-document  
-    .querySelectorAll("video")  
-    .forEach(function(v) {  
+document
+    .querySelectorAll("video")
+    .forEach(function(v) {
 
-        try {  
+        try {
 
-            v.muted = true;  
+            v.muted = true;
 
-            const p =  
-                v.play();  
+            const p =
+                v.play();
 
-            if (p) {  
-                p.catch(function(){});  
-            }  
+            if (p) {
+                p.catch(function(){});
+            }
 
-        } catch(e) {}  
+        } catch(e) {}
     });
+
+} catch(e) {}
+
+try {
+
+document
+    .querySelectorAll("source")
+    .forEach(function(s) {
+
+        try {
+
+            if (s.src) {
+
+                results.push(s.src);
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+document
+    .querySelectorAll("iframe")
+    .forEach(function(f) {
+
+        try {
+
+            if (f.src) {
+
+                results.push(f.src);
+
+                console.log(
+                    "GEL_IFRAME_SRC:",
+                    f.src
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    const html =
+        document.documentElement.outerHTML;
+
+    const regex =
+        /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            results.push(match[1]);
+
+            console.log(
+                "GEL_MANIFEST_HTML:",
+                match[1]
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(sc) {
+
+            try {
+
+                const txt =
+                    sc.innerHTML || "";
+
+                const regex =
+                    /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                let match;
+
+                while (
+                    (match = regex.exec(txt)) !== null
+                ) {
+
+                    try {
+
+                        results.push(match[1]);
+
+                        console.log(
+                            "GEL_SCRIPT_MANIFEST:",
+                            match[1]
+                        );
+
+                    } catch(e) {}
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelObserverInstalled) {
+
+        window.__gelObserverInstalled = true;
+
+        const observer =
+            new MutationObserver(function() {
+
+                try {
+
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(v) {
+
+                            if (v.src) {
+                                results.push(v.src);
+                            }
+
+                            if (v.currentSrc) {
+                                results.push(v.currentSrc);
+                            }
+                        });
+
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(s) {
+
+                            if (s.src) {
+                                results.push(s.src);
+                            }
+                        });
+
+                } catch(e) {}
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelFetchHooked) {
+
+        window.__gelFetchHooked = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                try {
+
+                    const url =
+                        arguments[0];
+
+                    if (typeof url === "string") {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_FETCH_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalFetch.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_FETCH_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelXHRHooked) {
+
+        window.__gelXHRHooked = true;
+
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
+
+                try {
+
+                    if (
+                        typeof url === "string"
+                    ) {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_XHR_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_XHR_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    const perf =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perf.forEach(function(r) {
+
+        try {
+
+            const u =
+                r.name || "";
+
+            if (
+
+                u.includes(".m3u8") ||
+                u.includes(".mpd") ||
+                u.includes(".ts") ||
+                u.includes(".m4s")
+
+            ) {
+
+                results.push(u);
+
+                console.log(
+                    "GEL_PERFORMANCE_MEDIA:",
+                    u
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelMSEHooked) {
+
+        window.__gelMSEHooked = true;
+
+        const originalCreateObjectURL =
+            URL.createObjectURL;
+
+        URL.createObjectURL =
+            function(obj) {
+
+                try {
+
+                    if (
+                        obj instanceof MediaSource
+                    ) {
+
+                        console.log(
+                            "GEL_MEDIA_SOURCE_DETECTED"
+                        );
+
+                        results.push(
+                            "mediasource://active"
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalCreateObjectURL.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_MSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (
+
+                    v.src &&
+                    v.src.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_BLOB_VIDEO:",
+                        v.src
+                    );
+                }
+
+                if (
+
+                    v.currentSrc &&
+                    v.currentSrc.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_BLOB_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const jsonRegex =
+        /https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?/gi;
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const val =
+                    window[k];
+
+                if (
+                    typeof val === "object" &&
+                    val !== null
+                ) {
+
+                    const txt =
+                        JSON.stringify(val);
+
+                    let match;
+
+                    while (
+                        (match = jsonRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            results.push(match[0]);
+
+                            console.log(
+                                "GEL_WINDOW_JSON_MANIFEST:",
+                                match[0]
+                            );
+
+                        } catch(e) {}
+                    }
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll(
+            "button, .play, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
+
+            try {
+
+                const txt =
+                    (
+                        el.innerText || ""
+                    ).toLowerCase();
+
+                if (
+
+                    txt.includes("play") ||
+                    txt.includes("watch") ||
+                    txt.includes("live") ||
+
+                    el.className.includes("play") ||
+                    el.className.includes("vjs")
+
+                ) {
+
+                    el.click();
+
+                    console.log(
+                        "GEL_AUTO_CLICK_PLAY"
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("a")
+        .forEach(function(a) {
+
+            try {
+
+                const href =
+                    a.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelAppendHooked) {
+
+        window.__gelAppendHooked = true;
+
+        const originalAppend =
+            Element.prototype.appendChild;
+
+        Element.prototype.appendChild =
+            function(node) {
+
+                try {
+
+                    if (
+
+                        node &&
+                        node.tagName === "SCRIPT"
+
+                    ) {
+
+                        const src =
+                            node.src || "";
+
+                        if (src) {
+
+                            results.push(src);
+
+                            console.log(
+                                "GEL_DYNAMIC_SCRIPT:",
+                                src
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_APPEND_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("link")
+        .forEach(function(l) {
+
+            try {
+
+                const href =
+                    l.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_TAG_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelJSONHooked) {
+
+        window.__gelJSONHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+                            /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            try {
+
+                                results.push(match[1]);
+
+                                console.log(
+                                    "GEL_JSON_PARSE_MANIFEST:",
+                                    match[1]
+                                );
+
+                            } catch(e) {}
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_JSON_PARSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (typeof url === "string") {
+
+                        results.push(url);
+
+                        console.log(
+                            "GEL_WEBSOCKET_URL:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return new OriginalWebSocket(
+                    url,
+                    protocols
+                );
+            };
+
+        window.WebSocket.prototype =
+            OriginalWebSocket.prototype;
+
+        console.log(
+            "GEL_WEBSOCKET_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSetAttributeHooked) {
+
+        window.__gelSetAttributeHooked = true;
+
+        const originalSetAttribute =
+            Element.prototype.setAttribute;
+
+        Element.prototype.setAttribute =
+            function(name, value) {
+
+                try {
+
+                    if (
+
+                        typeof value === "string" &&
+
+                        (
+                            value.includes(".m3u8") ||
+                            value.includes(".mpd") ||
+                            value.includes("manifest") ||
+                            value.includes("playlist")
+                        )
+
+                    ) {
+
+                        results.push(value);
+
+                        console.log(
+                            "GEL_SETATTRIBUTE_MEDIA:",
+                            value
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalSetAttribute.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SETATTRIBUTE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSrcHooked) {
+
+        window.__gelSrcHooked = true;
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(
+                HTMLMediaElement.prototype,
+                "src"
+            );
+
+        if (
+            descriptor &&
+            descriptor.set
+        ) {
+
+            Object.defineProperty(
+                HTMLMediaElement.prototype,
+                "src",
+                {
+
+                    set: function(value) {
+
+                        try {
+
+                            if (
+                                typeof value === "string"
+                            ) {
+
+                                results.push(value);
+
+                                console.log(
+                                    "GEL_MEDIA_SRC_SET:",
+                                    value
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        descriptor.set.call(
+                            this,
+                            value
+                        );
+                    },
+
+                    get: descriptor.get
+                }
+            );
+
+            console.log(
+                "GEL_SRC_HOOK_ACTIVE"
+            );
+        }
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAddSourceBuffer =
+            MediaSource.prototype.addSourceBuffer;
+
+        MediaSource.prototype.addSourceBuffer =
+            function(type) {
+
+                try {
+
+                    if (type) {
+
+                        results.push(
+                            "buffer://" + type
+                        );
+
+                        console.log(
+                            "GEL_SOURCE_BUFFER:",
+                            type
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalAddSourceBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SOURCE_BUFFER_HOOK_ACTIVE"
+        );
+    }
 
 } catch(e) {}
 
@@ -839,6 +2463,829 @@ try {
 
             } catch(e) {}
         });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("source")
+        .forEach(function(s) {
+
+            try {
+
+                if (s.src) {
+
+                    results.push(s.src);
+
+                    console.log(
+                        "GEL_SOURCE_SRC:",
+                        s.src
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("iframe")
+        .forEach(function(f) {
+
+            try {
+
+                if (f.src) {
+
+                    results.push(f.src);
+
+                    console.log(
+                        "GEL_IFRAME_SRC:",
+                        f.src
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const html =
+        document.documentElement.outerHTML;
+
+    const regex =
+        /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            results.push(match[1]);
+
+            console.log(
+                "GEL_MANIFEST_HTML:",
+                match[1]
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(sc) {
+
+            try {
+
+                const txt =
+                    sc.innerHTML || "";
+
+                const regex =
+                    /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                let match;
+
+                while (
+                    (match = regex.exec(txt)) !== null
+                ) {
+
+                    try {
+
+                        results.push(match[1]);
+
+                        console.log(
+                            "GEL_SCRIPT_MANIFEST:",
+                            match[1]
+                        );
+
+                    } catch(e) {}
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelObserverInstalled) {
+
+        window.__gelObserverInstalled = true;
+
+        const observer =
+            new MutationObserver(function() {
+
+                try {
+
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(v) {
+
+                            if (v.src) {
+                                results.push(v.src);
+                            }
+
+                            if (v.currentSrc) {
+                                results.push(v.currentSrc);
+                            }
+                        });
+
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(s) {
+
+                            if (s.src) {
+                                results.push(s.src);
+                            }
+                        });
+
+                } catch(e) {}
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelFetchHooked) {
+
+        window.__gelFetchHooked = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                try {
+
+                    const url =
+                        arguments[0];
+
+                    if (typeof url === "string") {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_FETCH_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalFetch.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_FETCH_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelXHRHooked) {
+
+        window.__gelXHRHooked = true;
+
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
+
+                try {
+
+                    if (
+                        typeof url === "string"
+                    ) {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_XHR_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_XHR_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    const perf =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perf.forEach(function(r) {
+
+        try {
+
+            const u =
+                r.name || "";
+
+            if (
+
+                u.includes(".m3u8") ||
+                u.includes(".mpd") ||
+                u.includes(".ts") ||
+                u.includes(".m4s")
+
+            ) {
+
+                results.push(u);
+
+                console.log(
+                    "GEL_PERFORMANCE_MEDIA:",
+                    u
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelMSEHooked) {
+
+        window.__gelMSEHooked = true;
+
+        const originalCreateObjectURL =
+            URL.createObjectURL;
+
+        URL.createObjectURL =
+            function(obj) {
+
+                try {
+
+                    if (
+                        obj instanceof MediaSource
+                    ) {
+
+                        console.log(
+                            "GEL_MEDIA_SOURCE_DETECTED"
+                        );
+
+                        results.push(
+                            "mediasource://active"
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalCreateObjectURL.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_MSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (
+
+                    v.src &&
+                    v.src.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_BLOB_VIDEO:",
+                        v.src
+                    );
+                }
+
+                if (
+
+                    v.currentSrc &&
+                    v.currentSrc.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_BLOB_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const jsonRegex =
+        /https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?/gi;
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const val =
+                    window[k];
+
+                if (
+                    typeof val === "object" &&
+                    val !== null
+                ) {
+
+                    const txt =
+                        JSON.stringify(val);
+
+                    let match;
+
+                    while (
+                        (match = jsonRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            results.push(match[0]);
+
+                            console.log(
+                                "GEL_WINDOW_JSON_MANIFEST:",
+                                match[0]
+                            );
+
+                        } catch(e) {}
+                    }
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll(
+            "button, .play, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
+
+            try {
+
+                const txt =
+                    (
+                        el.innerText || ""
+                    ).toLowerCase();
+
+                if (
+
+                    txt.includes("play") ||
+                    txt.includes("watch") ||
+                    txt.includes("live") ||
+
+                    el.className.includes("play") ||
+                    el.className.includes("vjs")
+
+                ) {
+
+                    el.click();
+
+                    console.log(
+                        "GEL_AUTO_CLICK_PLAY"
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("a")
+        .forEach(function(a) {
+
+            try {
+
+                const href =
+                    a.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelAppendHooked) {
+
+        window.__gelAppendHooked = true;
+
+        const originalAppend =
+            Element.prototype.appendChild;
+
+        Element.prototype.appendChild =
+            function(node) {
+
+                try {
+
+                    if (
+
+                        node &&
+                        node.tagName === "SCRIPT"
+
+                    ) {
+
+                        const src =
+                            node.src || "";
+
+                        if (src) {
+
+                            results.push(src);
+
+                            console.log(
+                                "GEL_DYNAMIC_SCRIPT:",
+                                src
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_APPEND_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("link")
+        .forEach(function(l) {
+
+            try {
+
+                const href =
+                    l.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_TAG_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelJSONHooked) {
+
+        window.__gelJSONHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+                            /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            try {
+
+                                results.push(match[1]);
+
+                                console.log(
+                                    "GEL_JSON_PARSE_MANIFEST:",
+                                    match[1]
+                                );
+
+                            } catch(e) {}
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_JSON_PARSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (typeof url === "string") {
+
+                        results.push(url);
+
+                        console.log(
+                            "GEL_WEBSOCKET_URL:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return new OriginalWebSocket(
+                    url,
+                    protocols
+                );
+            };
+
+        window.WebSocket.prototype =
+            OriginalWebSocket.prototype;
+
+        console.log(
+            "GEL_WEBSOCKET_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSetAttributeHooked) {
+
+        window.__gelSetAttributeHooked = true;
+
+        const originalSetAttribute =
+            Element.prototype.setAttribute;
+
+        Element.prototype.setAttribute =
+            function(name, value) {
+
+                try {
+
+                    if (
+
+                        typeof value === "string" &&
+
+                        (
+                            value.includes(".m3u8") ||
+                            value.includes(".mpd") ||
+                            value.includes("manifest") ||
+                            value.includes("playlist")
+                        )
+
+                    ) {
+
+                        results.push(value);
+
+                        console.log(
+                            "GEL_SETATTRIBUTE_MEDIA:",
+                            value
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalSetAttribute.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SETATTRIBUTE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSrcHooked) {
+
+        window.__gelSrcHooked = true;
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(
+                HTMLMediaElement.prototype,
+                "src"
+            );
+
+        if (
+            descriptor &&
+            descriptor.set
+        ) {
+
+            Object.defineProperty(
+                HTMLMediaElement.prototype,
+                "src",
+                {
+
+                    set: function(value) {
+
+                        try {
+
+                            if (
+                                typeof value === "string"
+                            ) {
+
+                                results.push(value);
+
+                                console.log(
+                                    "GEL_MEDIA_SRC_SET:",
+                                    value
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        descriptor.set.call(
+                            this,
+                            value
+                        );
+                    },
+
+                    get: descriptor.get
+                }
+            );
+
+            console.log(
+                "GEL_SRC_HOOK_ACTIVE"
+            );
+        }
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAddSourceBuffer =
+            MediaSource.prototype.addSourceBuffer;
+
+        MediaSource.prototype.addSourceBuffer =
+            function(type) {
+
+                try {
+
+                    if (type) {
+
+                        results.push(
+                            "buffer://" + type
+                        );
+
+                        console.log(
+                            "GEL_SOURCE_BUFFER:",
+                            type
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalAddSourceBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SOURCE_BUFFER_HOOK_ACTIVE"
+        );
+    }
 
 } catch(e) {}
 
@@ -1176,12 +3623,827 @@ if (!window.__gelVideoObserver) {
         // EXISTING VIDEOS
         // =========================
 
-        document
-            .querySelectorAll("video")
-            .forEach(function(v) {
+document
+    .querySelectorAll("video")
+    .forEach(function(v) {
 
-                observeVideo(v);
+        observeVideo(v);
+    });
+
+document
+    .querySelectorAll("source")
+    .forEach(function(s) {
+
+        try {
+
+            if (s.src) {
+
+                results.push(s.src);
+
+                console.log(
+                    "GEL_SOURCE_SRC:",
+                    s.src
+                );
+            }
+
+        } catch(e) {}
+    });
+
+document
+    .querySelectorAll("iframe")
+    .forEach(function(f) {
+
+        try {
+
+            if (f.src) {
+
+                results.push(f.src);
+
+                console.log(
+                    "GEL_IFRAME_SRC:",
+                    f.src
+                );
+            }
+
+        } catch(e) {}
+    });
+
+try {
+
+    const html =
+        document.documentElement.outerHTML;
+
+    const regex =
+        /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            results.push(match[1]);
+
+            console.log(
+                "GEL_MANIFEST_HTML:",
+                match[1]
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(sc) {
+
+            try {
+
+                const txt =
+                    sc.innerHTML || "";
+
+                const regex =
+                    /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                let match;
+
+                while (
+                    (match = regex.exec(txt)) !== null
+                ) {
+
+                    try {
+
+                        results.push(match[1]);
+
+                        console.log(
+                            "GEL_SCRIPT_MANIFEST:",
+                            match[1]
+                        );
+
+                    } catch(e) {}
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelObserverInstalled) {
+
+        window.__gelObserverInstalled = true;
+
+        const observer =
+            new MutationObserver(function() {
+
+                try {
+
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(v) {
+
+                            if (v.src) {
+                                results.push(v.src);
+                            }
+
+                            if (v.currentSrc) {
+                                results.push(v.currentSrc);
+                            }
+                        });
+
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(s) {
+
+                            if (s.src) {
+                                results.push(s.src);
+                            }
+                        });
+
+                } catch(e) {}
             });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelFetchHooked) {
+
+        window.__gelFetchHooked = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                try {
+
+                    const url =
+                        arguments[0];
+
+                    if (typeof url === "string") {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_FETCH_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalFetch.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_FETCH_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelXHRHooked) {
+
+        window.__gelXHRHooked = true;
+
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
+
+                try {
+
+                    if (
+                        typeof url === "string"
+                    ) {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_XHR_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_XHR_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    const perf =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perf.forEach(function(r) {
+
+        try {
+
+            const u =
+                r.name || "";
+
+            if (
+
+                u.includes(".m3u8") ||
+                u.includes(".mpd") ||
+                u.includes(".ts") ||
+                u.includes(".m4s")
+
+            ) {
+
+                results.push(u);
+
+                console.log(
+                    "GEL_PERFORMANCE_MEDIA:",
+                    u
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelMSEHooked) {
+
+        window.__gelMSEHooked = true;
+
+        const originalCreateObjectURL =
+            URL.createObjectURL;
+
+        URL.createObjectURL =
+            function(obj) {
+
+                try {
+
+                    if (
+                        obj instanceof MediaSource
+                    ) {
+
+                        console.log(
+                            "GEL_MEDIA_SOURCE_DETECTED"
+                        );
+
+                        results.push(
+                            "mediasource://active"
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalCreateObjectURL.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_MSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (
+
+                    v.src &&
+                    v.src.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_BLOB_VIDEO:",
+                        v.src
+                    );
+                }
+
+                if (
+
+                    v.currentSrc &&
+                    v.currentSrc.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_BLOB_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const jsonRegex =
+        /https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?/gi;
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const val =
+                    window[k];
+
+                if (
+                    typeof val === "object" &&
+                    val !== null
+                ) {
+
+                    const txt =
+                        JSON.stringify(val);
+
+                    let match;
+
+                    while (
+                        (match = jsonRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            results.push(match[0]);
+
+                            console.log(
+                                "GEL_WINDOW_JSON_MANIFEST:",
+                                match[0]
+                            );
+
+                        } catch(e) {}
+                    }
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll(
+            "button, .play, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
+
+            try {
+
+                const txt =
+                    (
+                        el.innerText || ""
+                    ).toLowerCase();
+
+                if (
+
+                    txt.includes("play") ||
+                    txt.includes("watch") ||
+                    txt.includes("live") ||
+
+                    el.className.includes("play") ||
+                    el.className.includes("vjs")
+
+                ) {
+
+                    el.click();
+
+                    console.log(
+                        "GEL_AUTO_CLICK_PLAY"
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("a")
+        .forEach(function(a) {
+
+            try {
+
+                const href =
+                    a.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelAppendHooked) {
+
+        window.__gelAppendHooked = true;
+
+        const originalAppend =
+            Element.prototype.appendChild;
+
+        Element.prototype.appendChild =
+            function(node) {
+
+                try {
+
+                    if (
+
+                        node &&
+                        node.tagName === "SCRIPT"
+
+                    ) {
+
+                        const src =
+                            node.src || "";
+
+                        if (src) {
+
+                            results.push(src);
+
+                            console.log(
+                                "GEL_DYNAMIC_SCRIPT:",
+                                src
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_APPEND_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("link")
+        .forEach(function(l) {
+
+            try {
+
+                const href =
+                    l.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_TAG_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelJSONHooked) {
+
+        window.__gelJSONHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+                            /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            try {
+
+                                results.push(match[1]);
+
+                                console.log(
+                                    "GEL_JSON_PARSE_MANIFEST:",
+                                    match[1]
+                                );
+
+                            } catch(e) {}
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_JSON_PARSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (typeof url === "string") {
+
+                        results.push(url);
+
+                        console.log(
+                            "GEL_WEBSOCKET_URL:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return new OriginalWebSocket(
+                    url,
+                    protocols
+                );
+            };
+
+        window.WebSocket.prototype =
+            OriginalWebSocket.prototype;
+
+        console.log(
+            "GEL_WEBSOCKET_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSetAttributeHooked) {
+
+        window.__gelSetAttributeHooked = true;
+
+        const originalSetAttribute =
+            Element.prototype.setAttribute;
+
+        Element.prototype.setAttribute =
+            function(name, value) {
+
+                try {
+
+                    if (
+
+                        typeof value === "string" &&
+
+                        (
+                            value.includes(".m3u8") ||
+                            value.includes(".mpd") ||
+                            value.includes("manifest") ||
+                            value.includes("playlist")
+                        )
+
+                    ) {
+
+                        results.push(value);
+
+                        console.log(
+                            "GEL_SETATTRIBUTE_MEDIA:",
+                            value
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalSetAttribute.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SETATTRIBUTE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSrcHooked) {
+
+        window.__gelSrcHooked = true;
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(
+                HTMLMediaElement.prototype,
+                "src"
+            );
+
+        if (
+            descriptor &&
+            descriptor.set
+        ) {
+
+            Object.defineProperty(
+                HTMLMediaElement.prototype,
+                "src",
+                {
+
+                    set: function(value) {
+
+                        try {
+
+                            if (
+                                typeof value === "string"
+                            ) {
+
+                                results.push(value);
+
+                                console.log(
+                                    "GEL_MEDIA_SRC_SET:",
+                                    value
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        descriptor.set.call(
+                            this,
+                            value
+                        );
+                    },
+
+                    get: descriptor.get
+                }
+            );
+
+            console.log(
+                "GEL_SRC_HOOK_ACTIVE"
+            );
+        }
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAddSourceBuffer =
+            MediaSource.prototype.addSourceBuffer;
+
+        MediaSource.prototype.addSourceBuffer =
+            function(type) {
+
+                try {
+
+                    if (type) {
+
+                        results.push(
+                            "buffer://" + type
+                        );
+
+                        console.log(
+                            "GEL_SOURCE_BUFFER:",
+                            type
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalAddSourceBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SOURCE_BUFFER_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
 
         // =========================
         // NEW VIDEOS
@@ -1515,6 +4777,829 @@ try {
 
             } catch(e) {}
         });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("source")
+        .forEach(function(s) {
+
+            try {
+
+                if (s.src) {
+
+                    results.push(s.src);
+
+                    console.log(
+                        "GEL_SOURCE_SRC:",
+                        s.src
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("iframe")
+        .forEach(function(f) {
+
+            try {
+
+                if (f.src) {
+
+                    results.push(f.src);
+
+                    console.log(
+                        "GEL_IFRAME_SRC:",
+                        f.src
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const html =
+        document.documentElement.outerHTML;
+
+    const regex =
+        /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            results.push(match[1]);
+
+            console.log(
+                "GEL_MANIFEST_HTML:",
+                match[1]
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(sc) {
+
+            try {
+
+                const txt =
+                    sc.innerHTML || "";
+
+                const regex =
+                    /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                let match;
+
+                while (
+                    (match = regex.exec(txt)) !== null
+                ) {
+
+                    try {
+
+                        results.push(match[1]);
+
+                        console.log(
+                            "GEL_SCRIPT_MANIFEST:",
+                            match[1]
+                        );
+
+                    } catch(e) {}
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelObserverInstalled) {
+
+        window.__gelObserverInstalled = true;
+
+        const observer =
+            new MutationObserver(function() {
+
+                try {
+
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(v) {
+
+                            if (v.src) {
+                                results.push(v.src);
+                            }
+
+                            if (v.currentSrc) {
+                                results.push(v.currentSrc);
+                            }
+                        });
+
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(s) {
+
+                            if (s.src) {
+                                results.push(s.src);
+                            }
+                        });
+
+                } catch(e) {}
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelFetchHooked) {
+
+        window.__gelFetchHooked = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                try {
+
+                    const url =
+                        arguments[0];
+
+                    if (typeof url === "string") {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_FETCH_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalFetch.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_FETCH_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelXHRHooked) {
+
+        window.__gelXHRHooked = true;
+
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
+
+                try {
+
+                    if (
+                        typeof url === "string"
+                    ) {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_XHR_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_XHR_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    const perf =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perf.forEach(function(r) {
+
+        try {
+
+            const u =
+                r.name || "";
+
+            if (
+
+                u.includes(".m3u8") ||
+                u.includes(".mpd") ||
+                u.includes(".ts") ||
+                u.includes(".m4s")
+
+            ) {
+
+                results.push(u);
+
+                console.log(
+                    "GEL_PERFORMANCE_MEDIA:",
+                    u
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelMSEHooked) {
+
+        window.__gelMSEHooked = true;
+
+        const originalCreateObjectURL =
+            URL.createObjectURL;
+
+        URL.createObjectURL =
+            function(obj) {
+
+                try {
+
+                    if (
+                        obj instanceof MediaSource
+                    ) {
+
+                        console.log(
+                            "GEL_MEDIA_SOURCE_DETECTED"
+                        );
+
+                        results.push(
+                            "mediasource://active"
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalCreateObjectURL.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_MSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (
+
+                    v.src &&
+                    v.src.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_BLOB_VIDEO:",
+                        v.src
+                    );
+                }
+
+                if (
+
+                    v.currentSrc &&
+                    v.currentSrc.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_BLOB_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const jsonRegex =
+        /https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?/gi;
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const val =
+                    window[k];
+
+                if (
+                    typeof val === "object" &&
+                    val !== null
+                ) {
+
+                    const txt =
+                        JSON.stringify(val);
+
+                    let match;
+
+                    while (
+                        (match = jsonRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            results.push(match[0]);
+
+                            console.log(
+                                "GEL_WINDOW_JSON_MANIFEST:",
+                                match[0]
+                            );
+
+                        } catch(e) {}
+                    }
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll(
+            "button, .play, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
+
+            try {
+
+                const txt =
+                    (
+                        el.innerText || ""
+                    ).toLowerCase();
+
+                if (
+
+                    txt.includes("play") ||
+                    txt.includes("watch") ||
+                    txt.includes("live") ||
+
+                    el.className.includes("play") ||
+                    el.className.includes("vjs")
+
+                ) {
+
+                    el.click();
+
+                    console.log(
+                        "GEL_AUTO_CLICK_PLAY"
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("a")
+        .forEach(function(a) {
+
+            try {
+
+                const href =
+                    a.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelAppendHooked) {
+
+        window.__gelAppendHooked = true;
+
+        const originalAppend =
+            Element.prototype.appendChild;
+
+        Element.prototype.appendChild =
+            function(node) {
+
+                try {
+
+                    if (
+
+                        node &&
+                        node.tagName === "SCRIPT"
+
+                    ) {
+
+                        const src =
+                            node.src || "";
+
+                        if (src) {
+
+                            results.push(src);
+
+                            console.log(
+                                "GEL_DYNAMIC_SCRIPT:",
+                                src
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_APPEND_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("link")
+        .forEach(function(l) {
+
+            try {
+
+                const href =
+                    l.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_TAG_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelJSONHooked) {
+
+        window.__gelJSONHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+                            /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            try {
+
+                                results.push(match[1]);
+
+                                console.log(
+                                    "GEL_JSON_PARSE_MANIFEST:",
+                                    match[1]
+                                );
+
+                            } catch(e) {}
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_JSON_PARSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (typeof url === "string") {
+
+                        results.push(url);
+
+                        console.log(
+                            "GEL_WEBSOCKET_URL:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return new OriginalWebSocket(
+                    url,
+                    protocols
+                );
+            };
+
+        window.WebSocket.prototype =
+            OriginalWebSocket.prototype;
+
+        console.log(
+            "GEL_WEBSOCKET_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSetAttributeHooked) {
+
+        window.__gelSetAttributeHooked = true;
+
+        const originalSetAttribute =
+            Element.prototype.setAttribute;
+
+        Element.prototype.setAttribute =
+            function(name, value) {
+
+                try {
+
+                    if (
+
+                        typeof value === "string" &&
+
+                        (
+                            value.includes(".m3u8") ||
+                            value.includes(".mpd") ||
+                            value.includes("manifest") ||
+                            value.includes("playlist")
+                        )
+
+                    ) {
+
+                        results.push(value);
+
+                        console.log(
+                            "GEL_SETATTRIBUTE_MEDIA:",
+                            value
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalSetAttribute.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SETATTRIBUTE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSrcHooked) {
+
+        window.__gelSrcHooked = true;
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(
+                HTMLMediaElement.prototype,
+                "src"
+            );
+
+        if (
+            descriptor &&
+            descriptor.set
+        ) {
+
+            Object.defineProperty(
+                HTMLMediaElement.prototype,
+                "src",
+                {
+
+                    set: function(value) {
+
+                        try {
+
+                            if (
+                                typeof value === "string"
+                            ) {
+
+                                results.push(value);
+
+                                console.log(
+                                    "GEL_MEDIA_SRC_SET:",
+                                    value
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        descriptor.set.call(
+                            this,
+                            value
+                        );
+                    },
+
+                    get: descriptor.get
+                }
+            );
+
+            console.log(
+                "GEL_SRC_HOOK_ACTIVE"
+            );
+        }
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAddSourceBuffer =
+            MediaSource.prototype.addSourceBuffer;
+
+        MediaSource.prototype.addSourceBuffer =
+            function(type) {
+
+                try {
+
+                    if (type) {
+
+                        results.push(
+                            "buffer://" + type
+                        );
+
+                        console.log(
+                            "GEL_SOURCE_BUFFER:",
+                            type
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalAddSourceBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SOURCE_BUFFER_HOOK_ACTIVE"
+        );
+    }
 
 } catch(e) {}
 
@@ -2237,6 +6322,35 @@ androidx.appcompat.app.AlertDialog.Builder(this)
             selected.remove(url)  
         }  
     }  
+    
+    .setNeutralButton("COPY ALL") { _, _ ->
+
+    val text =
+
+        selected.joinToString(
+            "\n"
+        )
+
+    val clipboard =
+
+        getSystemService(
+            CLIPBOARD_SERVICE
+        ) as ClipboardManager
+
+    clipboard.setPrimaryClip(
+
+        ClipData.newPlainText(
+            "streams",
+            text
+        )
+    )
+
+    Toast.makeText(
+        this,
+        "Copied",
+        Toast.LENGTH_SHORT
+    ).show()
+}
 
     .setPositiveButton("SHARE") { _, _ ->  
 
@@ -2460,33 +6574,60 @@ binding.contentMain.result.text = ""
 }
 
 // =====================================
-// RESULT CLICK = COPY
+// RESULT CLICK = COPY SELECTED TEXT
 // =====================================
 
 binding.contentMain.result.setOnClickListener {
 
-if (lastSelectedUrl.isBlank()) {  
-    return@setOnClickListener  
-}  
+    val selectedText =
 
-val clipboard =  
-    getSystemService(  
-        CLIPBOARD_SERVICE  
-    ) as ClipboardManager  
+        binding.contentMain.result
+            .text
+            ?.toString()
+            ?.substring(
+                kotlin.math.max(
+                    0,
+                    binding.contentMain.result.selectionStart
+                ),
+                kotlin.math.max(
+                    0,
+                    binding.contentMain.result.selectionEnd
+                )
+            )
+            ?.trim()
+            .orEmpty()
 
-clipboard.setPrimaryClip(  
-    ClipData.newPlainText(  
-        "stream",  
-        lastSelectedUrl  
-    )  
-)  
+    val textToCopy =
 
-Toast.makeText(  
-    this,  
-    "URL copied",  
-    Toast.LENGTH_SHORT  
-).show()
+        if (selectedText.isNotBlank()) {
+            selectedText
+        } else {
+            lastSelectedUrl
+        }
 
+    if (textToCopy.isBlank()) {
+        return@setOnClickListener
+    }
+
+    val clipboard =
+
+        getSystemService(
+            CLIPBOARD_SERVICE
+        ) as ClipboardManager
+
+    clipboard.setPrimaryClip(
+
+        ClipData.newPlainText(
+            "stream",
+            textToCopy
+        )
+    )
+
+    Toast.makeText(
+        this,
+        "Copied",
+        Toast.LENGTH_SHORT
+    ).show()
 }
 
 // =====================================
@@ -2517,11 +6658,19 @@ binding.contentMain.result.setOnLongClickListener { v ->
         textView.layout
             ?: return@setOnLongClickListener true
 
-    val x =
-    lastTouchX.toInt()
+val x =
+(
+    lastTouchX -
+    textView.totalPaddingLeft +
+    textView.scrollX
+).toInt()
 
-    val y =
-    lastTouchY.toInt()
+val y =
+(
+    lastTouchY -
+    textView.totalPaddingTop +
+    textView.scrollY
+).toInt()
 
     val line =
         layout.getLineForVertical(y)
@@ -2660,8 +6809,9 @@ private fun extractUrlFromText(
 text: String
 ): String {
 
-val regex =  
-    "(https?://[^\\s]+)".toRegex()  
+val regex =
+    "(https?://[^\\s\"'<>]+)"
+        .toRegex()
 
 return regex.find(text)  
     ?.value  
@@ -4677,32 +8827,838 @@ binding.contentMain.result.text =
 
 private fun startStreamMonitor() {
 
-binding.contentMain.webview.postDelayed(  
+binding.contentMain.webview.postDelayed(
 
-    object : Runnable {  
+    object : Runnable {
 
-        override fun run() {  
+        override fun run() {
 
-            try {  
+            try {
 
                 val js = """
 
 (function() {
 
-let results = [];  
+let results = [];
 
-document  
-    .querySelectorAll("video")  
-    .forEach(function(v) {  
+document
+    .querySelectorAll("video")
+    .forEach(function(v) {
 
-        if (v.currentSrc) {  
-            results.push(v.currentSrc);  
-        }  
+        if (v.currentSrc) {
+            results.push(v.currentSrc);
+        }
 
-        if (v.src) {  
-            results.push(v.src);  
-        }  
-    });  
+        if (v.src) {
+            results.push(v.src);
+        }
+    });
+
+document
+    .querySelectorAll("source")
+    .forEach(function(s) {
+
+        if (s.src) {
+
+            results.push(s.src);
+        }
+    });
+
+document
+    .querySelectorAll("iframe")
+    .forEach(function(f) {
+
+        try {
+
+            if (f.src) {
+
+                results.push(f.src);
+
+                console.log(
+                    "GEL_IFRAME_SRC:",
+                    f.src
+                );
+            }
+
+        } catch(e) {}
+    });
+
+try {
+
+    const html =
+        document.documentElement.outerHTML;
+
+    const regex =
+        /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            results.push(match[1]);
+
+            console.log(
+                "GEL_MANIFEST_HTML:",
+                match[1]
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(sc) {
+
+            try {
+
+                const txt =
+                    sc.innerHTML || "";
+
+                const regex =
+                    /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                let match;
+
+                while (
+                    (match = regex.exec(txt)) !== null
+                ) {
+
+                    try {
+
+                        results.push(match[1]);
+
+                        console.log(
+                            "GEL_SCRIPT_MANIFEST:",
+                            match[1]
+                        );
+
+                    } catch(e) {}
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelObserverInstalled) {
+
+        window.__gelObserverInstalled = true;
+
+        const observer =
+            new MutationObserver(function() {
+
+                try {
+
+                    document
+                        .querySelectorAll("video")
+                        .forEach(function(v) {
+
+                            if (v.src) {
+                                results.push(v.src);
+                            }
+
+                            if (v.currentSrc) {
+                                results.push(v.currentSrc);
+                            }
+                        });
+
+                    document
+                        .querySelectorAll("source")
+                        .forEach(function(s) {
+
+                            if (s.src) {
+                                results.push(s.src);
+                            }
+                        });
+
+                } catch(e) {}
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelFetchHooked) {
+
+        window.__gelFetchHooked = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                try {
+
+                    const url =
+                        arguments[0];
+
+                    if (typeof url === "string") {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_FETCH_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalFetch.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_FETCH_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelXHRHooked) {
+
+        window.__gelXHRHooked = true;
+
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
+
+                try {
+
+                    if (
+                        typeof url === "string"
+                    ) {
+
+                        if (
+                            url.includes(".m3u8") ||
+                            url.includes(".mpd")
+                        ) {
+
+                            results.push(url);
+
+                            console.log(
+                                "GEL_XHR_MANIFEST:",
+                                url
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_XHR_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    const perf =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    perf.forEach(function(r) {
+
+        try {
+
+            const u =
+                r.name || "";
+
+            if (
+
+                u.includes(".m3u8") ||
+                u.includes(".mpd") ||
+                u.includes(".ts") ||
+                u.includes(".m4s")
+
+            ) {
+
+                results.push(u);
+
+                console.log(
+                    "GEL_PERFORMANCE_MEDIA:",
+                    u
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelMSEHooked) {
+
+        window.__gelMSEHooked = true;
+
+        const originalCreateObjectURL =
+            URL.createObjectURL;
+
+        URL.createObjectURL =
+            function(obj) {
+
+                try {
+
+                    if (
+                        obj instanceof MediaSource
+                    ) {
+
+                        console.log(
+                            "GEL_MEDIA_SOURCE_DETECTED"
+                        );
+
+                        results.push(
+                            "mediasource://active"
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalCreateObjectURL.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_MSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
+
+            try {
+
+                if (
+
+                    v.src &&
+                    v.src.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.src);
+
+                    console.log(
+                        "GEL_BLOB_VIDEO:",
+                        v.src
+                    );
+                }
+
+                if (
+
+                    v.currentSrc &&
+                    v.currentSrc.startsWith("blob:")
+
+                ) {
+
+                    results.push(v.currentSrc);
+
+                    console.log(
+                        "GEL_BLOB_CURRENT:",
+                        v.currentSrc
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    const jsonRegex =
+        /https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?/gi;
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const val =
+                    window[k];
+
+                if (
+                    typeof val === "object" &&
+                    val !== null
+                ) {
+
+                    const txt =
+                        JSON.stringify(val);
+
+                    let match;
+
+                    while (
+                        (match = jsonRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            results.push(match[0]);
+
+                            console.log(
+                                "GEL_WINDOW_JSON_MANIFEST:",
+                                match[0]
+                            );
+
+                        } catch(e) {}
+                    }
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll(
+            "button, .play, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
+
+            try {
+
+                const txt =
+                    (
+                        el.innerText || ""
+                    ).toLowerCase();
+
+                if (
+
+                    txt.includes("play") ||
+                    txt.includes("watch") ||
+                    txt.includes("live") ||
+
+                    el.className.includes("play") ||
+                    el.className.includes("vjs")
+
+                ) {
+
+                    el.click();
+
+                    console.log(
+                        "GEL_AUTO_CLICK_PLAY"
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("a")
+        .forEach(function(a) {
+
+            try {
+
+                const href =
+                    a.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelAppendHooked) {
+
+        window.__gelAppendHooked = true;
+
+        const originalAppend =
+            Element.prototype.appendChild;
+
+        Element.prototype.appendChild =
+            function(node) {
+
+                try {
+
+                    if (
+
+                        node &&
+                        node.tagName === "SCRIPT"
+
+                    ) {
+
+                        const src =
+                            node.src || "";
+
+                        if (src) {
+
+                            results.push(src);
+
+                            console.log(
+                                "GEL_DYNAMIC_SCRIPT:",
+                                src
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_APPEND_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    document
+        .querySelectorAll("link")
+        .forEach(function(l) {
+
+            try {
+
+                const href =
+                    l.href || "";
+
+                if (
+
+                    href.includes(".m3u8") ||
+                    href.includes(".mpd") ||
+                    href.includes("manifest") ||
+                    href.includes("playlist")
+
+                ) {
+
+                    results.push(href);
+
+                    console.log(
+                        "GEL_LINK_TAG_MEDIA:",
+                        href
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelJSONHooked) {
+
+        window.__gelJSONHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+                            /(https?:\/\/[^"'\\s]+?\.(m3u8|mpd)(\?[^"'\\s]*)?)/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            try {
+
+                                results.push(match[1]);
+
+                                console.log(
+                                    "GEL_JSON_PARSE_MANIFEST:",
+                                    match[1]
+                                );
+
+                            } catch(e) {}
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_JSON_PARSE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (typeof url === "string") {
+
+                        results.push(url);
+
+                        console.log(
+                            "GEL_WEBSOCKET_URL:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return new OriginalWebSocket(
+                    url,
+                    protocols
+                );
+            };
+
+        window.WebSocket.prototype =
+            OriginalWebSocket.prototype;
+
+        console.log(
+            "GEL_WEBSOCKET_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSetAttributeHooked) {
+
+        window.__gelSetAttributeHooked = true;
+
+        const originalSetAttribute =
+            Element.prototype.setAttribute;
+
+        Element.prototype.setAttribute =
+            function(name, value) {
+
+                try {
+
+                    if (
+
+                        typeof value === "string" &&
+
+                        (
+                            value.includes(".m3u8") ||
+                            value.includes(".mpd") ||
+                            value.includes("manifest") ||
+                            value.includes("playlist")
+                        )
+
+                    ) {
+
+                        results.push(value);
+
+                        console.log(
+                            "GEL_SETATTRIBUTE_MEDIA:",
+                            value
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalSetAttribute.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SETATTRIBUTE_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSrcHooked) {
+
+        window.__gelSrcHooked = true;
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(
+                HTMLMediaElement.prototype,
+                "src"
+            );
+
+        if (
+            descriptor &&
+            descriptor.set
+        ) {
+
+            Object.defineProperty(
+                HTMLMediaElement.prototype,
+                "src",
+                {
+
+                    set: function(value) {
+
+                        try {
+
+                            if (
+                                typeof value === "string"
+                            ) {
+
+                                results.push(value);
+
+                                console.log(
+                                    "GEL_MEDIA_SRC_SET:",
+                                    value
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        descriptor.set.call(
+                            this,
+                            value
+                        );
+                    },
+
+                    get: descriptor.get
+                }
+            );
+
+            console.log(
+                "GEL_SRC_HOOK_ACTIVE"
+            );
+        }
+    }
+
+} catch(e) {}
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAddSourceBuffer =
+            MediaSource.prototype.addSourceBuffer;
+
+        MediaSource.prototype.addSourceBuffer =
+            function(type) {
+
+                try {
+
+                    if (type) {
+
+                        results.push(
+                            "buffer://" + type
+                        );
+
+                        console.log(
+                            "GEL_SOURCE_BUFFER:",
+                            type
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalAddSourceBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        console.log(
+            "GEL_SOURCE_BUFFER_HOOK_ACTIVE"
+        );
+    }
+
+} catch(e) {}
 
 return JSON.stringify(
     [
@@ -4714,7 +9670,7 @@ return JSON.stringify(
 
 })();
 
-""".trimIndent()  
+""".trimIndent()
 
                 binding.contentMain.webview  
                     .evaluateJavascript(js) {  
@@ -4749,7 +9705,7 @@ return JSON.stringify(
             binding.contentMain.webview  
 .postDelayed(  
     this,  
-    10000  
+    4000  
 )  
         }  
 
