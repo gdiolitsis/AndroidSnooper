@@ -6282,119 +6282,231 @@ sortedStreams.addAll(
     detectedAudio  
 )  
 
-// =====================================  
-// IMAGES  
-// =====================================  
+// =====================================
+// IMAGES
+// =====================================
 
-sortedStreams.addAll(  
-    detectedImages  
-)  
+sortedStreams.addAll(
+    detectedImages
+)
 
-val streamList =  
-    sortedStreams.toTypedArray()  
+val streamList =
+    sortedStreams.toTypedArray()
 
-val checkedItems =  
-    BooleanArray(streamList.size)  
+val checkedItems =
+    BooleanArray(streamList.size)
 
-val selected =  
-    mutableListOf<String>()  
+val selected =
+    mutableListOf<String>()
 
-androidx.appcompat.app.AlertDialog.Builder(this)  
+val dialog =
 
-    .setTitle("Select Streams To Share")  
+    androidx.appcompat.app.AlertDialog.Builder(this)
 
-    .setMultiChoiceItems(  
-        streamList,  
-        checkedItems  
-    ) { _, which, isChecked ->  
+        .setTitle("Select Streams To Share")
 
-        val url =  
-            streamList[which]  
+        .setMultiChoiceItems(
+            streamList,
+            checkedItems
+        ) { _, which, isChecked ->
 
-        if (isChecked) {  
+            val url =
+                streamList[which]
 
-            if (!selected.contains(url)) {  
-                selected.add(url)  
-            }  
+            if (isChecked) {
 
-        } else {  
+                if (!selected.contains(url)) {
+                    selected.add(url)
+                }
 
-            selected.remove(url)  
-        }  
-    }  
-    
-    .setNeutralButton("COPY ALL") { _, _ ->
+            } else {
 
-    val text =
+                selected.remove(url)
+            }
+        }
 
-        selected.joinToString(
-            "\n"
+        // =====================================
+        // SELECT ALL
+        // =====================================
+
+        .setNeutralButton(
+            "SELECT ALL",
+            null
         )
 
-    val clipboard =
+        // =====================================
+        // COPY SELECTED
+        // =====================================
 
-        getSystemService(
-            CLIPBOARD_SERVICE
-        ) as ClipboardManager
-
-    clipboard.setPrimaryClip(
-
-        ClipData.newPlainText(
-            "streams",
-            text
+        .setPositiveButton(
+            "COPY",
+            null
         )
-    )
+
+        // =====================================
+        // SHARE SELECTED
+        // =====================================
+
+        .setNegativeButton(
+            "SHARE",
+            null
+        )
+
+        .show()
+
+dialog.setCanceledOnTouchOutside(true)
+
+dialog.setCancelable(true)
+
+// =====================================
+// SELECT ALL
+// =====================================
+
+dialog.getButton(
+    androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
+).setOnClickListener {
+
+    selected.clear()
+
+    for (i in streamList.indices) {
+
+        checkedItems[i] = true
+
+        dialog.listView.setItemChecked(
+            i,
+            true
+        )
+
+        selected.add(
+            streamList[i]
+        )
+    }
 
     Toast.makeText(
         this,
-        "Copied",
+        "All selected",
         Toast.LENGTH_SHORT
     ).show()
 }
 
-    .setPositiveButton("SHARE") { _, _ ->  
+// =====================================
+// COPY
+// =====================================
 
-        if (selected.isEmpty()) {  
-            return@setPositiveButton  
-        }  
+dialog.getButton(
+    androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE
+).setOnClickListener {
 
-        try {  
+    if (selected.isEmpty()) {
 
-            val allUrls =  
-                selected.joinToString("\n\n")  
+        Toast.makeText(
+            this,
+            "No streams selected",
+            Toast.LENGTH_SHORT
+        ).show()
 
-            val shareIntent =  
-                Intent(Intent.ACTION_SEND).apply {  
+        return@setOnClickListener
+    }
 
-                    type = "text/plain"  
+    try {
 
-                    putExtra(  
-                        Intent.EXTRA_TEXT,  
-                        allUrls  
-                    )  
-                }  
+        val text =
+            selected.joinToString(
+                "\n\n"
+            )
 
-            startActivity(  
-                Intent.createChooser(  
-                    shareIntent,  
-                    "Share Streams With"  
-                )  
-            )  
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
 
-        } catch (t: Throwable) {  
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "streams",
+                text
+            )
+        )
 
-            Log.e(  
-                "SHARE_STREAM",  
-                "failed",  
-                t  
-            )  
-        }  
-    }  
+        Toast.makeText(
+            this,
+            "Copied",
+            Toast.LENGTH_SHORT
+        ).show()
 
-    .setNegativeButton("CANCEL", null)  
+    } catch (t: Throwable) {
 
-    .show()
+        Log.e(
+            "COPY_STREAMS",
+            "failed",
+            t
+        )
 
+        Toast.makeText(
+            this,
+            "Copy failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// SHARE
+// =====================================
+
+dialog.getButton(
+    androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE
+).setOnClickListener {
+
+    if (selected.isEmpty()) {
+
+        Toast.makeText(
+            this,
+            "No streams selected",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return@setOnClickListener
+    }
+
+    try {
+
+        val allUrls =
+            selected.joinToString(
+                "\n\n"
+            )
+
+        val shareIntent =
+            Intent(Intent.ACTION_SEND).apply {
+
+                type = "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    allUrls
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Share Streams With"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SHARE_STREAM",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Share failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 }
 
 // =====================================
