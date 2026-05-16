@@ -1738,44 +1738,45 @@ binding.contentMain.exportM3u.setOnClickListener {
         sb.append("#EXTM3U\n\n")
 
         detectedStreams
-    .toList()
-    .forEachIndexed { index, url ->
-        if (!isExportableStream(url)) {
-    return@forEachIndexed
-}
+            .toList()
+            .forEachIndexed { index, url ->
 
-            val label =
-                buildMediaLabel(url)
-                    .replace("🟢", "")
-                    .replace("🟡", "")
-                    .replace("🔒", "")
-                    .replace("❌", "")
-                    .replace("⚠", "")
-                    .trim()
+                if (!isExportableStream(url)) {
+                    return@forEachIndexed
+                }
 
-            val streamType =
-                buildStreamType(url)
+                val label =
+                    buildMediaLabel(url)
+                        .replace("🟢", "")
+                        .replace("🟡", "")
+                        .replace("🔒", "")
+                        .replace("❌", "")
+                        .replace("⚠", "")
+                        .trim()
 
-            val channelName =
-                buildChannelName(url)
+                val streamType =
+                    buildStreamType(url)
 
-            val name =
-                "$channelName [$streamType] - $label"
+                val channelName =
+                    buildChannelName(url)
 
-            val groupTitle =
-               "Live Streams"
+                val name =
+                    "$channelName [$streamType] - $label"
 
-            val logoUrl =
-                buildLogoUrl(url)
+                val groupTitle =
+                    "Live Streams"
 
-            sb.append(
-                "#EXTINF:-1 tvg-name=\"$name\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$name\n"
-            )
+                val logoUrl =
+                    buildLogoUrl(url)
 
-            sb.append(url)
+                sb.append(
+                    "#EXTINF:-1 tvg-name=\"$name\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$name\n"
+                )
 
-            sb.append("\n\n")
-        }
+                sb.append(url)
+
+                sb.append("\n\n")
+            }
 
         val shareIntent =
             Intent(Intent.ACTION_SEND).apply {
