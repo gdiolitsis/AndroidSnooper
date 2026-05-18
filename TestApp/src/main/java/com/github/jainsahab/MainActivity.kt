@@ -6750,13 +6750,11 @@ document
 
     } catch (_: Throwable) {}
 
-    // =====================================
-    // LIVE STREAM MONITOR LOOP
-    // =====================================
+// =====================================
+// LIVE STREAM MONITOR LOOP
+// =====================================
 
-    if (!monitorRunning) {
-        return@evaluateJavascript
-    }
+if (monitorRunning) {
 
     binding.contentMain.webview.postDelayed(
         this,
@@ -6766,20 +6764,13 @@ document
 
 } catch (_: Throwable) {
 
-    if (!monitorRunning) {
-        return@evaluateJavascript
+    if (monitorRunning) {
+
+        binding.contentMain.webview.postDelayed(
+            this,
+            4000
+        )
     }
-
-    binding.contentMain.webview.postDelayed(
-        this,
-        4000
-    )
-}
-            }
-        },
-
-        4000
-    )
 }
 
 // =====================================  
