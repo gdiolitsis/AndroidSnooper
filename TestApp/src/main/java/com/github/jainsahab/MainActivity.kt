@@ -675,67 +675,6 @@ detectAndSaveUrl(url)
 // RESPONSE BODY MEDIA SNIFF
 // =====================================
 
-try {
-
-    val response =
-        super.shouldInterceptRequest(
-            view,
-            request
-        )
-
-    val mime =
-        response?.mimeType
-            ?.lowercase()
-            .orEmpty()
-
-    if (
-
-        mime.contains("json") ||
-        mime.contains("javascript") ||
-        mime.contains("text") ||
-        mime.contains("xml")
-
-    ) {
-
-        try {
-
-            val stream =
-                response?.data
-
-            val body =
-                stream
-                    ?.bufferedReader()
-                    ?.use { it.readText() }
-                    .orEmpty()
-
-            val regex =
-"(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
-    .toRegex()
-
-            regex.findAll(body)
-                .forEach {
-
-                    try {
-
-                        val found =
-                            it.value
-                                .replace("\\\\/", "/")
-
-                        Log.e(
-                            "BODY_MEDIA",
-                            found
-                        )
-
-                        detectAndSaveUrl(found)
-
-                    } catch (_: Throwable) {}
-                }
-
-        } catch (_: Throwable) {}
-    }
-
-} catch (_: Throwable) {}
-
 return super.shouldInterceptRequest(
     view,
     request
@@ -1628,84 +1567,6 @@ url?.contains(".mpd") == true
 }
 
 }
-}
-
-// =====================================
-// STREAM PRIORITY SCORE
-// =====================================
-
-private fun calculateStreamScore(
-    url: String
-): Int {
-
-    val lower =
-        url.lowercase()
-
-    var score = 0
-
-    if (lower.contains("master.m3u8")) {
-        score += 100
-    }
-
-    if (lower.contains("playlist.m3u8")) {
-        score += 80
-    }
-
-    if (lower.contains("chunklist")) {
-        score += 60
-    }
-
-    if (
-        lower.contains("index.m3u8") ||
-        lower.contains("index-v")
-    ) {
-        score += 50
-    }
-
-    if (
-        lower.contains("live") ||
-        lower.contains("broadcast")
-    ) {
-        score += 40
-    }
-
-    if (lower.contains(".m3u8")) {
-        score += 30
-    }
-
-    if (
-        lower.contains(".mpd") ||
-        lower.contains("manifest")
-    ) {
-        score += 20
-    }
-
-    if (
-        lower.contains(".ts") ||
-        lower.contains(".m4s")
-    ) {
-        score -= 20
-    }
-
-    if (
-        lower.contains(".jpg") ||
-        lower.contains(".png") ||
-        lower.contains("doubleclick") ||
-        lower.contains("googleads") ||
-        lower.contains("analytics") ||
-        lower.contains("stats")
-    ) {
-        score -= 100
-    }
-
-    if (
-        lower.contains("googlevideo.com") &&
-        lower.contains("videoplayback")
-    ) {
-        score += 70
-    }
-
-    return score
 }
 
 // =====================================
@@ -7049,6 +6910,85 @@ val text =
         }  
     )
 
+}
+
+
+// =====================================
+// STREAM PRIORITY SCORE
+// =====================================
+
+private fun calculateStreamScore(
+    url: String
+): Int {
+
+    val lower =
+        url.lowercase()
+
+    var score = 0
+
+    if (lower.contains("master.m3u8")) {
+        score += 100
+    }
+
+    if (lower.contains("playlist.m3u8")) {
+        score += 80
+    }
+
+    if (lower.contains("chunklist")) {
+        score += 60
+    }
+
+    if (
+        lower.contains("index.m3u8") ||
+        lower.contains("index-v")
+    ) {
+        score += 50
+    }
+
+    if (
+        lower.contains("live") ||
+        lower.contains("broadcast")
+    ) {
+        score += 40
+    }
+
+    if (lower.contains(".m3u8")) {
+        score += 30
+    }
+
+    if (
+        lower.contains(".mpd") ||
+        lower.contains("manifest")
+    ) {
+        score += 20
+    }
+
+    if (
+        lower.contains(".ts") ||
+        lower.contains(".m4s")
+    ) {
+        score -= 20
+    }
+
+    if (
+        lower.contains(".jpg") ||
+        lower.contains(".png") ||
+        lower.contains("doubleclick") ||
+        lower.contains("googleads") ||
+        lower.contains("analytics") ||
+        lower.contains("stats")
+    ) {
+        score -= 100
+    }
+
+    if (
+        lower.contains("googlevideo.com") &&
+        lower.contains("videoplayback")
+    ) {
+        score += 70
+    }
+
+    return score
 }
 
 }
