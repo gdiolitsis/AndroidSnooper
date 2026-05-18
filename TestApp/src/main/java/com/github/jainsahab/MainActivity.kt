@@ -592,6 +592,145 @@ try {
 } catch (_: Throwable) {}
 
 // =====================================
+// YOUTUBE LIVE DETECTOR
+// =====================================
+
+try {
+
+    val lower =
+        url.lowercase()
+
+    // =====================================
+    // YOUTUBE LIVE SIGNALS
+    // =====================================
+
+    if (
+
+        lower.contains("youtube.com/embed/") ||
+        lower.contains("youtube.com/watch") ||
+        lower.contains("yt_live_broadcast") ||
+        lower.contains("googlevideo.com") ||
+        lower.contains("youtu.be/")
+
+    ) {
+
+        var videoId = ""
+
+        // =====================================
+        // EMBED
+        // =====================================
+
+        try {
+
+            val embedRegex =
+                "/embed/([a-zA-Z0-9_-]{6,})"
+                    .toRegex()
+
+            videoId =
+                embedRegex
+                    .find(url)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    .orEmpty()
+
+        } catch (_: Throwable) {}
+
+        // =====================================
+        // WATCH
+        // =====================================
+
+        if (videoId.isBlank()) {
+
+            try {
+
+                val uri =
+                    Uri.parse(url)
+
+                videoId =
+                    uri.getQueryParameter("v")
+                        .orEmpty()
+
+            } catch (_: Throwable) {}
+        }
+
+        // =====================================
+        // SHORT URL
+        // =====================================
+
+        if (videoId.isBlank()) {
+
+            try {
+
+                val shortRegex =
+                    "youtu\\.be/([a-zA-Z0-9_-]{6,})"
+                        .toRegex()
+
+                videoId =
+                    shortRegex
+                        .find(url)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        .orEmpty()
+
+            } catch (_: Throwable) {}
+        }
+
+        // =====================================
+        // GOOGLEVIDEO FALLBACK
+        // =====================================
+
+        if (videoId.isBlank()) {
+
+            try {
+
+                val gvRegex =
+                    "id=([a-zA-Z0-9_.-]+)"
+                        .toRegex()
+
+                videoId =
+                    gvRegex
+                        .find(url)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        .orEmpty()
+
+            } catch (_: Throwable) {}
+        }
+
+        // =====================================
+        // FINAL
+        // =====================================
+
+        if (videoId.isNotBlank()) {
+
+            val ytLiveUrl =
+                "https://www.youtube.com/watch?v=$videoId"
+
+            Log.e(
+                "YOUTUBE_LIVE_ID",
+                videoId
+            )
+
+            Log.e(
+                "YOUTUBE_LIVE_URL",
+                ytLiveUrl
+            )
+
+            bestLiveUrl =
+                ytLiveUrl
+
+            bestLiveScore =
+                9999
+
+            detectAndSaveUrl(
+                ytLiveUrl
+            )
+        }
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
 // SAVE REQUEST HEADERS
 // =====================================
 
@@ -5362,6 +5501,63 @@ val streamScore =
     calculateStreamScore(
         cleanedUrl
     )
+    
+// =====================================
+// LIVE SOURCE CLASSIFICATION
+// =====================================
+
+val isRealLive =
+
+    cleanedUrl.contains(
+        "yt_live_broadcast",
+        true
+    ) ||
+
+    cleanedUrl.contains(
+        "googlevideo.com",
+        true
+    ) ||
+
+    cleanedUrl.contains(
+        "live.m3u8",
+        true
+    ) ||
+
+    (
+        cleanedUrl.contains(
+            ".m3u8",
+            true
+        ) &&
+
+        !cleanedUrl.contains(
+            "#EXT-X-ENDLIST",
+            true
+        )
+    )
+
+if (isRealLive) {
+
+    Log.e(
+        "REAL_LIVE_SOURCE",
+        cleanedUrl
+    )
+
+    if (
+        streamScore > bestLiveScore
+    ) {
+
+        bestLiveScore =
+            streamScore + 1000
+
+        bestLiveUrl =
+            cleanedUrl
+
+        Log.e(
+            "BEST_REAL_LIVE",
+            "$bestLiveScore -> $bestLiveUrl"
+        )
+    }
+}
 
 if (streamScore < 20) {
     return
