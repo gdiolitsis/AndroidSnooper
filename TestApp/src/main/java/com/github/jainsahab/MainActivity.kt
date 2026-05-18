@@ -651,7 +651,7 @@ try {
 
     if (
 
-        cleanedUrl.contains(
+        url.contains((
             ".m3u8",
             true
         )
@@ -694,11 +694,11 @@ if (isLiveStream) {
 
     Log.e(
         "LIVE_HLS_CONFIRMED",
-        cleanedUrl
+        url
     )
 
     bestLiveUrl =
-        cleanedUrl
+        url
 
     bestLiveScore += 500
 }
@@ -754,7 +754,7 @@ for (i in lines.indices) {
 
                         val base =
 
-                            cleanedUrl
+                            url
                                 .substringBeforeLast("/")
 
                         "$base/$next"
@@ -841,7 +841,7 @@ for (i in lines.indices) {
 
                             val base =
 
-                                cleanedUrl.substringBeforeLast(
+                                url.substringBeforeLast(
                                     "/"
                                 )
 
