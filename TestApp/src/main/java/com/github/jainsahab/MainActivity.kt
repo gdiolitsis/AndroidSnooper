@@ -6658,47 +6658,47 @@ return JSON.stringify(
 """.trimIndent()
 
                     binding.contentMain.webview.evaluateJavascript(
-    js
-) { value ->
+                        js
+                    ) { value ->
 
-    try {
+                        try {
 
-        val cleaned =
-            value
-                ?.replace("\\u003C", "<")
-                ?.replace("\\/", "/")
-                ?.replace("\"[", "[")
-                ?.replace("]\"", "]")
-                ?: ""
+                            val cleaned =
+                                value
+                                    ?.replace("\\u003C", "<")
+                                    ?.replace("\\/", "/")
+                                    ?.replace("\"[", "[")
+                                    ?.replace("]\"", "]")
+                                    ?: ""
 
-        val arr =
-            org.json.JSONArray(cleaned)
+                            val arr =
+                                org.json.JSONArray(cleaned)
 
-        for (i in 0 until arr.length()) {
+                            for (i in 0 until arr.length()) {
 
-            val found =
-    arr.getString(i)
+                                val found =
+                                    arr.getString(i)
 
-markStreamSource(
-    found,
-    "MONITOR"
-)
+                                markStreamSource(
+                                    found,
+                                    "MONITOR"
+                                )
 
-detectAndSaveUrl(found)
-        }
+                                detectAndSaveUrl(found)
+                            }
 
-    } catch (_: Throwable) {
-    }
+                        } catch (_: Throwable) {
+                        }
 
-    // =====================================
-    // FORCE PLAYBACK / PLAYER WAKEUP
-    // =====================================
+                        // =====================================
+                        // FORCE PLAYBACK / PLAYER WAKEUP
+                        // =====================================
 
-    try {
+                        try {
 
-        binding.contentMain.webview.evaluateJavascript(
+                            binding.contentMain.webview.evaluateJavascript(
 
-            """
+                                """
 (function() {
 
 try {
@@ -6725,54 +6725,53 @@ try {
             } catch(e) {}
         });
 
-// =====================================
-// FORCE PLAY BUTTONS
-// =====================================
+    // =====================================
+    // FORCE PLAY BUTTONS
+    // =====================================
 
-document
-    .querySelectorAll(
-        "button, .play, .play-button, .vjs-big-play-button"
-    )
-    .forEach(function(el) {
+    document
+        .querySelectorAll(
+            "button, .play, .play-button, .vjs-big-play-button"
+        )
+        .forEach(function(el) {
 
-        try {
+            try {
 
-            el.click();
+                el.click();
 
-        } catch(e) {}
-    });
+            } catch(e) {}
+        });
 
 } catch(e) {}
 
 })();
 """
-        ) { }
+                            ) { }
 
-    } catch (_: Throwable) {}
+                        } catch (_: Throwable) {}
 
-// =====================================
-// LIVE STREAM MONITOR LOOP
-// =====================================
+                        // =====================================
+                        // LIVE STREAM MONITOR LOOP
+                        // =====================================
 
-if (monitorRunning) {
+                        if (monitorRunning) {
 
-    binding.contentMain.webview.postDelayed(
-        this,
-        4000
-    )
-}
+                            binding.contentMain.webview.postDelayed(
+                                this,
+                                4000
+                            )
+                        }
+                    }
+                } catch (_: Throwable) {
 
-} catch (_: Throwable) {
+                    if (monitorRunning) {
 
-    if (monitorRunning) {
-
-        binding.contentMain.webview.postDelayed(
-            this,
-            4000
-        )
-    }
-}
-
+                        binding.contentMain.webview.postDelayed(
+                            this,
+                            4000
+                        )
+                    }
+                }
             }
         },
 
