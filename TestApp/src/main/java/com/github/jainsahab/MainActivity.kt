@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -28,6 +29,7 @@ import okhttp3.Callback
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
@@ -235,6 +237,9 @@ private val okHttpClient: OkHttpClient
                         chain.proceed(  
                             chain.request()  
                         )  
+                        
+                    val url =
+                        response.request.url.toString()
 
                     val body =  
                         response.body  
@@ -6750,7 +6755,7 @@ document
     // =====================================
 
     if (!monitorRunning) {
-        return
+        return@evaluateJavascript
     }
 
     binding.contentMain.webview.postDelayed(
@@ -6762,7 +6767,7 @@ document
 } catch (_: Throwable) {
 
     if (!monitorRunning) {
-        return
+        return@evaluateJavascript
     }
 
     binding.contentMain.webview.postDelayed(
