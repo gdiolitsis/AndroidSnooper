@@ -651,7 +651,7 @@ try {
 
     if (
 
-        url.contains((
+        url.contains(
             ".m3u8",
             true
         )
