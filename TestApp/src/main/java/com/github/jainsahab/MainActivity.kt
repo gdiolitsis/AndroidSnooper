@@ -105,6 +105,16 @@ private val refreshRunnable =
 
         } catch (_: Throwable) {}
     }
+    
+// =====================================
+// BEST STREAM TRACKER
+// =====================================
+
+private var bestStreamUrl =
+    ""
+
+private var bestStreamScore =
+    0
 
 // =====================================
 // STREAM VALIDATION CACHE
@@ -622,6 +632,335 @@ try {
                         ?.bufferedReader()
                         ?.use { it.readText() }
                         .orEmpty()
+                        
+// =====================================
+// M3U8 BODY PARSER
+// =====================================
+
+try {
+
+    if (
+
+        cleanedUrl.contains(
+            ".m3u8",
+            true
+        )
+
+    ) {
+
+        Log.e(
+            "M3U8_BODY",
+            body
+        )
+
+        val lines =
+            body.lines()
+            
+// =====================================
+// LIVE HLS DETECTION
+// =====================================
+
+val isLiveStream =
+
+    !body.contains(
+        "#EXT-X-ENDLIST",
+        true
+    ) &&
+
+    (
+
+        body.contains(
+            "#EXTINF",
+            true
+        ) ||
+
+        body.contains(
+            "#EXT-X-TARGETDURATION",
+            true
+        )
+    )
+
+if (isLiveStream) {
+
+    Log.e(
+        "LIVE_HLS_CONFIRMED",
+        cleanedUrl
+    )
+
+    bestLiveUrl =
+        cleanedUrl
+
+    bestLiveScore += 500
+}
+
+// =====================================
+// HLS VARIANT PARSER
+// =====================================
+
+for (i in lines.indices) {
+
+    try {
+
+        val current =
+            lines[i].trim()
+
+        if (
+
+            current.contains(
+                "#EXT-X-STREAM-INF",
+                true
+            )
+
+        ) {
+
+            val next =
+
+                if (
+                    i + 1 < lines.size
+                ) {
+
+                    lines[i + 1].trim()
+
+                } else {
+                    ""
+                }
+
+            if (
+
+                next.endsWith(".m3u8") ||
+                next.contains(".m3u8?")
+
+            ) {
+
+                val absolute =
+
+                    if (
+                        next.startsWith("http")
+                    ) {
+
+                        next
+
+                    } else {
+
+                        val base =
+
+                            cleanedUrl
+                                .substringBeforeLast("/")
+
+                        "$base/$next"
+                    }
+
+                Log.e(
+                    "HLS_VARIANT",
+                    absolute
+                )
+
+                var variantScore =
+                    calculateStreamScore(
+                        absolute
+                    )
+
+                // =========================
+                // BANDWIDTH BONUS
+                // =========================
+
+                try {
+
+                    val bwRegex =
+"BANDWIDTH=(\\d+)"
+                        .toRegex()
+
+                    val bw =
+                        bwRegex
+                            .find(current)
+                            ?.groupValues
+                            ?.getOrNull(1)
+                            ?.toIntOrNull()
+                            ?: 0
+
+                    variantScore +=
+                        (bw / 100000)
+
+                } catch (_: Throwable) {}
+
+                if (
+                    variantScore >
+                    bestLiveScore
+                ) {
+
+                    bestLiveScore =
+                        variantScore
+
+                    bestLiveUrl =
+                        absolute
+
+                    Log.e(
+                        "BEST_VARIANT",
+                        "$bestLiveScore -> $bestLiveUrl"
+                    )
+                }
+            }
+        }
+
+    } catch (_: Throwable) {}
+}
+
+        lines.forEach { line ->
+
+            try {
+
+                val l =
+                    line.trim()
+
+                if (
+
+                    l.endsWith(".m3u8") ||
+                    l.contains(".m3u8?")
+
+                ) {
+
+                    val absolute =
+
+                        if (
+                            l.startsWith("http")
+                        ) {
+
+                            l
+
+                        } else {
+
+                            val base =
+
+                                cleanedUrl.substringBeforeLast(
+                                    "/"
+                                )
+
+                            "$base/$l"
+                        }
+
+                    Log.e(
+                        "M3U8_CHILD",
+                        absolute
+                    )
+
+                    val childScore =
+                        calculateStreamScore(
+                            absolute
+                        )
+
+                    if (
+                        childScore >
+                        bestLiveScore
+                    ) {
+
+                        bestLiveScore =
+                            childScore
+
+                        bestLiveUrl =
+                            absolute
+
+                        Log.e(
+                            "BEST_M3U8_CHILD",
+                            bestLiveUrl
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {}
+        }
+    }
+
+} catch (_: Throwable) {}
+                        
+// =====================================
+// PLAYER SOURCE EXTRACTION
+// =====================================
+
+try {
+
+    val liveRegex =
+"(https?:[^\"'\\\\\\s]+?(m3u8|mpd)(\\\\?[^\"'\\\\\\s]*)?)"
+        .toRegex(
+            RegexOption.IGNORE_CASE
+        )
+
+    liveRegex
+        .findAll(body)
+        .forEach {
+
+            try {
+
+                val extracted =
+                    it.value
+                        .replace("\\/", "/")
+                        .replace("\\\\", "")
+
+                val score =
+                    calculateStreamScore(
+                        extracted
+                    )
+
+                Log.e(
+                    "PLAYER_SOURCE",
+                    "$score -> $extracted"
+                )
+
+                if (
+
+                    score >= 200 &&
+
+                    (
+
+                        extracted.contains(
+                            "master.m3u8",
+                            true
+                        ) ||
+
+                        extracted.contains(
+                            "live.m3u8",
+                            true
+                        ) ||
+
+                        (
+                            extracted.contains(
+                                "manifest.ism",
+                                true
+                            ) &&
+
+                            !extracted.contains(
+                                "chunklist",
+                                true
+                            ) &&
+
+                            !extracted.contains(
+                                "index-v",
+                                true
+                            ) &&
+
+                            !extracted.contains(
+                                "index-a",
+                                true
+                            )
+                        )
+                    )
+                ) {
+
+                    bestLiveUrl =
+                        extracted
+
+                    bestLiveScore =
+                        score
+
+                    Log.e(
+                        "REAL_LIVE_STREAM",
+                        bestLiveUrl
+                    )
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+} catch (_: Throwable) {}
 
                 val regex =
 "(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
@@ -648,7 +987,45 @@ try {
 val score =
     calculateStreamScore(found)
 
-if (score >= 20) {
+if (
+
+    score >= 150 &&
+
+    (
+
+        found.contains(
+            "master.m3u8",
+            true
+        ) ||
+
+        found.contains(
+            "live.m3u8",
+            true
+        ) ||
+
+        (
+            found.contains(
+                "manifest.ism",
+                true
+            ) &&
+
+            !found.contains(
+                "chunklist",
+                true
+            ) &&
+
+            !found.contains(
+                "index-v",
+                true
+            ) &&
+
+            !found.contains(
+                "index-a",
+                true
+            )
+        )
+    )
+) {
 
     detectAndSaveUrl(
         found
@@ -934,41 +1311,91 @@ if (!window.__gelFetchHooked) {
 } catch(e) {}
 
 // =====================================
-// XHR HOOK
+// XHR RESPONSE BODY EXTRACTION
 // =====================================
 
 try {
 
-if (!window.__gelXHRHooked) {
+    if (!window.__gelXHRResponseHook) {
 
-    window.__gelXHRHooked = true;
+        window.__gelXHRResponseHook = true;
 
-    const originalOpen =
-        XMLHttpRequest.prototype.open;
+        const originalOpen =
+            XMLHttpRequest.prototype.open;
 
-    XMLHttpRequest.prototype.open =
-        function(method, url) {
+        const originalSend =
+            XMLHttpRequest.prototype.send;
 
-            try {
+        XMLHttpRequest.prototype.open =
+            function(method, url) {
 
-                if (url) {
+                try {
 
-                    gelPush(url);
+                    this.__gelUrl = url;
 
-                    console.log(
-                        "GEL_XHR:",
-                        url
+                } catch(e) {}
+
+                return originalOpen.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        XMLHttpRequest.prototype.send =
+            function() {
+
+                try {
+
+                    this.addEventListener(
+                        "readystatechange",
+                        function() {
+
+                            try {
+
+                                if (
+                                    this.readyState !== 4
+                                ) {
+                                    return;
+                                }
+
+                                const txt =
+                                    this.responseText;
+
+                                if (!txt) {
+                                    return;
+                                }
+
+                                const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+                                let match;
+
+                                while (
+                                    (match = regex.exec(txt)) !== null
+                                ) {
+
+                                    gelPush(
+                                        match[0]
+                                    );
+
+                                    console.log(
+                                        "GEL_XHR_RESPONSE:",
+                                        match[0]
+                                    );
+                                }
+
+                            } catch(e) {}
+                        }
                     );
-                }
 
-            } catch(e) {}
+                } catch(e) {}
 
-            return originalOpen.apply(
-                this,
-                arguments
-            );
-        };
-}
+                return originalSend.apply(
+                    this,
+                    arguments
+                );
+            };
+    }
 
 } catch(e) {}
 
@@ -1478,6 +1905,610 @@ try {
                 return new OriginalWorker(
                     url,
                     opts
+                );
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// HLS.JS LOADSOURCE HOOK
+// =====================================
+
+try {
+
+    if (
+        window.Hls &&
+        window.Hls.prototype &&
+        !window.__gelHlsHooked
+    ) {
+
+        window.__gelHlsHooked = true;
+
+        const originalLoadSource =
+            window.Hls.prototype.loadSource;
+
+        window.Hls.prototype.loadSource =
+            function(url) {
+
+                try {
+
+                    if (url) {
+
+                        gelPush(url);
+
+                        console.log(
+                            "GEL_HLSJS_LOADSOURCE:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalLoadSource.apply(
+                    this,
+                    arguments
+                );
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// VIDEO.JS SOURCE EXTRACTION
+// =====================================
+
+try {
+
+    if (
+        window.videojs
+    ) {
+
+        try {
+
+            const players =
+                window.videojs.getPlayers();
+
+            Object.keys(players)
+                .forEach(function(key) {
+
+                    try {
+
+                        const p =
+                            players[key];
+
+                        const current =
+
+                            p.currentSource
+                                ? p.currentSource()
+                                : null;
+
+                        if (
+                            current &&
+                            current.src
+                        ) {
+
+                            gelPush(
+                                current.src
+                            );
+
+                            console.log(
+                                "GEL_VIDEOJS_SOURCE:",
+                                current.src
+                            );
+                        }
+
+                    } catch(e) {}
+                });
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+// =====================================
+// DYNAMIC MEDIA WATCHER
+// =====================================
+
+try {
+
+    if (!window.__gelDynamicWatcher) {
+
+        window.__gelDynamicWatcher = true;
+
+        setInterval(function() {
+
+            try {
+
+                // =========================
+                // VIDEO TAGS
+                // =========================
+
+                document
+                .querySelectorAll(
+                    "video, source, audio"
+                )
+                .forEach(function(el) {
+
+                    try {
+
+                        if (el.src) {
+
+                            gelPush(el.src);
+
+                            console.log(
+                                "GEL_DYNAMIC_MEDIA:",
+                                el.src
+                            );
+                        }
+
+                        if (el.currentSrc) {
+
+                            gelPush(el.currentSrc);
+
+                            console.log(
+                                "GEL_DYNAMIC_CURRENT:",
+                                el.currentSrc
+                            );
+                        }
+
+                    } catch(e) {}
+                });
+
+                // =========================
+                // VIDEOJS
+                // =========================
+
+                try {
+
+                    if (window.videojs) {
+
+                        const players =
+                            window.videojs.getPlayers();
+
+                        Object.keys(players)
+                            .forEach(function(key) {
+
+                                try {
+
+                                    const p =
+                                        players[key];
+
+                                    const src =
+
+                                        p.currentSource
+                                            ? p.currentSource()
+                                            : null;
+
+                                    if (
+                                        src &&
+                                        src.src
+                                    ) {
+
+                                        gelPush(src.src);
+
+                                        console.log(
+                                            "GEL_DYNAMIC_VIDEOJS:",
+                                            src.src
+                                        );
+                                    }
+
+                                } catch(e) {}
+                            });
+                    }
+
+                } catch(e) {}
+
+            } catch(e) {}
+
+        }, 2000);
+    }
+
+} catch(e) {}
+
+// =====================================
+// LIVE NETWORK RESOURCE FILTER
+// =====================================
+
+try {
+
+    if (!window.__gelPerfWatcher) {
+
+        window.__gelPerfWatcher = true;
+
+        setInterval(function() {
+
+            try {
+
+                performance
+                .getEntriesByType("resource")
+                .forEach(function(r) {
+
+                    try {
+
+                        if (!r.name) {
+                            return;
+                        }
+
+                        const u =
+                            r.name.toLowerCase();
+
+                        // =====================
+                        // MEDIA FILTER
+                        // =====================
+
+                        if (
+
+                            u.includes(".m3u8") ||
+                            u.includes(".mpd") ||
+                            u.includes(".ts") ||
+                            u.includes(".m4s") ||
+                            u.includes("manifest") ||
+                            u.includes("playlist") ||
+                            u.includes("chunklist") ||
+                            u.includes("videoplayback")
+
+                        ) {
+
+                            gelPush(r.name);
+
+                            console.log(
+                                "GEL_PERF_MEDIA:",
+                                r.name
+                            );
+                        }
+
+                    } catch(e) {}
+                });
+
+            } catch(e) {}
+
+        }, 1500);
+    }
+
+} catch(e) {}
+
+// =====================================
+// FETCH RESPONSE BODY EXTRACTION
+// =====================================
+
+try {
+
+    if (!window.__gelFetchResponseHook) {
+
+        window.__gelFetchResponseHook = true;
+
+        const originalFetch =
+            window.fetch;
+
+        window.fetch =
+            async function() {
+
+                const response =
+                    await originalFetch.apply(
+                        this,
+                        arguments
+                    );
+
+                try {
+
+                    const cloned =
+                        response.clone();
+
+                    cloned.text()
+                        .then(function(txt) {
+
+                            try {
+
+                                const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+                                let match;
+
+                                while (
+                                    (match = regex.exec(txt)) !== null
+                                ) {
+
+                                    gelPush(
+                                        match[0]
+                                    );
+
+                                    console.log(
+                                        "GEL_FETCH_RESPONSE:",
+                                        match[0]
+                                    );
+                                }
+
+                            } catch(e) {}
+                        });
+
+                } catch(e) {}
+
+                return response;
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// JSON.PARSE HOOK
+// =====================================
+
+try {
+
+    if (!window.__gelJsonHooked) {
+
+        window.__gelJsonHooked = true;
+
+        const originalParse =
+            JSON.parse;
+
+        JSON.parse =
+            function(txt) {
+
+                try {
+
+                    if (
+                        typeof txt === "string"
+                    ) {
+
+                        const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            gelPush(
+                                match[0]
+                            );
+
+                            console.log(
+                                "GEL_JSON_PARSE:",
+                                match[0]
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalParse.apply(
+                    this,
+                    arguments
+                );
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// EVAL / FUNCTION HOOK
+// =====================================
+
+try {
+
+    if (!window.__gelEvalHooked) {
+
+        window.__gelEvalHooked = true;
+
+        // =============================
+        // EVAL
+        // =============================
+
+        const originalEval =
+            window.eval;
+
+        window.eval =
+            function(code) {
+
+                try {
+
+                    if (
+                        typeof code === "string"
+                    ) {
+
+                        const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(code)) !== null
+                        ) {
+
+                            gelPush(
+                                match[0]
+                            );
+
+                            console.log(
+                                "GEL_EVAL_MEDIA:",
+                                match[0]
+                            );
+                        }
+                    }
+
+                } catch(e) {}
+
+                return originalEval.apply(
+                    this,
+                    arguments
+                );
+            };
+
+        // =============================
+        // FUNCTION
+        // =============================
+
+        const originalFunction =
+            window.Function;
+
+        window.Function =
+            function() {
+
+                try {
+
+                    const joined =
+                        Array.from(arguments)
+                            .join(" ");
+
+                    const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+                    let match;
+
+                    while (
+                        (match = regex.exec(joined)) !== null
+                    ) {
+
+                        gelPush(
+                            match[0]
+                        );
+
+                        console.log(
+                            "GEL_FUNCTION_MEDIA:",
+                            match[0]
+                        );
+                    }
+
+                } catch(e) {}
+
+                return originalFunction.apply(
+                    this,
+                    arguments
+                );
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// WEBSOCKET HOOK
+// =====================================
+
+try {
+
+    if (!window.__gelWebSocketHooked) {
+
+        window.__gelWebSocketHooked = true;
+
+        const OriginalWebSocket =
+            window.WebSocket;
+
+        window.WebSocket =
+            function(url, protocols) {
+
+                try {
+
+                    if (url) {
+
+                        gelPush(url);
+
+                        console.log(
+                            "GEL_WS_CONNECT:",
+                            url
+                        );
+                    }
+
+                } catch(e) {}
+
+                const ws =
+                    protocols
+                    ? new OriginalWebSocket(
+                        url,
+                        protocols
+                    )
+                    : new OriginalWebSocket(
+                        url
+                    );
+
+                // =========================
+                // MESSAGE HOOK
+                // =========================
+
+                ws.addEventListener(
+                    "message",
+                    function(event) {
+
+                        try {
+
+                            const txt =
+                                String(
+                                    event.data
+                                );
+
+                            const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+                            let match;
+
+                            while (
+                                (match = regex.exec(txt)) !== null
+                            ) {
+
+                                gelPush(
+                                    match[0]
+                                );
+
+                                console.log(
+                                    "GEL_WS_MEDIA:",
+                                    match[0]
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+                );
+
+                return ws;
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// SOURCEBUFFER APPEND HOOK
+// =====================================
+
+try {
+
+    if (!window.__gelSourceBufferHooked) {
+
+        window.__gelSourceBufferHooked = true;
+
+        const originalAppend =
+            SourceBuffer.prototype.appendBuffer;
+
+        SourceBuffer.prototype.appendBuffer =
+            function(buffer) {
+
+                try {
+
+                    const size =
+                        buffer
+                            ? (
+                                buffer.byteLength ||
+                                buffer.length ||
+                                0
+                            )
+                            : 0;
+
+                    console.log(
+                        "GEL_SOURCEBUFFER_APPEND:",
+                        size
+                    );
+
+                    gelPush(
+                        "sourcebuffer://" +
+                        size
+                    );
+
+                } catch(e) {}
+
+                return originalAppend.apply(
+                    this,
+                    arguments
                 );
             };
     }
@@ -4275,8 +5306,74 @@ val cleanedUrl =
         .trim()  
         
 // =====================================
-// NORMALIZED URL
+// BEST LIVE TRACKER
 // =====================================
+
+val score =
+    calculateStreamScore(
+        cleanedUrl
+    )
+
+if (score > bestLiveScore) {
+
+    bestLiveScore =
+        score
+
+    bestLiveUrl =
+        cleanedUrl
+
+    Log.e(
+        "BEST_LIVE_UPDATE",
+        "$bestLiveScore -> $bestLiveUrl"
+    )
+}
+        
+// =====================================
+// DUPLICATE FILTER
+// =====================================
+
+val normalizedUrl =
+    cleanedUrl
+        .substringBefore("?")
+        .substringBefore("#")
+        .trim()
+
+if (
+    detectedStreams.contains(normalizedUrl)
+) {
+    return
+}
+
+// =====================================
+// STREAM PRIORITY SCORE
+// =====================================
+
+val streamScore =
+    calculateStreamScore(
+        cleanedUrl
+    )
+
+if (streamScore < 20) {
+    return
+}
+
+// =====================================
+// BEST STREAM
+// =====================================
+
+if (streamScore > bestStreamScore) {
+
+    bestStreamScore =
+        streamScore
+
+    bestStreamUrl =
+        cleanedUrl
+
+    Log.e(
+        "BEST_STREAM",
+        "$bestStreamScore -> $bestStreamUrl"
+    )
+}
 
 // =====================================
 // TOKEN FORENSICS
@@ -4842,7 +5939,7 @@ if (
 // SAVE STREAM
 // =====================================
 
-detectedStreams.add(cleanedUrl)
+detectedStreams.add(normalizedUrl)
 
 // =====================================
 // FORENSIC SOURCE
@@ -6942,7 +8039,6 @@ val text =
 
 }
 
-
 // =====================================
 // STREAM PRIORITY SCORE
 // =====================================
@@ -6956,17 +8052,33 @@ private fun calculateStreamScore(
 
     var score = 0
 
+    // =====================================
+    // MASTER PLAYLIST
+    // =====================================
+
     if (lower.contains("master.m3u8")) {
         score += 100
     }
+
+    // =====================================
+    // PLAYLIST
+    // =====================================
 
     if (lower.contains("playlist.m3u8")) {
         score += 80
     }
 
+    // =====================================
+    // CHUNKLIST
+    // =====================================
+
     if (lower.contains("chunklist")) {
         score += 60
     }
+
+    // =====================================
+    // INDEX
+    // =====================================
 
     if (
         lower.contains("index.m3u8") ||
@@ -6975,6 +8087,10 @@ private fun calculateStreamScore(
         score += 50
     }
 
+    // =====================================
+    // LIVE
+    // =====================================
+
     if (
         lower.contains("live") ||
         lower.contains("broadcast")
@@ -6982,9 +8098,17 @@ private fun calculateStreamScore(
         score += 40
     }
 
+    // =====================================
+    // HLS
+    // =====================================
+
     if (lower.contains(".m3u8")) {
         score += 30
     }
+
+    // =====================================
+    // DASH
+    // =====================================
 
     if (
         lower.contains(".mpd") ||
@@ -6993,12 +8117,20 @@ private fun calculateStreamScore(
         score += 20
     }
 
+    // =====================================
+    // VIDEO SEGMENTS
+    // =====================================
+
     if (
         lower.contains(".ts") ||
         lower.contains(".m4s")
     ) {
         score -= 20
     }
+
+    // =====================================
+    // IMAGES / ADS
+    // =====================================
 
     if (
         lower.contains(".jpg") ||
@@ -7011,6 +8143,10 @@ private fun calculateStreamScore(
         score -= 100
     }
 
+    // =====================================
+    // YOUTUBE DIRECT MEDIA
+    // =====================================
+
     if (
         lower.contains("googlevideo.com") &&
         lower.contains("videoplayback")
@@ -7018,7 +8154,65 @@ private fun calculateStreamScore(
         score += 70
     }
 
-    return score
+    // =====================================
+    // LIVE SIGNALS
+    // =====================================
+
+    if (
+        lower.contains("/live/") ||
+        lower.contains("live.m3u8") ||
+        lower.contains("playlist_live") ||
+        lower.contains("is_live") ||
+        lower.contains("livestream") ||
+        lower.contains("live-stream") ||
+        lower.contains("broadcast") ||
+        lower.contains("channel") ||
+        lower.contains("linear")
+    ) {
+        score += 300
+    }
+
+    // =====================================
+    // VOD PENALTY
+    // =====================================
+
+    if (
+        lower.contains("/vod/") ||
+        lower.contains("on-demand") ||
+        lower.contains("archive") ||
+        lower.contains("movie") ||
+        lower.contains("series") ||
+        lower.contains("episode")
+    ) {
+        score -= 200
+    }
+
+// =====================================
+// ROOT LIVE MANIFEST BOOST
+// =====================================
+
+if (
+    lower.contains("manifest.ism/live.m3u8")
+) {
+    score += 1000
+}
+
+// =====================================
+// CHILD PLAYLIST PENALTY
+// =====================================
+
+if (
+    lower.contains("chunklist") ||
+    lower.contains("index-v") ||
+    lower.contains("index-a") ||
+    lower.contains("audio_") ||
+    lower.contains("-audio") ||
+    lower.contains(".ts")
+) {
+    score -= 150
+}
+
+return score
 }
 
 }
