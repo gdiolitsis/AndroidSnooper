@@ -450,6 +450,12 @@ true
 )
 
 // =====================================
+// RESULT TEXT SELECTABLE
+// =====================================
+
+binding.contentMain.result.setTextIsSelectable(true)
+
+// =====================================
 // WEBVIEW CLIENT
 // =====================================
 
@@ -714,13 +720,6 @@ try {
     }
 
 } catch (_: Throwable) {}
-
-return super.shouldInterceptRequest(
-    view,
-    request
-)
-
-}
 
 return super.shouldInterceptRequest(
     view,
@@ -1572,18 +1571,18 @@ return JSON.stringify(results);
 
                 for (i in 0 until jsonArray.length()) {
 
-                    val foundUrl =
-    jsonArray.getString(i)
+    val foundUrl =
+        jsonArray.getString(i)
 
-markStreamSource(
-    foundUrl,
-    "JS"
-)
+    markStreamSource(
+        foundUrl,
+        "JS"
+    )
 
-detectAndSaveUrl(
-    foundUrl
-)
-                }
+    detectAndSaveUrl(
+        foundUrl
+    )
+}
 
             } catch (t: Throwable) {
 
@@ -2382,7 +2381,7 @@ binding.contentMain.exportM3u.setOnClickListener {
                     buildChannelName(url)
 
                 val name =
-                    "$channelName [$streamType] - $label"
+                     channelName
 
                 val groupTitle =
                     "Live Streams"
@@ -2391,7 +2390,7 @@ binding.contentMain.exportM3u.setOnClickListener {
                     buildLogoUrl(url)
 
                 sb.append(
-                    "#EXTINF:-1 tvg-name=\"$name\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$name\n"
+                   "#EXTINF:-1 tvg-id=\"$channelName\" tvg-name=\"$channelName\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$channelName\n"
                 )
 
                 sb.append(url)
@@ -2475,16 +2474,32 @@ binding.contentMain.btnClear.setOnClickListener {
 binding.contentMain.result.setOnClickListener {
 
     val start =
-    kotlin.math.max(
-        0,
-        binding.contentMain.result.selectionStart
-    )
+
+    try {
+
+        kotlin.math.max(
+            0,
+            binding.contentMain.result.selectionStart
+        )
+
+    } catch (_: Throwable) {
+
+        0
+    }
 
 val end =
-    kotlin.math.max(
-        start,
-        binding.contentMain.result.selectionEnd
-    )
+
+    try {
+
+        kotlin.math.max(
+            start,
+            binding.contentMain.result.selectionEnd
+        )
+
+    } catch (_: Throwable) {
+
+        start
+    }
 
 val fullText =
     binding.contentMain.result
@@ -2787,7 +2802,12 @@ private fun handleIncomingIntent() {
                 )  
 
                 if (
-    sharedText.startsWith("http")
+
+    sharedText.startsWith(
+        "http",
+        true
+    )
+
 ) {
 
     binding.contentMain.webview
@@ -2848,39 +2868,59 @@ if (
             }  
         }  
 
-        // =====================================  
-        // EXTRA STREAM  
-        // =====================================  
+// =====================================
+// EXTRA STREAM
+// =====================================
 
-        val streamUri =  
-            intent?.getParcelableExtra<Uri>(  
-                Intent.EXTRA_STREAM  
-            )  
+val streamUri =
 
-        if (streamUri != null) {  
+    try {
 
-            val url =  
-                streamUri.toString()  
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
-            binding.contentMain.urlInput  
-                .setText(url)  
+            intent?.getParcelableExtra(
+                Intent.EXTRA_STREAM,
+                Uri::class.java
+            )
 
-            detectAndSaveUrl(  
-                url  
-            )  
+        } else {
 
-            binding.contentMain.webview  
-                .loadUrl(url)  
-        }  
+            @Suppress("DEPRECATION")
 
-    } catch (t: Throwable) {  
+            intent?.getParcelableExtra<Uri>(
+                Intent.EXTRA_STREAM
+            )
+        }
 
-        Log.e(  
-            "INTENT_HANDLER",  
-            "failed",  
-            t  
-        )  
-    }  
+    } catch (_: Throwable) {
+
+        null
+    }
+
+if (streamUri != null) {
+
+    val url =
+        streamUri.toString()
+
+    binding.contentMain.urlInput
+        .setText(url)
+
+    detectAndSaveUrl(
+        url
+    )
+
+    binding.contentMain.webview
+        .loadUrl(url)
+}
+
+} catch (t: Throwable) {
+
+    Log.e(
+        "INTENT_HANDLER",
+        "failed",
+        t
+    )
+}
 }
 
 // =====================================
@@ -3636,13 +3676,16 @@ try {
 
     if (
 
+    found != url &&
+    (
         found.contains(".m3u8") ||
         found.contains(".mpd")
+    )
 
-    ) {
+) {
 
-        autoValidateStream(found)
-    }
+    autoValidateStream(found)
+}
 
 } catch (_: Throwable) {}               
 
@@ -3688,74 +3731,45 @@ try {
 
 try {
 
-    response.headers.forEach { pair ->
-
-        try {
-
-            val value =
-                pair.second
-
-            val regex =
-"(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
-    .toRegex()
-
-            regex.findAll(value)
-                .forEach {
-
-                    try {
-
-                        val found =
-                            it.value
-                                .replace("\\\\/", "/")
-
-                        Log.e(
-                            "HEADER_MEDIA",
-                            found
-                        )
-
-                        detectAndSaveUrl(
-                            found
-                        )
-
-                    } catch (_: Throwable) {}
-                }
-
-        } catch (_: Throwable) {}
-    }
-
-} catch (_: Throwable) {}         
-
-// =====================================
-// BODY URL EXTRACTION
-// =====================================
-
-try {
-
-    val regex =
-"(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
-    .toRegex()
-
-    regex.findAll(body)
-        .forEach {
+    response.headers.names()
+        .forEach { name ->
 
             try {
 
-                val found =
-                    it.value
-                        .replace("\\\\/", "/")
+                val value =
+                    response.header(name)
+                        .orEmpty()
 
-                detectAndSaveUrl(
-                    found
-                )
+                val regex =
+"(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
+    .toRegex()
+
+                regex.findAll(value)
+                    .forEach {
+
+                        try {
+
+                            val found =
+                                it.value
+                                    .replace("\\\\/", "/")
+
+                            Log.e(
+                                "HEADER_MEDIA",
+                                found
+                            )
+
+                            detectAndSaveUrl(
+                                found
+                            )
+
+                        } catch (_: Throwable) {}
+                    }
 
             } catch (_: Throwable) {}
         }
 
 } catch (_: Throwable) {}
 
-                            val result =
-    when {
-    
 // =====================================
 // MASTER PLAYLIST
 // =====================================
@@ -3975,13 +3989,13 @@ private fun parseM3u8Variants(
                         ?: "AUTO"
 
                 val bandwidth =
-                    Regex("BANDWIDTH=([0-9]+)")
-                        .find(lastInfo)
-                        ?.groupValues
-                        ?.getOrNull(1)
-                        ?.toIntOrNull()
-                        ?.let { "${it / 1000} kbps" }
-                        ?: "UNKNOWN"
+    Regex("BANDWIDTH=([0-9]+)")
+        .find(lastInfo)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.toLongOrNull()
+        ?.let { "${it / 1000} kbps" }
+        ?: "UNKNOWN"
 
                 val codecs =
                     Regex("CODECS=\"([^\"]+)\"")
@@ -4002,9 +4016,16 @@ private fun parseM3u8Variants(
 
 try {
 
-    detectAndSaveUrl(
-        variantUrl
-    )
+    if (
+        !detectedStreams.contains(
+            variantUrl
+        )
+    ) {
+
+        detectAndSaveUrl(
+            variantUrl
+        )
+    }
 
 } catch (_: Throwable) {}
                     
@@ -4319,6 +4340,11 @@ try {
 val lower =  
     cleanedUrl.lowercase()  
     
+val normalizedUrl =
+    cleanedUrl
+        .substringBefore("#")
+        .trim()
+    
 // =====================================
 // BLOB RELATION
 // =====================================
@@ -4531,10 +4557,12 @@ val isVideo =
     // EURONEWS STYLE
     // =====================================
 
-    lower.contains("euronews") &&
     (
-        lower.contains("api") ||
-        lower.contains("video")
+        lower.contains("euronews") &&
+        (
+            lower.contains("api") ||
+            lower.contains("video")
+        )
     )
 
 val isImage =  
@@ -4885,8 +4913,14 @@ streamScores[cleanedUrl] =
 
 if (
 
-    lower.contains(".m3u8") ||
-    lower.contains(".mpd")
+    (
+        lower.contains(".m3u8") ||
+        lower.contains(".mpd")
+    ) &&
+
+    !streamValidation.containsKey(
+        cleanedUrl
+    )
 
 ) {
 
@@ -5259,11 +5293,7 @@ val blobTag =
         }
 
         ?: ""
-
-return "$badge [$streamQuality] [$cdnType]$sourceTag$blobTag$parentTag$tokenTag $validation"
-
-}
-
+        
 // =====================================
 // MANIFEST PARENT
 // =====================================
@@ -5272,7 +5302,16 @@ val parentTag =
 
     manifestRelations[url]
         ?.let {
-        
+
+            val shortName =
+
+                it.substringAfterLast("/")
+
+            " [P:$shortName]"
+        }
+
+        ?: ""
+
 // =====================================
 // TOKEN TAG
 // =====================================
@@ -5292,14 +5331,9 @@ val tokenTag =
 
         ?: ""
 
-            val shortName =
+return "$badge [$streamQuality] [$cdnType]$sourceTag$blobTag$parentTag$tokenTag $validation"
 
-                it.substringAfterLast("/")
-
-            " [P:$shortName]"
-        }
-
-        ?: ""
+}
 
 // =====================================
 // BUILD IPTV CHANNEL NAME
@@ -5341,276 +5375,335 @@ private fun buildChannelName(
                 ""
         }
 
-// =====================================
-// CHANNEL NAME
-// =====================================
+    // =====================================
+    // CHANNEL NAME
+    // =====================================
 
-val channel =
-    when {
+    val channel =
+        when {
 
-        // =====================================
-        // PANELLADIKA
-        // =====================================
+            // =====================================
+            // PANELLADIKA
+            // =====================================
 
-        lower.contains("action24") ->
-            "ACTION 24"
+            lower.contains("action24") ||
+            lower.contains("actiontv") ->
+                "ACTION 24"
 
-        lower.contains("mega") &&
-        lower.contains("news") ->
-            "MEGA NEWS"
+            lower.contains("mega") &&
+            lower.contains("news") ->
+                "MEGA NEWS"
 
-        lower.contains("mega") ->
-            "MEGA"
+            lower.contains("mega") ->
+                "MEGA"
 
-        lower.contains("ant1") &&
-        lower.contains("comedy") ->
-            "ANT1 COMEDY"
+            lower.contains("comedy") &&
+            lower.contains("antennaplus") ->
+                "ANT1 COMEDY"
 
-        lower.contains("ant1") &&
-        lower.contains("drama") ->
-            "ANT1 DRAMA"
+            lower.contains("drama") &&
+            lower.contains("antennaplus") ->
+                "ANT1 DRAMA"
 
-        lower.contains("ant1") ->
-            "ANT1"
+            lower.contains("ant1") ||
+            lower.contains("antenna") ->
+                "ANT1"
 
-        lower.contains("skai") ->
-            "SKAI"
+            lower.contains("skai") ->
+                "SKAI"
 
-        lower.contains("alpha") ->
-            "ALPHA"
+            lower.contains("alpha") ->
+                "ALPHA"
 
-        lower.contains("star") &&
-        lower.contains("international") ->
-            "STAR INTERNATIONAL"
+            lower.contains("star") &&
+            lower.contains("international") ->
+                "STAR INTERNATIONAL"
 
-        lower.contains("star") ->
-            "STAR"
+            lower.contains("/star/") ||
+            lower.contains("star-channel") ||
+            lower.contains("startv") ->
+                "STAR"
 
-        lower.contains("open") ->
-            "OPEN"
+            lower.contains("open") ->
+                "OPEN"
 
-        lower.contains("ertnews") ->
-            "ERT NEWS"
+            lower.contains("ertnews") ->
+                "ERT NEWS"
 
-        lower.contains("ertworld") ->
-            "ERT WORLD"
+            lower.contains("ertworld") ->
+                "ERT WORLD"
 
-        lower.contains("ert1") ->
-            "ERT1"
+            lower.contains("ertkids") ->
+                "ERT KIDS"
 
-        lower.contains("ert2") ->
-            "ERT2"
+            lower.contains("ert1") ->
+                "ERT1"
 
-        lower.contains("ert3") ->
-            "ERT3"
+            lower.contains("ert2") ->
+                "ERT2"
 
-        lower.contains("vouli") ->
-            "VOULI TV"
+            lower.contains("ert3") ->
+                "ERT3"
 
-        lower.contains("kontra") ->
-            "KONTRA"
+            lower.contains("vouli") ->
+                "VOULI TV"
 
-        lower.contains("mak") ||
-        lower.contains("makedonia") ->
-            "MAKEDONIA TV"
+            lower.contains("kontra") ->
+                "KONTRA"
 
-        lower.contains("onechannel") ->
-            "ONE CHANNEL"
+            lower.contains("mak") ||
+            lower.contains("makedonia") ->
+                "MAKEDONIA TV"
 
-        lower.contains("bluesky") ->
-            "BLUE SKY"
+            lower.contains("onechannel") ||
+            lower.contains("one/stream") ->
+                "ONE CHANNEL"
 
-        // =====================================
-        // PERIFEREIAKA
-        // =====================================
+            lower.contains("bluesky") ->
+                "BLUE SKY"
 
-        lower.contains("4e") ->
-            "4E"
+            // =====================================
+            // PERIFEREIAKA
+            // =====================================
 
-        lower.contains("aeolos") ->
-            "AEOLOS TV"
+            lower.contains("faros1") ->
+                "FAROS TV 1"
 
-        lower.contains("aigaiotv") ->
-            "AIGAIO TV"
+            lower.contains("faros2") ->
+                "FAROS TV 2"
 
-        lower.contains("arttv") ->
-            "ART TV"
+            lower.contains("acheloostv") ||
+            lower.contains("acheloos") ->
+                "ACHELOOS TV"
 
-        lower.contains("astratv") ->
-            "ASTRA TV"
+            lower.contains("mesogeiostv") ->
+                "MESOGEIOS TV"
 
-        lower.contains("atticatv") ->
-            "ATTICA TV"
+            lower.contains("messiniatv") ->
+                "MESSINIA TV"
 
-        lower.contains("besttv") ->
-            "BEST TV"
+            lower.contains("hlektratv") ->
+                "HLEKTRA TV"
 
-        lower.contains("centertv") ->
-            "CENTER TV"
+            lower.contains("paniktv") ->
+                "PANIK TV"
 
-        lower.contains("corfu") ->
-            "CORFU TV"
+            lower.contains("nstv") ->
+                "NSTV"
 
-        lower.contains("deltatv") ->
-            "DELTA TV"
+            lower.contains("hellenictv") ->
+                "HELLENIC TV"
 
-        lower.contains("diontv") ->
-            "DION TV"
+            lower.contains("eurotv") ->
+                "EURO TV"
 
-        lower.contains("egnatiatv") ->
-            "EGNATIA TV"
+            lower.contains("madworld") ->
+                "MAD WORLD"
 
-        lower.contains("epirus") ->
-            "EPIRUS TV"
+            lower.contains("ena_channel") ||
+            lower.contains("/ena/") ->
+                "ENA CHANNEL"
 
-        lower.contains("epsilon") ->
-            "EPSILON TV"
+            lower.contains("4e") ->
+                "4E"
 
-        lower.contains("extratv") ->
-            "EXTRA TV"
+            lower.contains("aeolos") ->
+                "AEOLOS TV"
 
-        lower.contains("formedia") ->
-            "FORMEDIA TV"
+            lower.contains("aigaiotv") ->
+                "AIGAIO TV"
 
-        lower.contains("hightv") ->
-            "HIGH TV"
+            lower.contains("arttv") ->
+                "ART TV"
 
-        lower.contains("ionian") ->
-            "IONIAN TV"
+            lower.contains("astratv") ->
+                "ASTRA TV"
 
-        lower.contains("kriti1") ->
-            "KRHTH 1"
+            lower.contains("atticatv") ->
+                "ATTICA TV"
 
-        lower.contains("cretetv") ->
-            "KRHTH TV"
+            lower.contains("besttv") ->
+                "BEST TV"
 
-        lower.contains("lepanto") ->
-            "LEPANTO"
+            lower.contains("centertv") ->
+                "CENTER TV"
 
-        lower.contains("lychnos") ->
-            "LYCHNOS TV"
+            lower.contains("corfu") ->
+                "CORFU TV"
 
-        lower.contains("naft") ->
-            "NAFTEMPORIKI TV"
+            lower.contains("deltatv") ->
+                "DELTA TV"
 
-        lower.contains("neatv") ->
-            "NEA TV"
+            lower.contains("diontv") ->
+                "DION TV"
 
-        lower.contains("ort") ->
-            "ORT TV"
+            lower.contains("egnatiatv") ->
+                "EGNATIA TV"
 
-        lower.contains("pellatv") ->
-            "PELLA TV"
+            lower.contains("epirus") ->
+                "EPIRUS TV"
 
-        lower.contains("plp") ->
-            "PLP"
+            lower.contains("epsilon") ->
+                "EPSILON TV"
 
-        lower.contains("samiaki") ->
-            "SAMIAKI TV"
+            lower.contains("extratv") ->
+                "EXTRA TV"
 
-        lower.contains("starbe") ->
-            "STAR B.E."
+            lower.contains("formedia") ->
+                "FORMEDIA TV"
 
-        lower.contains("starke") ->
-            "STAR K.E."
+            lower.contains("hightv") ->
+                "HIGH TV"
 
-        lower.contains("starttv") ->
-            "START TV"
+            lower.contains("ionian") ->
+                "IONIAN TV"
 
-        lower.contains("stent") ->
-            "STENT TV"
+            lower.contains("kriti1") ->
+                "KRHTH 1"
 
-        lower.contains("syrostv1") ->
-            "SYROS TV1"
+            lower.contains("cretetv") ->
+                "KRHTH TV"
 
-        lower.contains("telekriti") ->
-            "TELEKRITI"
+            lower.contains("lepanto") ->
+                "LEPANTO"
 
-        lower.contains("thraki") ->
-            "THRAKI NET"
+            lower.contains("lychnos") ->
+                "LYCHNOS TV"
 
-        lower.contains("topchannel") ->
-            "TOP CHANNEL"
+            lower.contains("naft") ->
+                "NAFTEMPORIKI TV"
 
-        lower.contains("trt") ->
-            "TRT"
+            lower.contains("neatv") ->
+                "NEA TV"
 
-        lower.contains("tv100") ->
-            "TV100"
+            lower.contains("ort") ->
+                "ORT TV"
 
-        lower.contains("tvcreta") ->
-            "TV CRETA"
+            lower.contains("pellatv") ->
+                "PELLA TV"
 
-        lower.contains("vergina") ->
-            "VERGINA TV"
+            lower.contains("plp") ->
+                "PLP"
 
-        lower.contains("zougla") ->
-            "ZOUGLA TV"
+            lower.contains("samiaki") ->
+                "SAMIAKI TV"
 
-        // =====================================
-        // CYPRUS
-        // =====================================
+            lower.contains("starbe") ->
+                "STAR B.E."
 
-        lower.contains("alphacy") ->
-            "ALPHA CYPRUS"
+            lower.contains("starke") ->
+                "STAR K.E."
 
-        lower.contains("ant1cy") ->
-            "ANT1 CYPRUS"
+            lower.contains("starttv") ->
+                "START TV"
 
-        lower.contains("citychannel") ->
-            "CITY CHANNEL"
+            lower.contains("stent") ->
+                "STENT TV"
 
-        lower.contains("omega") ->
-            "OMEGA CYPRUS"
+            lower.contains("syrostv1") ->
+                "SYROS TV1"
 
-        lower.contains("riksat") ->
-            "RIK SAT"
+            lower.contains("telekriti") ->
+                "TELEKRITI"
 
-        lower.contains("sigma") ->
-            "SIGMA CYPRUS"
+            lower.contains("thraki") ->
+                "THRAKI NET"
 
-        // =====================================
-        // CINEMA
-        // =====================================
+            lower.contains("topchannel") ->
+                "TOP CHANNEL"
 
-        lower.contains("extacy") ->
-            "EXTACY TV"
+            lower.contains("trt") ->
+                "TRT"
 
-        lower.contains("cinemaclassics") ->
-            "CINEMA CLASSICS"
+            lower.contains("tv100") ->
+                "TV100"
 
-        lower.contains("groovy") ->
-            "GROOVY CINEMA"
+            lower.contains("tvcreta") ->
+                "TV CRETA"
 
-        lower.contains("lampsi") ->
-            "LAMPSI TV"
+            lower.contains("vergina") ->
+                "VERGINA TV"
 
-        lower.contains("netmax") ->
-            "NETMAX TV"
+            lower.contains("zougla") ->
+                "ZOUGLA TV"
 
-        lower.contains("village-world") ->
-            "VILLAGE WORLD"
+            // =====================================
+            // MUSIC / RADIO TV
+            // =====================================
 
-        // =====================================
-        // FALLBACKS
-        // =====================================
+            lower.contains("kissfm") ->
+                "KISS FM TV"
 
-        lower.contains(".m3u8") ->
-            "HLS"
+            lower.contains("tilemousiki") ->
+                "THLEMOUSIKH"
 
-        lower.contains(".mpd") ->
-            "DASH"
+            lower.contains("ellinikosfm") ->
+                "ELLINIKOS FM"
 
-        lower.contains(".mp4") ->
-            "VIDEO"
+            // =====================================
+            // CYPRUS
+            // =====================================
 
-        else ->
-            "STREAM"
-    }
+            lower.contains("alphacy") ->
+                "ALPHA CYPRUS"
 
-return "$channel$quality"
-    .trim()
-    }
+            lower.contains("ant1cy") ->
+                "ANT1 CYPRUS"
+
+            lower.contains("citychannel") ->
+                "CITY CHANNEL"
+
+            lower.contains("omega") ->
+                "OMEGA CYPRUS"
+
+            lower.contains("riksat") ->
+                "RIK SAT"
+
+            lower.contains("sigma") ->
+                "SIGMA CYPRUS"
+
+            // =====================================
+            // CINEMA
+            // =====================================
+
+            lower.contains("extacy") ->
+                "EXTACY TV"
+
+            lower.contains("cinemaclassics") ->
+                "CINEMA CLASSICS"
+
+            lower.contains("groovy") ->
+                "GROOVY CINEMA"
+
+            lower.contains("lampsi") ->
+                "LAMPSI TV"
+
+            lower.contains("netmax") ->
+                "NETMAX TV"
+
+            lower.contains("village-world") ->
+                "VILLAGE WORLD"
+
+            // =====================================
+            // FALLBACKS
+            // =====================================
+
+            lower.contains(".m3u8") ->
+                "HLS"
+
+            lower.contains(".mpd") ->
+                "DASH"
+
+            lower.contains(".mp4") ->
+                "VIDEO"
+
+            else ->
+                "STREAM"
+        }
+
+    return "$channel$quality"
+        .trim()
+}
 
 // =====================================
 // BUILD STREAM TYPE
@@ -5794,7 +5887,9 @@ private fun buildLogoUrl(
         lower.contains("skai") ->
             "https://upload.wikimedia.org/wikipedia/el/e/eb/SkaiTV-Logo.png"
 
-        lower.contains("star") ->
+        lower.contains("/star/") ||
+        lower.contains("star-channel") ||
+        lower.contains("startv") ->
             "https://www.star.gr/tv/Content/Media/logo.png"
 
         lower.contains("vouli") ||
@@ -5936,7 +6031,7 @@ private fun buildLogoUrl(
             "https://raw.githubusercontent.com/manolischania/manalab-iptv/refs/heads/main/logo/TOP.png"
 
         lower.contains("trt") ->
-            "http://i.imgur.com/nAzfWx5.png"
+            "https://i.imgur.com/nAzfWx5.png"
 
         lower.contains("tv100") ->
             "https://i.imgur.com/D7YqJig.png"
@@ -5945,7 +6040,7 @@ private fun buildLogoUrl(
             "https://i.imgur.com/1uMcCR6.png"
 
         lower.contains("tvfilopoli") ->
-            "http://i.imgur.com/GdgekUL.png"
+            "https://i.imgur.com/GdgekUL.png"
 
         lower.contains("tvkosmos") ->
             "https://raw.githubusercontent.com/manolischania/manalab-iptv/refs/heads/main/logo/KOSMOS_TV.png"
@@ -5957,7 +6052,7 @@ private fun buildLogoUrl(
             "https://i.imgur.com/JzuEEDi.png"
 
         lower.contains("zougla") ->
-            "http://i.imgur.com/dW08jNe.png"
+            "https://i.imgur.com/dW08jNe.png"
 
         // =====================================
         // CYPRUS
@@ -6022,7 +6117,7 @@ private fun showAllMedia() {
     val sb =
         StringBuilder()
 
-    val sorted =
+val sorted =
     detectedStreams
         .sortedByDescending { url ->
 
@@ -6033,6 +6128,9 @@ private fun showAllMedia() {
             val baseScore =
                 streamScores[url]
                     ?: 0
+
+            val lower =
+                url.lowercase()
 
             when {
 
@@ -6066,15 +6164,9 @@ private fun showAllMedia() {
                 validation.contains("DEAD") ->
                     -1000
 
-                else ->
-                    baseScore
-            }
-        }
-
-            val lower =
-                url.lowercase()
-
-            when {
+                // =====================================
+                // MASTER
+                // =====================================
 
                 lower.contains("master.m3u8") &&
                 !lower.contains("/vod/") ->
@@ -6122,7 +6214,7 @@ private fun showAllMedia() {
                     10
 
                 else ->
-                    1
+                    baseScore
             }
         }
 
@@ -6621,22 +6713,22 @@ try {
             } catch(e) {}
         });
 
-    // =====================================
-    // FORCE PLAY BUTTONS
-    // =====================================
+// =====================================
+// FORCE PLAY BUTTONS
+// =====================================
 
-    document
-        .querySelectorAll(
-            "button, .play, .play-button, .vjs-big-play-button"
-        )
-        .forEach(function(el) {
+document
+    .querySelectorAll(
+        "button, .play, .play-button, .vjs-big-play-button"
+    )
+    .forEach(function(el) {
 
-            try {
+        try {
 
-                el.click();
+            el.click();
 
-            } catch(e) {}
-        });
+        } catch(e) {}
+    });
 
 } catch(e) {}
 
@@ -6646,6 +6738,14 @@ try {
 
     } catch (_: Throwable) {}
 
+    // =====================================
+    // LIVE STREAM MONITOR LOOP
+    // =====================================
+
+    if (!monitorRunning) {
+        return
+    }
+
     binding.contentMain.webview.postDelayed(
         this,
         4000
@@ -6653,6 +6753,10 @@ try {
 }
 
 } catch (_: Throwable) {
+
+    if (!monitorRunning) {
+        return
+    }
 
     binding.contentMain.webview.postDelayed(
         this,
@@ -6808,12 +6912,10 @@ okHttpClient
 
                 try {  
 
-                    if (  
-!response.isSuccessful &&  
-response.code !in 200..399
-
+                    if (
+    response.code !in 200..399
 ) {
-return
+    return
 }
 
 val text =  
