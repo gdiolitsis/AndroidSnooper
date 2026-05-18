@@ -117,6 +117,16 @@ private var bestStreamScore =
     0
 
 // =====================================
+// BEST LIVE TRACKER
+// =====================================
+
+private var bestLiveUrl =
+    ""
+
+private var bestLiveScore =
+    0
+
+// =====================================
 // STREAM VALIDATION CACHE
 // =====================================
 
@@ -5426,11 +5436,6 @@ try {
 
 val lower =  
     cleanedUrl.lowercase()  
-    
-val normalizedUrl =
-    cleanedUrl
-        .substringBefore("#")
-        .trim()
     
 // =====================================
 // BLOB RELATION
