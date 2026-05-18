@@ -3771,22 +3771,29 @@ try {
 } catch (_: Throwable) {}
 
 // =====================================
-// MASTER PLAYLIST
+// FINAL RESULT
 // =====================================
 
-streamValidation[url]
-    ?.contains("MASTER PLAYLIST") == true ->
+val result =
+    when {
 
-    "👑 MASTER PLAYLIST"
-    
-// =====================================
-// DRM
-// =====================================
+        // =====================================
+        // MASTER PLAYLIST
+        // =====================================
 
-streamValidation[url]
-    ?.contains("DRM") == true ->
+        streamValidation[url]
+            ?.contains("MASTER PLAYLIST") == true ->
 
-    "🔐 DRM"
+            "👑 MASTER PLAYLIST"
+
+        // =====================================
+        // DRM
+        // =====================================
+
+        streamValidation[url]
+            ?.contains("DRM") == true ->
+
+            "🔐 DRM"
 
         // =====================================
         // LIVE HLS
