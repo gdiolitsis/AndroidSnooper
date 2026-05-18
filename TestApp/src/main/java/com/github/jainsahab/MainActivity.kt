@@ -640,10 +640,20 @@ try {
                                 "BODY_MEDIA",
                                 found
                             )
+                            
+// =====================================
+// STREAM SCORE
+// =====================================
 
-                            detectAndSaveUrl(
-                                found
-                            )
+val score =
+    calculateStreamScore(found)
+
+if (score >= 20) {
+
+    detectAndSaveUrl(
+        found
+    )
+}
 
                         } catch (_: Throwable) {}
                     }
@@ -1612,13 +1622,90 @@ url?.contains(".mpd") == true
 )
 ) {
 
-monitorRunning = true  
+    monitorRunning = true  
 
-startStreamMonitor()
-
+    startStreamMonitor()
 }
 
-}  
+}
+}
+
+// =====================================
+// STREAM PRIORITY SCORE
+// =====================================
+
+private fun calculateStreamScore(
+    url: String
+): Int {
+
+    val lower =
+        url.lowercase()
+
+    var score = 0
+
+    if (lower.contains("master.m3u8")) {
+        score += 100
+    }
+
+    if (lower.contains("playlist.m3u8")) {
+        score += 80
+    }
+
+    if (lower.contains("chunklist")) {
+        score += 60
+    }
+
+    if (
+        lower.contains("index.m3u8") ||
+        lower.contains("index-v")
+    ) {
+        score += 50
+    }
+
+    if (
+        lower.contains("live") ||
+        lower.contains("broadcast")
+    ) {
+        score += 40
+    }
+
+    if (lower.contains(".m3u8")) {
+        score += 30
+    }
+
+    if (
+        lower.contains(".mpd") ||
+        lower.contains("manifest")
+    ) {
+        score += 20
+    }
+
+    if (
+        lower.contains(".ts") ||
+        lower.contains(".m4s")
+    ) {
+        score -= 20
+    }
+
+    if (
+        lower.contains(".jpg") ||
+        lower.contains(".png") ||
+        lower.contains("doubleclick") ||
+        lower.contains("googleads") ||
+        lower.contains("analytics") ||
+        lower.contains("stats")
+    ) {
+        score -= 100
+    }
+
+    if (
+        lower.contains("googlevideo.com") &&
+        lower.contains("videoplayback")
+    ) {
+        score += 70
+    }
+
+    return score
 }
 
 // =====================================
