@@ -4230,8 +4230,38 @@ private fun resolveRelativeUrl(
 // =====================================
 
 private fun detectAndSaveUrl(
-url: String
+    url: String
 ) {
+
+    // =====================================
+    // URL FILTER
+    // =====================================
+
+    val filterLower =
+    url.lowercase()
+
+    if (
+
+        filterLower.contains("doubleclick") ||
+        filterLower.contains("googleads") ||
+        filterLower.contains("analytics") ||
+        filterLower.contains("/stats/") ||
+        filterLower.contains("ptracking") ||
+        filterLower.contains("api/stats") ||
+        filterLower.contains("pagead") ||
+        filterLower.contains("collect?") ||
+        filterLower.contains(".jpg") ||
+        filterLower.contains(".png") ||
+        filterLower.contains(".svg") ||
+        filterLower.contains(".gif") ||
+        filterLower.contains("html-load.com") ||
+        filterLower.contains("ad-delivery") ||
+        filterLower.contains("moat") ||
+        filterLower.contains("feed/iu1")
+
+    ) {
+        return
+    }
 
 Log.e(  
     "MEDIA_DETECT",  
