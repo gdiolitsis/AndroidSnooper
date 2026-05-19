@@ -5866,25 +5866,7 @@ try {
     }
 
 } catch (_: Throwable) {}
-        
-// =====================================
-// STREAM HIT TRACKING
-// =====================================
 
-val currentHits =
-    (streamHitCounter[normalizedUrl] ?: 0) + 1
-
-streamHitCounter[normalizedUrl] =
-    currentHits
-
-if (currentHits >= 3) {
-
-    Log.e(
-        "STREAM_STABLE",
-        "$currentHits -> $normalizedUrl"
-    )
-}
-        
 // =====================================
 // LIVE CONFIDENCE
 // =====================================
@@ -6109,6 +6091,24 @@ val normalizedUrl =
         .substringBefore("?")
         .substringBefore("#")
         .trim()
+
+// =====================================
+// STREAM HIT TRACKING
+// =====================================
+
+val currentHits =
+    (streamHitCounter[normalizedUrl] ?: 0) + 1
+
+streamHitCounter[normalizedUrl] =
+    currentHits
+
+if (currentHits >= 3) {
+
+    Log.e(
+        "STREAM_STABLE",
+        "$currentHits -> $normalizedUrl"
+    )
+}
 
 if (
     detectedStreams.contains(normalizedUrl)
