@@ -134,6 +134,32 @@ private var bestStreamUrl =
 
 private var bestStreamScore =
     0
+    
+// =====================================
+// YOUTUBE DASH TRACKER
+// =====================================
+
+private var youtubeDashVideoUrl =
+    ""
+
+private var youtubeDashAudioUrl =
+    ""
+
+private var youtubeDashVideoItag =
+    ""
+
+private var youtubeDashAudioItag =
+    ""
+    
+// =====================================
+// YOUTUBE EMBED / WATCH TRACKER
+// =====================================
+
+private var youtubeEmbedUrl =
+    ""
+
+private var youtubeWatchUrl =
+    ""
 
 // =====================================
 // BEST LIVE TRACKER
@@ -3169,6 +3195,125 @@ try {
 
 } catch(e) {}
 
+// =====================================
+// YOUTUBE HLS / M3U8 FORENSICS
+// =====================================
+
+try {
+
+    var html =
+        document.documentElement.innerHTML || "";
+
+    function cleanYouTubeUrl(u) {
+
+        if (!u) {
+            return "";
+        }
+
+        try {
+
+            u = u
+                .replace(/\\u0026/g, "&")
+                .replace(/\\\//g, "/")
+                .replace(/&amp;/g, "&");
+
+            u = decodeURIComponent(u);
+
+        } catch (e) {}
+
+        return u;
+    }
+
+    var hlsMatches =
+        html.match(
+            /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/g
+        );
+
+    if (hlsMatches) {
+
+        hlsMatches.forEach(function(m) {
+
+            try {
+
+                var found =
+                    m.match(
+                        /["']([^"']+)["']\s*$/
+                    );
+
+                if (found && found[1]) {
+
+                    var hlsUrl =
+                        cleanYouTubeUrl(found[1]);
+
+                    if (
+                        hlsUrl.indexOf(".m3u8") !== -1 ||
+                        hlsUrl.indexOf("manifest/hls") !== -1 ||
+                        hlsUrl.indexOf("hls_playlist") !== -1
+                    ) {
+
+                        results.push(hlsUrl);
+
+                        console.log(
+                            "GEL_YOUTUBE_HLS:",
+                            hlsUrl
+                        );
+                    }
+                }
+
+            } catch (e) {}
+        });
+    }
+
+    var directM3u8 =
+        html.match(
+            /https?:\\?\/\\?\/[^"'<> ]+?\.m3u8[^"'<> ]*/g
+        );
+
+    if (directM3u8) {
+
+        directM3u8.forEach(function(u) {
+
+            var clean =
+                cleanYouTubeUrl(u);
+
+            if (clean) {
+
+                results.push(clean);
+
+                console.log(
+                    "GEL_DIRECT_M3U8:",
+                    clean
+                );
+            }
+        });
+    }
+
+    var manifestHls =
+        html.match(
+            /https?:\\?\/\\?\/[^"'<> ]+?manifest[^"'<> ]+?hls[^"'<> ]*/g
+        );
+
+    if (manifestHls) {
+
+        manifestHls.forEach(function(u) {
+
+            var clean =
+                cleanYouTubeUrl(u);
+
+            if (clean) {
+
+                results.push(clean);
+
+                console.log(
+                    "GEL_MANIFEST_HLS:",
+                    clean
+                );
+            }
+        });
+    }
+
+} catch (e) {}
+
 return JSON.stringify(results);
 
 })();
@@ -4268,141 +4413,374 @@ binding.contentMain.result.setOnLongClickListener { v ->
     val popup =
         PopupMenu(this, v)
 
-    popup.menu.add("OPEN PLAYER")
-    popup.menu.add("TEST STREAM")
-    popup.menu.add("SHARE URL")
-    popup.menu.add("COPY URL")
+popup.menu.add("OPEN PLAYER")
+popup.menu.add("TEST STREAM")
+popup.menu.add("SHARE URL")
+popup.menu.add("COPY URL")
 
-    popup.setOnMenuItemClickListener { item ->
+if (bestStreamUrl.isNotBlank()) {
 
-        val finalUrl =
-            if (bestLiveUrl.isNotBlank()) {
-                bestLiveUrl
-            } else {
-                lastSelectedUrl
+    popup.menu.add("OPEN BEST STREAM")
+    popup.menu.add("COPY BEST STREAM")
+}
+
+if (youtubeWatchUrl.isNotBlank()) {
+
+    popup.menu.add("OPEN YOUTUBE WATCH")
+    popup.menu.add("COPY YOUTUBE WATCH")
+}
+
+if (
+    youtubeDashVideoUrl.isNotBlank() &&
+    youtubeDashAudioUrl.isNotBlank()
+) {
+
+    popup.menu.add("COPY DASH PAIR")
+    popup.menu.add("SHARE DASH PAIR")
+}
+
+popup.setOnMenuItemClickListener { item ->
+
+    val finalUrl =
+        lastSelectedUrl
+            .trim()
+
+    if (finalUrl.isBlank()) {
+        return@setOnMenuItemClickListener true
+    }
+
+    when (item.title.toString()) {
+
+"OPEN PLAYER" -> {
+
+    try {
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+
+                setDataAndType(
+                    Uri.parse(finalUrl),
+                    "video/*"
+                )
             }
 
-        when (item.title.toString()) {
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open With"
+            )
+        )
 
-            "OPEN PLAYER" -> {
+    } catch (_: Throwable) {
 
-                try {
+        Toast.makeText(
+            this,
+            "No compatible player",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW
-                        ).apply {
+    true
+}
 
-                            setDataAndType(
-                                Uri.parse(finalUrl),
-                                "video/*"
-                            )
-                        }
+"TEST STREAM" -> {
 
-                    startActivity(
-                        Intent.createChooser(
-                            intent,
-                            "Open With"
-                        )
-                    )
+    try {
 
-                } catch (_: Throwable) {
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
 
-                    Toast.makeText(
-                        this,
-                        "No compatible player",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-
-                true
+                data =
+                    Uri.parse(finalUrl)
             }
 
-            "TEST STREAM" -> {
+        startActivity(intent)
 
-                try {
+    } catch (_: Throwable) {
 
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW
-                        ).apply {
+        Toast.makeText(
+            this,
+            "Cannot test stream",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 
-                            data =
-                                Uri.parse(finalUrl)
-                        }
+    true
+}
 
-                    startActivity(intent)
+"SHARE URL" -> {
 
-                } catch (_: Throwable) {
+    try {
 
-                    Toast.makeText(
-                        this,
-                        "Cannot test stream",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+        val shareIntent =
+            Intent(
+                Intent.ACTION_SEND
+            ).apply {
 
-                true
+                type =
+                    "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    finalUrl
+                )
             }
 
-            "SHARE URL" -> {
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Share Stream"
+            )
+        )
 
-                try {
+    } catch (_: Throwable) {}
 
-                    val shareIntent =
-                        Intent(
-                            Intent.ACTION_SEND
-                        ).apply {
+    true
+}
 
-                            type =
-                                "text/plain"
+"COPY URL" -> {
 
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                finalUrl
-                            )
-                        }
+    try {
 
-                    startActivity(
-                        Intent.createChooser(
-                            shareIntent,
-                            "Share Stream"
-                        )
-                    )
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
 
-                } catch (_: Throwable) {}
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "stream",
+                finalUrl
+            )
+        )
 
-                true
+        Toast.makeText(
+            this,
+            "URL copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+
+    true
+}
+
+"OPEN BEST STREAM" -> {
+
+    try {
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+
+                setDataAndType(
+                    Uri.parse(bestStreamUrl),
+                    "video/*"
+                )
             }
 
-            "COPY URL" -> {
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open Best Stream"
+            )
+        )
 
-                try {
+    } catch (_: Throwable) {
 
-                    val clipboard =
-                        getSystemService(
-                            CLIPBOARD_SERVICE
-                        ) as ClipboardManager
+        Toast.makeText(
+            this,
+            "Cannot open best stream",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            "stream",
-                            finalUrl
-                        )
-                    )
+    true
+}
 
-                    Toast.makeText(
-                        this,
-                        "URL copied",
-                        Toast.LENGTH_SHORT
-                    ).show()
+"COPY BEST STREAM" -> {
 
-                } catch (_: Throwable) {}
+    try {
 
-                true
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "best_stream",
+                bestStreamUrl
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "Best stream copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+
+    true
+}
+
+"OPEN YOUTUBE WATCH" -> {
+
+    try {
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+
+                data =
+                    Uri.parse(youtubeWatchUrl)
             }
 
-            else -> false
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open YouTube Live"
+            )
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Cannot open YouTube link",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    true
+}
+
+"COPY YOUTUBE WATCH" -> {
+
+    try {
+
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "youtube_watch",
+                youtubeWatchUrl
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "YouTube link copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+
+    true
+}
+
+"COPY DASH PAIR" -> {
+
+    try {
+
+        val dashPairText =
+            """
+YOUTUBE DASH PAIR
+
+VIDEO ITAG:
+$youtubeDashVideoItag
+
+VIDEO URL:
+$youtubeDashVideoUrl
+
+AUDIO ITAG:
+$youtubeDashAudioItag
+
+AUDIO URL:
+$youtubeDashAudioUrl
+""".trimIndent()
+
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "youtube_dash_pair",
+                dashPairText
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "DASH pair copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+
+    true
+}
+
+"SHARE DASH PAIR" -> {
+
+    try {
+
+        val dashPairText =
+            """
+YOUTUBE DASH PAIR
+
+VIDEO ITAG:
+$youtubeDashVideoItag
+
+VIDEO URL:
+$youtubeDashVideoUrl
+
+AUDIO ITAG:
+$youtubeDashAudioItag
+
+AUDIO URL:
+$youtubeDashAudioUrl
+""".trimIndent()
+
+        val shareIntent =
+            Intent(
+                Intent.ACTION_SEND
+            ).apply {
+
+                type =
+                    "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    dashPairText
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Share DASH Pair"
+            )
+        )
+
+    } catch (_: Throwable) {}
+
+    true
+}
+
+else -> false
         }
     }
 
@@ -6530,10 +6908,18 @@ if (
 // STREAM PRIORITY SCORE
 // =====================================
 
-val streamScore =
+var streamScore =
     calculateStreamScore(
         cleanedUrl
     )
+
+if (isYoutubeHlsManifest) {
+    streamScore += 500
+}
+
+if (isPlayableHlsStream) {
+    streamScore += 300
+}
     
 // =====================================
 // LIVE SOURCE CLASSIFICATION
@@ -6606,7 +6992,20 @@ if (
 // BEST STREAM
 // =====================================
 
-if (streamScore > bestStreamScore) {
+val canBeBestStream =
+    isYoutubeHlsManifest ||
+    isPlayableHlsStream ||
+    (
+        !isYoutubeDashVideoOnly &&
+        !isYoutubeDashAudioOnly &&
+        !isEuronewsGeoApi &&
+        !isEuronewsLiveApi
+    )
+
+if (
+    canBeBestStream &&
+    streamScore > bestStreamScore
+) {
 
     bestStreamScore =
         streamScore
@@ -7391,8 +7790,176 @@ val streamQuality =
 // BADGES  
 // =====================================  
 
+// =====================================
+// EURONEWS / YOUTUBE DASH FORENSICS
+// =====================================
+
+val decodedLower =
+    try {
+
+        Uri.decode(cleanedUrl)
+            .lowercase()
+
+    } catch (_: Throwable) {
+
+        lower
+    }
+
+val isEuronewsLivePage =
+    lower.contains("gr.euronews.com/live") ||
+    lower.contains("euronews.com/live")
+
+val isEuronewsLiveApi =
+    lower.contains("gr.euronews.com/api/live/data") ||
+    lower.contains("euronews.com/api/live/data")
+
+val isEuronewsGeoApi =
+    lower.contains("gr.euronews.com/api/geoblocking/live") ||
+    lower.contains("euronews.com/api/geoblocking/live")
+
+val isEuronewsYoutubeEmbed =
+    lower.contains("youtube.com/embed") &&
+    (
+        lower.contains("euronews") ||
+        lower.contains("uWIhV9gQClg".lowercase())
+    )
+    
+// =====================================
+// SAVE YOUTUBE EMBED / WATCH URL
+// =====================================
+
+if (isEuronewsYoutubeEmbed) {
+
+    youtubeEmbedUrl =
+        cleanedUrl
+
+    youtubeWatchUrl =
+        try {
+
+            val uri =
+                Uri.parse(cleanedUrl)
+
+            val path =
+                uri.path
+                    ?: ""
+
+            val videoId =
+                path.substringAfterLast("/")
+                    .substringBefore("?")
+                    .trim()
+
+            if (videoId.isNotBlank()) {
+                "https://www.youtube.com/watch?v=$videoId"
+            } else {
+                ""
+            }
+
+        } catch (_: Throwable) {
+
+            ""
+        }
+
+    Log.e(
+        "YOUTUBE_EMBED",
+        youtubeWatchUrl.ifBlank { youtubeEmbedUrl }
+    )
+}
+
+val isYoutubeLiveDash =
+    lower.contains("googlevideo.com/videoplayback") &&
+    (
+        lower.contains("yt_live_broadcast") ||
+        lower.contains("live=1")
+    )
+
+val isYoutubeDashVideoOnly =
+    isYoutubeLiveDash &&
+    (
+        lower.contains("mime=video%2fmp4") ||
+        decodedLower.contains("mime=video/mp4") ||
+        lower.contains("itag=133") ||
+        lower.contains("itag=134") ||
+        lower.contains("itag=135") ||
+        lower.contains("itag=136") ||
+        lower.contains("itag=137") ||
+        lower.contains("itag=160")
+    )
+
+val isYoutubeDashAudioOnly =
+    isYoutubeLiveDash &&
+    (
+        lower.contains("mime=audio%2fmp4") ||
+        decodedLower.contains("mime=audio/mp4") ||
+        lower.contains("itag=140") ||
+        lower.contains("itag=141") ||
+        lower.contains("itag=251")
+    )
+    
+// =====================================
+// SAVE YOUTUBE DASH PAIRS
+// =====================================
+
+if (isYoutubeDashVideoOnly) {
+
+    youtubeDashVideoUrl =
+        cleanedUrl
+
+    youtubeDashVideoItag =
+        when {
+            lower.contains("itag=137") -> "137"
+            lower.contains("itag=136") -> "136"
+            lower.contains("itag=135") -> "135"
+            lower.contains("itag=134") -> "134"
+            lower.contains("itag=133") -> "133"
+            lower.contains("itag=160") -> "160"
+            else -> ""
+        }
+
+    Log.e(
+        "YOUTUBE_DASH_VIDEO",
+        "$youtubeDashVideoItag -> $youtubeDashVideoUrl"
+    )
+}
+
+if (isYoutubeDashAudioOnly) {
+
+    youtubeDashAudioUrl =
+        cleanedUrl
+
+    youtubeDashAudioItag =
+        when {
+            lower.contains("itag=251") -> "251"
+            lower.contains("itag=141") -> "141"
+            lower.contains("itag=140") -> "140"
+            else -> ""
+        }
+
+    Log.e(
+        "YOUTUBE_DASH_AUDIO",
+        "$youtubeDashAudioItag -> $youtubeDashAudioUrl"
+    )
+}
+
 val streamBadge =  
     when {  
+    
+isEuronewsLiveApi ->
+    "🟡 EURONEWS LIVE API"
+
+isEuronewsGeoApi ->
+    "🟡 EURONEWS GEO CHECK"
+
+isEuronewsYoutubeEmbed ->
+    "🟡 EURONEWS YOUTUBE EMBED"
+
+isYoutubeDashVideoOnly ->
+    "🟠 YOUTUBE DASH VIDEO ONLY"
+
+isYoutubeDashAudioOnly ->
+    "🟠 YOUTUBE DASH AUDIO ONLY"
+
+isEuronewsLivePage ->
+    "🟡 EURONEWS LIVE PAGE"
 
         lower.contains(".m3u8") ->  
             "📺 HLS"  
@@ -7462,6 +8029,46 @@ lastSelectedUrl =
     cleanedUrl
 
 // =====================================
+// FORENSIC NOTE
+// =====================================
+
+val hasYoutubeDashPair =
+    youtubeDashVideoUrl.isNotBlank() &&
+    youtubeDashAudioUrl.isNotBlank()
+
+val dashPairNote =
+    if (hasYoutubeDashPair) {
+
+        "\n✅ DASH PAIR READY — Video itag: $youtubeDashVideoItag / Audio itag: $youtubeDashAudioItag"
+
+    } else {
+
+        ""
+    }
+
+val forensicNote =
+    when {
+
+        isYoutubeDashVideoOnly ->
+            "\n⚠️ VIDEO ONLY — YouTube DASH fragment, no audio$dashPairNote"
+
+        isYoutubeDashAudioOnly ->
+            "\n⚠️ AUDIO ONLY — YouTube DASH fragment, no video$dashPairNote"
+
+        isEuronewsYoutubeEmbed ->
+            "\nℹ️ Euronews uses YouTube embedded live player$dashPairNote"
+
+        isEuronewsLiveApi ->
+            "\nℹ️ Euronews live API detected — metadata/source endpoint$dashPairNote"
+
+        isEuronewsGeoApi ->
+            "\nℹ️ Euronews geoblocking check endpoint$dashPairNote"
+
+        else ->
+            dashPairNote
+    }
+
+// =====================================
 // UI OUTPUT
 // =====================================
 
@@ -7470,7 +8077,7 @@ runOnUiThread {
     binding.contentMain.result.append(
         """
 
-$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge
+$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge$forensicNote
 
 $displayUrl
 
