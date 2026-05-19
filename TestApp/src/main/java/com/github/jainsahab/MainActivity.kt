@@ -6908,6 +6908,10 @@ if (
 // EURONEWS / YOUTUBE DASH / HLS FLAGS
 // =====================================
 
+val lower =
+    cleanedUrl
+        .lowercase()
+
 val decodedLower =
     try {
 
@@ -7867,44 +7871,6 @@ val streamQuality =
                 "AUTO"
         }
 
-// =====================================  
-// BADGES  
-// =====================================  
-
-// =====================================
-// EURONEWS / YOUTUBE DASH FORENSICS
-// =====================================
-
-val decodedLower =
-    try {
-
-        Uri.decode(cleanedUrl)
-            .lowercase()
-
-    } catch (_: Throwable) {
-
-        lower
-    }
-
-val isEuronewsLivePage =
-    lower.contains("gr.euronews.com/live") ||
-    lower.contains("euronews.com/live")
-
-val isEuronewsLiveApi =
-    lower.contains("gr.euronews.com/api/live/data") ||
-    lower.contains("euronews.com/api/live/data")
-
-val isEuronewsGeoApi =
-    lower.contains("gr.euronews.com/api/geoblocking/live") ||
-    lower.contains("euronews.com/api/geoblocking/live")
-
-val isEuronewsYoutubeEmbed =
-    lower.contains("youtube.com/embed") &&
-    (
-        lower.contains("euronews") ||
-        lower.contains("uWIhV9gQClg".lowercase())
-    )
-    
 // =====================================
 // SAVE YOUTUBE EMBED / WATCH URL
 // =====================================
@@ -7946,36 +7912,6 @@ if (isEuronewsYoutubeEmbed) {
     )
 }
 
-val isYoutubeLiveDash =
-    lower.contains("googlevideo.com/videoplayback") &&
-    (
-        lower.contains("yt_live_broadcast") ||
-        lower.contains("live=1")
-    )
-
-val isYoutubeDashVideoOnly =
-    isYoutubeLiveDash &&
-    (
-        lower.contains("mime=video%2fmp4") ||
-        decodedLower.contains("mime=video/mp4") ||
-        lower.contains("itag=133") ||
-        lower.contains("itag=134") ||
-        lower.contains("itag=135") ||
-        lower.contains("itag=136") ||
-        lower.contains("itag=137") ||
-        lower.contains("itag=160")
-    )
-
-val isYoutubeDashAudioOnly =
-    isYoutubeLiveDash &&
-    (
-        lower.contains("mime=audio%2fmp4") ||
-        decodedLower.contains("mime=audio/mp4") ||
-        lower.contains("itag=140") ||
-        lower.contains("itag=141") ||
-        lower.contains("itag=251")
-    )
-    
 // =====================================
 // SAVE YOUTUBE DASH PAIRS
 // =====================================
