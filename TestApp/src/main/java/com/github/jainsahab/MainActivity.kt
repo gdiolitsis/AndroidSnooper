@@ -6992,7 +6992,11 @@ val isVideo =
         )
     )
 
-val isImage =  
+// =====================================
+// IMAGE TYPES
+// =====================================
+
+val isImage =
     lower.contains(".jpg") ||  
     lower.contains(".jpeg") ||  
     lower.contains(".png") ||  
