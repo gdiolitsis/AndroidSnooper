@@ -86,6 +86,12 @@ private val streamBandwidth =
 private val streamCodec =
     linkedMapOf<String, String>()
     
+private var bestVideoItag = 0
+private var bestAudioItag = 0
+
+private var liveLocked = false
+private var lockedStreamId = ""
+    
 // =====================================
 // LIVE HEARTBEAT MAP
 // =====================================
@@ -138,6 +144,12 @@ private var bestLiveUrl =
 
 private var bestLiveScore =
     0
+    
+private val dashVideoMap =
+    mutableMapOf<String, String>()
+
+private val dashAudioMap =
+    mutableMapOf<String, String>()
 
 // =====================================
 // STREAM VALIDATION CACHE
@@ -1615,6 +1627,127 @@ try {
                                 if (!txt) {
                                     return;
                                 }
+                                
+// =====================================
+// YOUTUBE PLAYER RESPONSE
+// =====================================
+
+try {
+
+    if (
+        txt.includes(
+            "dashManifestUrl"
+        ) ||
+
+        txt.includes(
+            "hlsManifestUrl"
+        ) ||
+
+        txt.includes(
+            "ytInitialPlayerResponse"
+        )
+    ) {
+
+        console.log(
+            "GEL_PLAYER_RESPONSE_FOUND"
+        );
+
+// =====================================
+// RAW PLAYER RESPONSE DEBUG
+// =====================================
+
+try {
+
+    if (
+
+        txt.includes(
+            "ytInitialPlayerResponse"
+        ) ||
+
+        txt.includes(
+            "dashManifestUrl"
+        ) ||
+
+        txt.includes(
+            "hlsManifestUrl"
+        )
+
+    ) {
+
+        console.log(
+            "GEL_RAW_PLAYER_RESPONSE:",
+            txt.substring(0, 5000)
+        );
+    }
+
+} catch(e) {}
+
+        // =============================
+        // DASH MANIFEST
+        // =============================
+
+        const dashRegex =
+/"https:\/\/[^"]+?\.mpd[^"]*"/gi;
+
+        let dash;
+
+        while (
+            (dash = dashRegex.exec(txt)) !== null
+        ) {
+
+            try {
+
+                const url =
+                    dash[0]
+                        .replace(/^"/, "")
+                        .replace(/"$/, "")
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\\//g, "/");
+
+                gelPush(url);
+
+                console.log(
+                    "GEL_DASH_MANIFEST:",
+                    url
+                );
+
+            } catch(e) {}
+        }
+
+        // =============================
+        // HLS MANIFEST
+        // =============================
+
+        const hlsRegex =
+/"https:\/\/[^"]+?\.m3u8[^"]*"/gi;
+
+        let hls;
+
+        while (
+            (hls = hlsRegex.exec(txt)) !== null
+        ) {
+
+            try {
+
+                const url =
+                    hls[0]
+                        .replace(/^"/, "")
+                        .replace(/"$/, "")
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\\//g, "/");
+
+                gelPush(url);
+
+                console.log(
+                    "GEL_HLS_MANIFEST:",
+                    url
+                );
+
+            } catch(e) {}
+        }
+    }
+
+} catch(e) {}
 
                                 const regex =
 /https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
@@ -4131,21 +4264,178 @@ val y =
         selectedUrl
 
     val popup =
-        PopupMenu(this, v)
+    PopupMenu(this, v)
 
-    popup.menu.add("OPEN PLAYER")
+popup.menu.add("OPEN PLAYER")
 
-    popup.menu.add("TEST STREAM")
+popup.menu.add("TEST STREAM")
 
-    popup.menu.add("SHARE URL")
+popup.menu.add("SHARE URL")
 
-    popup.menu.add("COPY URL")
+popup.menu.add("COPY URL")
 
-    popup.setOnMenuItemClickListener {
+popup.setOnMenuItemClickListener {
 
-        when (it.title.toString()) {
+    when (it.title.toString()) {
 
-            "OPEN PLAYER" -> {
+        "OPEN PLAYER" -> {
+
+            val finalUrl =
+
+                if (
+                    bestLiveUrl.isNotBlank()
+                ) {
+
+                    bestLiveUrl
+
+                } else {
+
+                    lastSelectedUrl
+                }
+
+            try {
+
+                val intent =
+                    Intent(
+                        Intent.ACTION_VIEW
+                    )
+
+                intent.setDataAndType(
+                    Uri.parse(finalUrl),
+                    "video/*"
+                )
+
+                startActivity(intent)
+
+            } catch (_: Throwable) {
+
+                Toast.makeText(
+                    this,
+                    "No compatible player",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            true
+        }
+
+        "TEST STREAM" -> {
+
+            val finalUrl =
+
+                if (
+                    bestLiveUrl.isNotBlank()
+                ) {
+
+                    bestLiveUrl
+
+                } else {
+
+                    lastSelectedUrl
+                }
+
+            try {
+
+                val intent =
+                    Intent(
+                        Intent.ACTION_VIEW
+                    )
+
+                intent.data =
+                    Uri.parse(finalUrl)
+
+                startActivity(intent)
+
+            } catch (_: Throwable) {}
+
+            true
+        }
+
+        "SHARE URL" -> {
+
+            val finalUrl =
+
+                if (
+                    bestLiveUrl.isNotBlank()
+                ) {
+
+                    bestLiveUrl
+
+                } else {
+
+                    lastSelectedUrl
+                }
+
+            try {
+
+                val share =
+                    Intent(
+                        Intent.ACTION_SEND
+                    )
+
+                share.type =
+                    "text/plain"
+
+                share.putExtra(
+                    Intent.EXTRA_TEXT,
+                    finalUrl
+                )
+
+                startActivity(
+                    Intent.createChooser(
+                        share,
+                        "Share Stream"
+                    )
+                )
+
+            } catch (_: Throwable) {}
+
+            true
+        }
+
+        "COPY URL" -> {
+
+            val finalUrl =
+
+                if (
+                    bestLiveUrl.isNotBlank()
+                ) {
+
+                    bestLiveUrl
+
+                } else {
+
+                    lastSelectedUrl
+                }
+
+            try {
+
+                val clipboard =
+                    getSystemService(
+                        CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText(
+                        "stream",
+                        finalUrl
+                    )
+                )
+
+                Toast.makeText(
+                    this,
+                    "URL copied",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            } catch (_: Throwable) {}
+
+            true
+        }
+
+        else -> false
+    }
+}
 
                 val intent =
                     Intent(Intent.ACTION_VIEW).apply {
@@ -5814,6 +6104,80 @@ val cleanedUrl =
         .replace("\\u0026", "&")
         .replace("\\/", "/")
         .trim()
+
+// =====================================
+// DISPLAY URL
+// =====================================
+
+val displayUrl =
+
+    try {
+
+        val uri =
+            Uri.parse(cleanedUrl)
+
+        val host =
+            uri.host.orEmpty()
+
+        val itag =
+            uri.getQueryParameter("itag")
+                .orEmpty()
+
+        val mime =
+
+            when {
+
+                cleanedUrl.contains(
+                    "mime=video",
+                    true
+                ) -> "VIDEO"
+
+                cleanedUrl.contains(
+                    "mime=audio",
+                    true
+                ) -> "AUDIO"
+
+                else -> "STREAM"
+            }
+
+        when {
+
+            cleanedUrl.contains(
+                "yt_live_broadcast",
+                true
+            ) -> {
+
+                "[YOUTUBE LIVE] " +
+                "itag=$itag " +
+                mime
+            }
+
+            cleanedUrl.contains(
+                ".m3u8",
+                true
+            ) -> {
+
+                "[HLS] $host"
+            }
+
+            cleanedUrl.contains(
+                ".mpd",
+                true
+            ) -> {
+
+                "[DASH] $host"
+            }
+
+            else -> {
+
+                host
+            }
+        }
+
+    } catch (_: Throwable) {
+
+        cleanedUrl
+    }
         
 // =====================================
 // TOKEN FORENSICS
@@ -6021,6 +6385,152 @@ try {
                 "DASH_AUDIO",
                 streamId
             )
+        }
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
+// DASH AUDIO / VIDEO MERGE
+// =====================================
+
+try {
+
+    val uri =
+        Uri.parse(cleanedUrl)
+
+    val streamId =
+        uri.getQueryParameter("id")
+            ?.substringBefore(".")
+            .orEmpty()
+
+    if (streamId.isNotBlank()) {
+
+        // =====================================
+        // ITAG PARSER
+        // =====================================
+
+        val itag =
+
+            uri.getQueryParameter("itag")
+                ?.toIntOrNull()
+                ?: 0
+
+        // =============================
+        // SAVE VIDEO
+        // =============================
+
+        if (
+
+            cleanedUrl.contains(
+                "mime=video",
+                true
+            )
+
+        ) {
+
+            if (itag > bestVideoItag) {
+
+                bestVideoItag =
+                    itag
+
+                dashVideoMap[streamId] =
+                    cleanedUrl
+
+                Log.e(
+                    "BEST_VIDEO_ITAG",
+                    "$itag -> $cleanedUrl"
+                )
+            }
+
+            Log.e(
+                "DASH_VIDEO_SAVED",
+                streamId
+            )
+        }
+
+        // =============================
+        // SAVE AUDIO
+        // =============================
+
+        if (
+
+            cleanedUrl.contains(
+                "mime=audio",
+                true
+            )
+
+        ) {
+
+            if (itag > bestAudioItag) {
+
+                bestAudioItag =
+                    itag
+
+                dashAudioMap[streamId] =
+                    cleanedUrl
+
+                Log.e(
+                    "BEST_AUDIO_ITAG",
+                    "$itag -> $cleanedUrl"
+                )
+            }
+
+            Log.e(
+                "DASH_AUDIO_SAVED",
+                streamId
+            )
+        }
+
+        // =============================
+        // AUTO MERGE READY
+        // =============================
+
+        val video =
+            dashVideoMap[streamId]
+
+        val audio =
+            dashAudioMap[streamId]
+
+        if (
+
+            !video.isNullOrBlank() &&
+            !audio.isNullOrBlank()
+
+        ) {
+
+            Log.e(
+                "DASH_READY",
+                streamId
+            )
+
+            Log.e(
+                "DASH_VIDEO_URL",
+                video
+            )
+
+            Log.e(
+                "DASH_AUDIO_URL",
+                audio
+            )
+
+            if (!liveLocked) {
+
+    bestLiveUrl =
+        video
+
+    bestLiveScore += 3000
+
+    liveLocked = true
+
+    lockedStreamId =
+        streamId
+
+    Log.e(
+        "LIVE_LOCKED",
+        "$lockedStreamId -> $bestLiveUrl"
+    )
+}
         }
     }
 
@@ -7057,6 +7567,8 @@ runOnUiThread {
         """
 
 $streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge
+
+$displayUrl
 
 $cleanedUrl
 
@@ -9149,7 +9661,187 @@ if (
     score -= 150
 }
 
+// =====================================
+// LIVE VALIDATION BONUS
+// =====================================
+
+if (
+
+    lower.contains(
+        "source=yt_live_broadcast"
+    )
+
+) {
+
+    score += 1000
+}
+
+if (
+
+    lower.contains(
+        "live=1"
+    )
+
+) {
+
+    score += 500
+}
+
+if (
+
+    lower.contains(
+        "mime=video"
+    )
+
+) {
+
+    score += 300
+}
+
+if (
+
+    lower.contains(
+        "mime=audio"
+    )
+
+) {
+
+    score += 150
+}
+
+if (
+
+    lower.contains(
+        "noclen=1"
+    )
+
+) {
+
+    score += 200
+}
+
+if (
+
+    lower.contains(
+        "gir=yes"
+    )
+
+) {
+
+    score += 100
+}
+
+if (
+
+    lower.contains(
+        "googlevideo.com"
+    )
+
+) {
+
+    score += 400
+}
+
+if (
+
+    lower.contains(
+        "expire="
+    )
+
+) {
+
+    score += 100
+}
+
+// =====================================
+// EXPIRE CHECK
+// =====================================
+
+try {
+
+    val uri =
+        Uri.parse(url)
+
+    val expire =
+        uri.getQueryParameter("expire")
+            ?.toLongOrNull()
+            ?: 0L
+
+    if (expire > 0L) {
+
+        val now =
+            System.currentTimeMillis() / 1000L
+
+        val remain =
+            expire - now
+
+        // =============================
+        // DEAD STREAM
+        // =============================
+
+        if (remain <= 0L) {
+
+            score -= 5000
+
+            if (
+                liveLocked &&
+                url == bestLiveUrl
+            ) {
+
+                resetLiveDetection()
+
+                Log.e(
+                    "LIVE_UNLOCK",
+                    "Expired stream"
+                )
+            }
+        }
+
+        // =============================
+        // FRESH STREAM
+        // =============================
+
+        else {
+
+            score += 200
+        }
+    }
+
+} catch (_: Throwable) {}
+
 return score
+}
+
+// =====================================
+// LIVE RECOVERY
+// =====================================
+
+private fun resetLiveDetection() {
+
+    try {
+
+        liveLocked = false
+
+        lockedStreamId = ""
+
+        bestLiveUrl = ""
+
+        bestLiveScore = 0
+
+        bestVideoItag = 0
+
+        bestAudioItag = 0
+
+        dashVideoMap.clear()
+
+        dashAudioMap.clear()
+
+        Log.e(
+            "LIVE_RESET",
+            "Recovery started"
+        )
+
+    } catch (_: Throwable) {}
 }
 
 }
