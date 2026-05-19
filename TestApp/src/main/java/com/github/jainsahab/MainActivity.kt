@@ -6866,15 +6866,47 @@ if (isPlayableHlsStream) {
 // BEST STREAM
 // =====================================
 
+val isJwPlayerVod =
+    lower.contains("jwpsrv.com") ||
+        lower.contains("jwplayer") ||
+        (
+            lower.contains("/media/") &&
+                lower.contains("/versions/")
+        )
+
+val isBadBestStream =
+    isJwPlayerVod ||
+        isYoutubeDashVideoOnly ||
+        isYoutubeDashAudioOnly ||
+        isEuronewsGeoApi ||
+        isEuronewsLiveApi ||
+        isSegmentTs ||
+        lower.contains(".m4s") ||
+        lower.contains("chunklist") ||
+        lower.contains("index-a") ||
+        lower.contains("index-v") ||
+        lower.contains("audio_") ||
+        lower.contains("-audio") ||
+        lower.contains("manifest-audio") ||
+        lower.contains(".jpg") ||
+        lower.contains(".jpeg") ||
+        lower.contains(".png") ||
+        lower.contains(".webp") ||
+        lower.contains(".gif")
+
 val canBeBestStream =
-    isYoutubeHlsManifest ||
-    isPlayableHlsStream ||
-    (
-        !isYoutubeDashVideoOnly &&
-        !isYoutubeDashAudioOnly &&
-        !isEuronewsGeoApi &&
-        !isEuronewsLiveApi
-    )
+    !isBadBestStream &&
+        (
+            isYoutubeHlsManifest ||
+                isPlayableHlsStream ||
+                lower.contains("master.m3u8") ||
+                lower.contains(".mpd") ||
+                (
+                    lower.contains(".mp4") &&
+                        !lower.contains("/vod/") &&
+                        !lower.contains("original.mp4")
+                )
+        )
 
 if (
     canBeBestStream &&
@@ -7835,85 +7867,156 @@ if (isYoutubeDashAudioOnly) {
     )
 }
 
-val streamBadge =  
-    when {  
-    
-isEuronewsLiveApi ->
-    "🟡 EURONEWS LIVE API"
+val streamBadge =
+    when {
 
-isEuronewsGeoApi ->
-    "🟡 EURONEWS GEO CHECK"
+        // =====================================
+        // EURONEWS SOURCES
+        // =====================================
 
-isEuronewsYoutubeEmbed ->
-    "🟡 EURONEWS YOUTUBE EMBED"
+        isEuronewsLiveApi ->
+            "🟡 EURONEWS LIVE API"
 
-isYoutubeDashVideoOnly ->
-    "🟠 YOUTUBE DASH VIDEO ONLY"
+        isEuronewsGeoApi ->
+            "🟡 EURONEWS GEO CHECK"
 
-isYoutubeDashAudioOnly ->
-    "🟠 YOUTUBE DASH AUDIO ONLY"
+        isEuronewsYoutubeEmbed ->
+            "🟡 EURONEWS YOUTUBE EMBED"
 
-isEuronewsLivePage ->
-    "🟡 EURONEWS LIVE PAGE"
+        isEuronewsLivePage ->
+            "🟡 EURONEWS LIVE PAGE"
 
-        lower.contains(".m3u8") ->  
-            "📺 HLS"  
+        // =====================================
+        // YOUTUBE LIVE / DASH
+        // =====================================
 
-        lower.contains(".mpd") ->  
-            "📡 DASH"  
+        lower.contains("googlevideo.com") &&
+            lower.contains("source=yt_live_broadcast") &&
+            lower.contains("live=1") &&
+            lower.contains("mime=video") ->
+            "🔴 YOUTUBE LIVE VIDEO"
 
-        isVideo ->  
-            "🎬 VIDEO"  
+        lower.contains("googlevideo.com") &&
+            lower.contains("source=yt_live_broadcast") &&
+            lower.contains("live=1") &&
+            lower.contains("mime=audio") ->
+            "🔴 YOUTUBE LIVE AUDIO"
 
-        isImage ->  
-            "🖼 IMAGE"  
+        lower.contains("googlevideo.com") &&
+            lower.contains("source=yt_live_broadcast") &&
+            lower.contains("live=1") ->
+            "🔴 YOUTUBE LIVE"
 
-        isAudio ->  
-            "🎵 AUDIO"  
+        isYoutubeDashVideoOnly ->
+            "🟠 YOUTUBE DASH VIDEO ONLY"
 
-        else ->  
-            "📦 MEDIA"  
-    }  
+        isYoutubeDashAudioOnly ->
+            "🟠 YOUTUBE DASH AUDIO ONLY"
 
-val securityBadge =  
-    when {  
+        lower.contains("youtube.com/watch") ||
+            lower.contains("youtu.be/") ->
+            "🔴 YOUTUBE WATCH"
 
-        lower.contains("token") ||  
-        lower.contains("signature") ||  
-        lower.contains("expires") ||  
-        lower.contains("policy") ->  
-            " 🔒 SIGNED"  
+        // =====================================
+        // JWPLAYER / HOSTED VOD
+        // =====================================
 
-        else ->  
-            ""  
-    }  
+        lower.contains("jwpsrv.com") ||
+            lower.contains("jwplayer") ||
+            (
+                lower.contains("/media/") &&
+                    lower.contains("/versions/")
+            ) ->
+            "🎬 JWPLAYER VOD"
 
-val segmentBadge =  
-    if (isSegmentTs)  
-        " 🧩 SEGMENT"  
-    else  
-        ""  
+        // =====================================
+        // MEDIA TYPES
+        // =====================================
 
-val cdnType =  
-    when {  
+        lower.contains(".m3u8") ->
+            "📺 HLS"
 
-        lower.contains("cloudfront") ->  
-            "CloudFront"  
+        lower.contains(".mpd") ->
+            "📡 DASH"
 
-        lower.contains("akamai") ->  
-            "Akamai"  
+        isVideo ->
+            "🎬 VIDEO"
 
-        lower.contains("cloudflare") ->  
-            "Cloudflare"  
+        isImage ->
+            "🖼 IMAGE"
 
-        lower.contains("bunny") ->  
-            "Bunny"  
+        isAudio ->
+            "🎵 AUDIO"
 
-        lower.contains("broadpeak") ->  
-            "Broadpeak"  
+        else ->
+            "📦 MEDIA"
+    }
 
-        else ->  
-            "Generic CDN"  
+val securityBadge =
+    when {
+
+        lower.contains("token") ||
+            lower.contains("signature") ||
+            lower.contains("sig=") ||
+            lower.contains("expires") ||
+            lower.contains("expire=") ||
+            lower.contains("policy") ||
+            lower.contains("hdnts") ->
+            " 🔒 SIGNED"
+
+        else ->
+            ""
+    }
+
+val segmentBadge =
+    when {
+
+        isSegmentTs ->
+            " 🧩 SEGMENT"
+
+        lower.contains(".m4s") ->
+            " 🧩 SEGMENT"
+
+        lower.contains("chunklist") ->
+            " 🧩 CHUNKLIST"
+
+        lower.contains("index-v") ||
+            lower.contains("index-a") ->
+            " 🧩 VARIANT"
+
+        else ->
+            ""
+    }
+
+val cdnType =
+    when {
+
+        lower.contains("googlevideo.com") ->
+            "YouTube CDN"
+
+        lower.contains("jwpsrv.com") ->
+            "JWPlayer CDN"
+
+        lower.contains("cloudfront") ->
+            "CloudFront"
+
+        lower.contains("akamai") ->
+            "Akamai"
+
+        lower.contains("cloudflare") ->
+            "Cloudflare"
+
+        lower.contains("bunny") ->
+            "Bunny"
+
+        lower.contains("broadpeak") ->
+            "Broadpeak"
+
+        lower.contains("fastly") ->
+            "Fastly"
+
+        else ->
+            "Generic CDN"
     }
 
 // =====================================
