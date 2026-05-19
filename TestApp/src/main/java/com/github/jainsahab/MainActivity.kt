@@ -7125,73 +7125,6 @@ if (isPlayableHlsStream) {
 }
     
 // =====================================
-// LIVE SOURCE CLASSIFICATION
-// =====================================
-
-val isRealLive =
-
-    cleanedUrl.contains(
-        "yt_live_broadcast",
-        true
-    ) ||
-
-    cleanedUrl.contains(
-        "googlevideo.com",
-        true
-    ) ||
-
-    cleanedUrl.contains(
-        "live.m3u8",
-        true
-    ) ||
-
-    (
-        cleanedUrl.contains(
-            ".m3u8",
-            true
-        ) &&
-
-        !cleanedUrl.contains(
-            "#EXT-X-ENDLIST",
-            true
-        )
-    )
-
-if (isRealLive) {
-
-    Log.e(
-        "REAL_LIVE_SOURCE",
-        cleanedUrl
-    )
-
-    if (
-        streamScore > bestLiveScore
-    ) {
-
-        bestLiveScore =
-            streamScore + 1000
-
-        bestLiveUrl =
-            cleanedUrl
-
-        Log.e(
-            "BEST_REAL_LIVE",
-            "$bestLiveScore -> $bestLiveUrl"
-        )
-    }
-}
-
-if (
-
-    streamScore < 20 &&
-
-    !isRealLive
-
-) {
-    return
-}
-
-// =====================================
 // BEST STREAM
 // =====================================
 
@@ -7320,7 +7253,7 @@ val streamPriority =
         // =========================
 
         lower.contains("master.m3u8") &&
-        !lower.contains("/vod/") ->
+            !lower.contains("/vod/") ->
             1000
 
         // =========================
@@ -7328,51 +7261,47 @@ val streamPriority =
         // =========================
 
         lower.contains(".m3u8") &&
-(
-    lower.contains("live") ||
-    lower.contains("channel") ||
-    lower.contains("index") ||
-    lower.contains("master") ||
-    lower.contains("playlist") ||
-    lower.contains("chunklist") ||
-    lower.contains("broadcast") ||
-    lower.contains("stream")
-) ->
+            (
+                lower.contains("live") ||
+                    lower.contains("channel") ||
+                    lower.contains("index") ||
+                    lower.contains("master") ||
+                    lower.contains("playlist") ||
+                    lower.contains("chunklist") ||
+                    lower.contains("broadcast") ||
+                    lower.contains("stream")
+            ) ->
 
-    when {
+            when {
 
-        // =====================================
-        // BEST LIVE
-        // =====================================
+                lower.contains("master") ->
+                    1200
 
-        lower.contains("master") ->
-            1200
+                lower.contains("live") ->
+                    1150
 
-        lower.contains("live") ->
-            1150
+                lower.contains("broadcast") ->
+                    1120
 
-        lower.contains("broadcast") ->
-            1120
+                lower.contains("playlist") ->
+                    1100
 
-        lower.contains("playlist") ->
-            1100
+                lower.contains("chunklist") ->
+                    1080
 
-        lower.contains("chunklist") ->
-            1080
-
-        else ->
-            1000
-    }
+                else ->
+                    1000
+            }
 
         // =========================
         // DASH LIVE
         // =========================
 
         lower.contains(".mpd") &&
-        (
-            lower.contains("live") ||
-            lower.contains("manifest")
-        ) ->
+            (
+                lower.contains("live") ||
+                    lower.contains("manifest")
+            ) ->
             900
 
         // =========================
@@ -7390,10 +7319,10 @@ val streamPriority =
         // =========================
 
         lower.contains(".mp4") &&
-        !lower.contains("/vod/") &&
-        !lower.contains("trailer") &&
-        !lower.contains("intro") &&
-        !lower.contains("original.mp4") ->
+            !lower.contains("/vod/") &&
+            !lower.contains("trailer") &&
+            !lower.contains("intro") &&
+            !lower.contains("original.mp4") ->
             700
 
         // =========================
@@ -7401,7 +7330,7 @@ val streamPriority =
         // =========================
 
         lower.contains(".m4s") ||
-        lower.contains(".ts") ->
+            lower.contains(".ts") ->
             300
 
         // =========================
@@ -7409,7 +7338,7 @@ val streamPriority =
         // =========================
 
         lower.contains(".mp3") ||
-        lower.contains(".aac") ->
+            lower.contains(".aac") ->
             250
 
         // =========================
@@ -7417,8 +7346,8 @@ val streamPriority =
         // =========================
 
         lower.contains(".jpg") ||
-        lower.contains(".png") ||
-        lower.contains(".webp") ->
+            lower.contains(".png") ||
+            lower.contains(".webp") ->
             50
 
         // =========================
@@ -7434,6 +7363,65 @@ val streamPriority =
         else ->
             1
     }
+
+// =====================================
+// LIVE SOURCE CLASSIFICATION
+// =====================================
+
+val isRealLive =
+    cleanedUrl.contains(
+        "yt_live_broadcast",
+        true
+    ) ||
+        cleanedUrl.contains(
+            "googlevideo.com",
+            true
+        ) ||
+        cleanedUrl.contains(
+            "live.m3u8",
+            true
+        ) ||
+        (
+            cleanedUrl.contains(
+                ".m3u8",
+                true
+            ) &&
+                !cleanedUrl.contains(
+                    "#EXT-X-ENDLIST",
+                    true
+                )
+            )
+
+if (isRealLive) {
+
+    Log.e(
+        "REAL_LIVE_SOURCE",
+        cleanedUrl
+    )
+
+    if (
+        streamPriority > bestLiveScore
+    ) {
+
+        bestLiveScore =
+            streamPriority + 1000
+
+        bestLiveUrl =
+            cleanedUrl
+
+        Log.e(
+            "BEST_REAL_LIVE",
+            "$bestLiveScore -> $bestLiveUrl"
+        )
+    }
+}
+
+if (
+    streamPriority < 20 &&
+    !isRealLive
+) {
+    return
+}
 
 // =====================================  
 // MEDIA TYPES  
