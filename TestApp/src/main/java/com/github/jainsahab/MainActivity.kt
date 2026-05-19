@@ -7153,9 +7153,6 @@ try {
 
 } catch (_: Throwable) {}
 
-val lower =  
-    cleanedUrl.lowercase()  
-    
 // =====================================
 // BLOB RELATION
 // =====================================
