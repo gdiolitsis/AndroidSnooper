@@ -73,7 +73,6 @@ private val streamHeaders =
   
 private var lastSelectedUrl =
     ""
-
 // =====================================
 // STREAM META
 // =====================================
@@ -86,6 +85,20 @@ private val streamBandwidth =
 
 private val streamCodec =
     linkedMapOf<String, String>()
+    
+// =====================================
+// LIVE HEARTBEAT MAP
+// =====================================
+
+private val liveHeartbeatMap =
+    mutableMapOf<String, Long>()
+    
+// =====================================
+// STREAM HIT COUNTER
+// =====================================
+
+private val streamHitCounter =
+    mutableMapOf<String, Int>()
     
 // =====================================
 // UI REFRESH DEBOUNCE
@@ -764,6 +777,68 @@ try {
             response?.mimeType
                 ?.lowercase()
                 .orEmpty()
+                
+// =====================================
+// RESPONSE HEADERS
+// =====================================
+
+try {
+
+    val headers =
+        response?.responseHeaders
+            ?: emptyMap()
+
+    headers.forEach { (k, v) ->
+
+        try {
+
+            val key =
+                k.lowercase()
+
+            val value =
+                v.lowercase()
+
+            if (
+
+                key.contains("content-type") ||
+                key.contains("server") ||
+                key.contains("cache") ||
+                key.contains("cdn") ||
+                key.contains("akamai") ||
+                key.contains("cloudfront") ||
+                key.contains("expires")
+
+            ) {
+
+                Log.e(
+                    "STREAM_HEADER",
+                    "$k -> $v"
+                )
+            }
+
+            // =====================================
+            // LIVE CDN DETECTION
+            // =====================================
+
+            if (
+
+                value.contains("akamai") ||
+                value.contains("cloudfront") ||
+                value.contains("fastly") ||
+                value.contains("edge")
+
+            ) {
+
+                Log.e(
+                    "LIVE_CDN",
+                    "$k -> $v"
+                )
+            }
+
+        } catch (_: Throwable) {}
+    }
+
+} catch (_: Throwable) {}
 
         if (
 
@@ -1441,6 +1516,33 @@ if (!window.__gelFetchHooked) {
                 if (url) {
 
                     gelPush(url);
+                    
+// =====================================
+// MPD HUNT
+// =====================================
+
+try {
+
+    const lower =
+        String(url).toLowerCase();
+
+    if (
+
+        lower.includes(".mpd") ||
+        lower.includes("dash") ||
+        lower.includes("manifest")
+
+    ) {
+
+        console.log(
+            "GEL_MPD_CANDIDATE:",
+            url
+        );
+
+        gelPush(url);
+    }
+
+} catch(e) {}
 
                     console.log(
                         "GEL_FETCH:",
@@ -2674,6 +2776,265 @@ results =
         window.__gelMediaResults
     )
 )];
+
+// =====================================
+// PLAYER OBJECT SCAN
+// =====================================
+
+try {
+
+    const html =
+        document.documentElement
+            .outerHTML;
+
+    const playerRegex =
+
+/(file|src|source|stream|hls|dash)["']?\s*[:=]\s*["'](https?:\/\/[^"' ]+)/gi;
+
+    let match;
+
+    while (
+        (match = playerRegex.exec(html)) !== null
+    ) {
+
+        try {
+
+            const found =
+                match[2];
+
+            gelPush(found);
+
+            console.log(
+                "GEL_PLAYER_OBJECT:",
+                found
+            );
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+// =====================================
+// BASE64 PLAYER CONFIG
+// =====================================
+
+try {
+
+    const html =
+        document.documentElement
+            .outerHTML;
+
+    const regex =
+/atob\(["']([^"']+)["']\)/gi;
+
+    let match;
+
+    while (
+        (match = regex.exec(html)) !== null
+    ) {
+
+        try {
+
+            const decoded =
+                atob(match[1]);
+
+            const mediaRegex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+            let media;
+
+            while (
+                (media = mediaRegex.exec(decoded)) !== null
+            ) {
+
+                gelPush(
+                    media[0]
+                );
+
+                console.log(
+                    "GEL_BASE64_MEDIA:",
+                    media[0]
+                );
+            }
+
+        } catch(e) {}
+    }
+
+} catch(e) {}
+
+// =====================================
+// HYDRATION DATA SCAN
+// =====================================
+
+try {
+
+    const scanText = function(txt) {
+
+        try {
+
+            if (!txt) {
+                return;
+            }
+
+            const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+            let match;
+
+            while (
+                (match = regex.exec(txt)) !== null
+            ) {
+
+                gelPush(
+                    match[0]
+                );
+
+                console.log(
+                    "GEL_HYDRATION_MEDIA:",
+                    match[0]
+                );
+            }
+
+        } catch(e) {}
+    };
+
+    // =====================================
+    // NEXT DATA
+    // =====================================
+
+    try {
+
+        const nextData =
+            document.getElementById(
+                "__NEXT_DATA__"
+            );
+
+        if (nextData?.textContent) {
+
+            scanText(
+                nextData.textContent
+            );
+        }
+
+    } catch(e) {}
+
+    // =====================================
+    // WINDOW OBJECTS
+    // =====================================
+
+    Object.keys(window)
+        .forEach(function(k) {
+
+            try {
+
+                const value =
+                    window[k];
+
+                if (
+
+                    typeof value === "object" ||
+
+                    typeof value === "string"
+
+                ) {
+
+                    scanText(
+                        JSON.stringify(value)
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+// =====================================
+// SOURCE BUFFER HOOK
+// =====================================
+
+try {
+
+    if (!window.__gelSourceBufferHook) {
+
+        window.__gelSourceBufferHook = true;
+
+        const originalAppendBuffer =
+            SourceBuffer.prototype.appendBuffer;
+
+        SourceBuffer.prototype.appendBuffer =
+            function(buffer) {
+
+                try {
+
+                    const size =
+                        buffer?.byteLength || 0;
+
+                    console.log(
+                        "GEL_BUFFER_APPEND:",
+                        size
+                    );
+
+                    gelPush(
+                        "buffer-append://" + size
+                    );
+
+                } catch(e) {}
+
+                return originalAppendBuffer.apply(
+                    this,
+                    arguments
+                );
+            };
+    }
+
+} catch(e) {}
+
+// =====================================
+// DRM DETECTION
+// =====================================
+
+try {
+
+    const html =
+        document.documentElement
+            .outerHTML
+            .toLowerCase();
+
+    const drmSignals = [
+
+        "widevine",
+        "fairplay",
+        "playready",
+        "clearkey",
+        "drm",
+        "license",
+        "licenseurl",
+        "keysystem",
+        "eme",
+        "encryptedmediaextensions"
+
+    ];
+
+    drmSignals.forEach(function(sig) {
+
+        try {
+
+            if (html.includes(sig)) {
+
+                console.log(
+                    "GEL_DRM_SIGNAL:",
+                    sig
+                );
+
+                gelPush(
+                    "drm://" + sig
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
 
 return JSON.stringify(results);
 
@@ -5443,16 +5804,278 @@ private fun detectAndSaveUrl(
         return
     }
 
-Log.e(  
-    "MEDIA_DETECT",  
-    url  
-)  
+Log.e(
+    "MEDIA_DETECT",
+    url
+)
 
-val cleanedUrl =  
-    url  
-        .replace("\\u0026", "&")  
-        .replace("\\/", "/")  
-        .trim()  
+val cleanedUrl =
+    url
+        .replace("\\u0026", "&")
+        .replace("\\/", "/")
+        .trim()
+        
+// =====================================
+// TOKEN FORENSICS
+// =====================================
+
+try {
+
+    val uri =
+        Uri.parse(cleanedUrl)
+
+    val names =
+        uri.queryParameterNames
+
+    val tokenParams =
+        mutableListOf<String>()
+
+    names.forEach { key ->
+
+        try {
+
+            val lower =
+                key.lowercase()
+
+            if (
+
+                lower.contains("token") ||
+                lower.contains("sig") ||
+                lower.contains("signature") ||
+                lower.contains("expire") ||
+                lower.contains("expires") ||
+                lower.contains("auth") ||
+                lower.contains("key") ||
+                lower.contains("hash") ||
+                lower.contains("session")
+
+            ) {
+
+                tokenParams.add(key)
+            }
+
+        } catch (_: Throwable) {}
+    }
+
+    if (tokenParams.isNotEmpty()) {
+
+        Log.e(
+            "STREAM_TOKENS",
+            tokenParams.joinToString()
+        )
+    }
+
+} catch (_: Throwable) {}
+        
+// =====================================
+// STREAM HIT TRACKING
+// =====================================
+
+val currentHits =
+    (streamHitCounter[normalizedUrl] ?: 0) + 1
+
+streamHitCounter[normalizedUrl] =
+    currentHits
+
+if (currentHits >= 3) {
+
+    Log.e(
+        "STREAM_STABLE",
+        "$currentHits -> $normalizedUrl"
+    )
+}
+        
+// =====================================
+// LIVE CONFIDENCE
+// =====================================
+
+var liveConfidence = 0
+
+if (
+    cleanedUrl.contains(
+        "yt_live_broadcast",
+        true
+    )
+) {
+    liveConfidence += 50
+}
+
+if (
+    cleanedUrl.contains(
+        "live=1",
+        true
+    )
+) {
+    liveConfidence += 30
+}
+
+if (
+    cleanedUrl.contains(
+        "mime=video",
+        true
+    )
+) {
+    liveConfidence += 20
+}
+
+if (
+    cleanedUrl.contains(
+        "googlevideo",
+        true
+    )
+) {
+    liveConfidence += 20
+}
+
+if (
+    cleanedUrl.contains(
+        "noclen=1",
+        true
+    )
+) {
+    liveConfidence += 10
+}
+
+if (
+    cleanedUrl.contains(
+        "gir=yes",
+        true
+    )
+) {
+    liveConfidence += 10
+}
+
+if (liveConfidence >= 70) {
+
+    Log.e(
+        "LIVE_CONFIDENCE",
+        "$liveConfidence -> $cleanedUrl"
+    )
+}
+
+// =====================================
+// LIVE HEARTBEAT
+// =====================================
+
+try {
+
+    val uri =
+        Uri.parse(cleanedUrl)
+
+    val videoId =
+        uri.getQueryParameter("id")
+            ?.substringBefore(".")
+            .orEmpty()
+
+    if (videoId.isNotBlank()) {
+
+        val now =
+            System.currentTimeMillis()
+
+        val previous =
+            liveHeartbeatMap[videoId] ?: 0L
+
+        val delta =
+            now - previous
+
+        liveHeartbeatMap[videoId] =
+            now
+
+        if (
+            previous > 0 &&
+            delta < 15000
+        ) {
+
+            Log.e(
+                "LIVE_HEARTBEAT",
+                "$videoId -> ACTIVE"
+            )
+        }
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
+// DASH SESSION ID
+// =====================================
+
+try {
+
+    val uri =
+        Uri.parse(cleanedUrl)
+
+    val streamId =
+        uri.getQueryParameter("id")
+            .orEmpty()
+
+    if (streamId.isNotBlank()) {
+
+        Log.e(
+            "DASH_SESSION",
+            streamId
+        )
+
+        if (
+            cleanedUrl.contains(
+                "mime=video",
+                true
+            )
+        ) {
+
+            Log.e(
+                "DASH_VIDEO",
+                streamId
+            )
+        }
+
+        if (
+            cleanedUrl.contains(
+                "mime=audio",
+                true
+            )
+        ) {
+
+            Log.e(
+                "DASH_AUDIO",
+                streamId
+            )
+        }
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
+// YOUTUBE LIVE ID
+// =====================================
+
+try {
+
+    val uri =
+        Uri.parse(cleanedUrl)
+
+    val videoId =
+        uri.getQueryParameter("id")
+            ?.substringBefore(".")
+            .orEmpty()
+
+    if (
+
+        cleanedUrl.contains(
+            "yt_live_broadcast",
+            true
+        ) &&
+
+        videoId.isNotBlank()
+
+    ) {
+
+        Log.e(
+            "YT_LIVE_ID",
+            videoId
+        )
+    }
+
+} catch (_: Throwable) {}
         
 // =====================================
 // BEST LIVE TRACKER
@@ -5559,7 +6182,13 @@ if (isRealLive) {
     }
 }
 
-if (streamScore < 20) {
+if (
+
+    streamScore < 20 &&
+
+    !isRealLive
+
+) {
     return
 }
 
@@ -7781,10 +8410,41 @@ if (
 
                 } catch(e) {}
 
-                return originalFetch.apply(
-                    this,
-                    arguments
+                return originalFetch
+    .apply(this, arguments)
+    .then(async function(response) {
+
+        try {
+
+            const clone =
+                response.clone();
+
+            const text =
+                await clone.text();
+
+            const regex =
+/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+
+            let match;
+
+            while (
+                (match = regex.exec(text)) !== null
+            ) {
+
+                gelPush(
+                    match[0]
                 );
+
+                console.log(
+                    "GEL_FETCH_RESPONSE:",
+                    match[0]
+                );
+            }
+
+        } catch(e) {}
+
+        return response;
+    });
             };
     }
 
@@ -7831,10 +8491,34 @@ try {
 
                             results.push(url);
 
-                            console.log(
-                                "GEL_MEDIA_XHR:",
-                                url
-                            );
+// =====================================
+// MPD HUNT
+// =====================================
+
+try {
+
+    if (
+
+        lower.includes(".mpd") ||
+        lower.includes("dash") ||
+        lower.includes("manifest")
+
+    ) {
+
+        console.log(
+            "GEL_MPD_CANDIDATE:",
+            url
+        );
+
+        gelPush(url);
+    }
+
+} catch(e) {}
+
+console.log(
+    "GEL_MEDIA_XHR:",
+    url
+);
                         }
                     }
 
@@ -8348,12 +9032,64 @@ private fun calculateStreamScore(
     // YOUTUBE DIRECT MEDIA
     // =====================================
 
-    if (
-        lower.contains("googlevideo.com") &&
-        lower.contains("videoplayback")
-    ) {
-        score += 70
-    }
+// =====================================
+// YOUTUBE LIVE DASH
+// =====================================
+
+if (
+
+    lower.contains("googlevideo.com") &&
+    lower.contains("videoplayback") &&
+    lower.contains("yt_live_broadcast")
+
+) {
+
+    score += 1500
+}
+
+// =====================================
+// YOUTUBE ITAG QUALITY
+// =====================================
+
+if (lower.contains("itag=137")) {
+    score += 1000
+}
+
+if (lower.contains("itag=136")) {
+    score += 800
+}
+
+if (lower.contains("itag=135")) {
+    score += 600
+}
+
+if (lower.contains("itag=140")) {
+    score += 100
+}
+
+// =====================================
+// DASH AUDIO / VIDEO
+// =====================================
+
+if (
+
+    lower.contains("mime=video") ||
+    lower.contains("mime=audio")
+
+) {
+
+    score += 300
+}
+
+// =====================================
+// LIVE FLAG
+// =====================================
+
+if (
+    lower.contains("live=1")
+) {
+    score += 500
+}
 
     // =====================================
     // LIVE SIGNALS
