@@ -573,36 +573,274 @@ binding.contentMain.webview.webViewClient =
             }
         }
 
-        override fun shouldInterceptRequest(
-            view: WebView?,
-            request: WebResourceRequest?
-        ): WebResourceResponse? {
+override fun shouldInterceptRequest(
+    view: WebView?,
+    request: WebResourceRequest?
+): WebResourceResponse? {
 
-            try {
+    val url =
+        request
+            ?.url
+            ?.toString()
+            ?: ""
 
-                val url =
-                    request
-                        ?.url
-                        ?.toString()
-                        ?: ""
+    try {
 
-                if (url.isNotBlank()) {
+        if (url.isNotBlank()) {
 
-                    handleInterceptedMediaUrl(
-                        url,
-                        request
-                    )
-                }
-
-            } catch (_: Throwable) {}
-
-            return super.shouldInterceptRequest(
-                view,
+            handleInterceptedMediaUrl(
+                url,
                 request
             )
         }
 
-        override fun onPageFinished(
+    } catch (_: Throwable) {}
+
+    val response =
+        try {
+
+            super.shouldInterceptRequest(
+                view,
+                request
+            )
+
+        } catch (_: Throwable) {
+
+            null
+        }
+
+    // =====================================
+    // RESPONSE BODY SNIFFER
+    // =====================================
+
+    try {
+
+        val mime =
+            response
+                ?.mimeType
+                ?.lowercase()
+                .orEmpty()
+
+        val headers =
+            response
+                ?.responseHeaders
+                ?: emptyMap()
+
+        headers.forEach { entry ->
+
+            try {
+
+                val key =
+                    entry.key.lowercase()
+
+                val value =
+                    entry.value.lowercase()
+
+                if (
+                    key.contains("content-type") ||
+                    key.contains("server") ||
+                    key.contains("cache") ||
+                    key.contains("cdn") ||
+                    key.contains("akamai") ||
+                    key.contains("cloudfront") ||
+                    key.contains("expires")
+                ) {
+
+                    Log.e(
+                        "STREAM_HEADER",
+                        "${entry.key} -> ${entry.value}"
+                    )
+                }
+
+                if (
+                    value.contains("akamai") ||
+                    value.contains("cloudfront") ||
+                    value.contains("fastly") ||
+                    value.contains("edge")
+                ) {
+
+                    Log.e(
+                        "LIVE_CDN",
+                        "${entry.key} -> ${entry.value}"
+                    )
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+        if (
+            mime.contains("json") ||
+            mime.contains("javascript") ||
+            mime.contains("xml") ||
+            mime.contains("text") ||
+            mime.contains("mpegurl") ||
+            mime.contains("dash")
+        ) {
+
+            val rawBytes =
+                response
+                    ?.data
+                    ?.readBytes()
+
+            val body =
+                rawBytes
+                    ?.toString(Charsets.UTF_8)
+                    .orEmpty()
+
+            // =====================================
+            // BODY MEDIA EXTRACTION
+            // =====================================
+
+            val regex =
+                "(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
+                    .toRegex(
+                        RegexOption.IGNORE_CASE
+                    )
+
+            regex.findAll(body)
+                .forEach { match ->
+
+                    try {
+
+                        val found =
+                            match.value
+                                .replace("\\\\/", "/")
+                                .replace("\\/", "/")
+                                .trim()
+
+                        if (found.isNotBlank()) {
+
+                            markStreamSource(
+                                found,
+                                "BODY"
+                            )
+
+                            detectAndSaveUrl(
+                                found
+                            )
+
+                            Log.e(
+                                "BODY_MEDIA",
+                                found
+                            )
+                        }
+
+                    } catch (_: Throwable) {}
+                }
+
+            // =====================================
+            // M3U8 BODY PARSER
+            // =====================================
+
+            if (
+                url.contains(".m3u8", true) &&
+                body.contains("#EXTM3U", true)
+            ) {
+
+                Log.e(
+                    "M3U8_BODY",
+                    body
+                )
+
+                val lines =
+                    body.lines()
+
+                val isLiveStream =
+                    !body.contains("#EXT-X-ENDLIST", true) &&
+                        (
+                            body.contains("#EXTINF", true) ||
+                                body.contains("#EXT-X-TARGETDURATION", true)
+                            )
+
+                if (isLiveStream) {
+
+                    Log.e(
+                        "LIVE_HLS_CONFIRMED",
+                        url
+                    )
+
+                    bestLiveUrl =
+                        url
+
+                    bestLiveScore +=
+                        500
+                }
+
+                lines.forEachIndexed { index, line ->
+
+                    try {
+
+                        val current =
+                            line.trim()
+
+                        if (
+                            current.contains(
+                                "#EXT-X-STREAM-INF",
+                                true
+                            )
+                        ) {
+
+                            val next =
+                                if (index + 1 < lines.size) {
+                                    lines[index + 1].trim()
+                                } else {
+                                    ""
+                                }
+
+                            if (
+                                next.endsWith(".m3u8") ||
+                                next.contains(".m3u8?")
+                            ) {
+
+                                val absolute =
+                                    if (next.startsWith("http")) {
+                                        next
+                                    } else {
+                                        val base =
+                                            url.substringBeforeLast("/")
+
+                                        "$base/$next"
+                                    }
+
+                                markStreamSource(
+                                    absolute,
+                                    "HLS_VARIANT"
+                                )
+
+                                detectAndSaveUrl(
+                                    absolute
+                                )
+
+                                Log.e(
+                                    "HLS_VARIANT",
+                                    absolute
+                                )
+                            }
+                        }
+
+                    } catch (_: Throwable) {}
+                }
+            }
+
+            if (rawBytes != null) {
+
+                return WebResourceResponse(
+                    response.mimeType,
+                    response.encoding,
+                    response.statusCode,
+                    response.reasonPhrase,
+                    response.responseHeaders,
+                    rawBytes.inputStream()
+                )
+            }
+        }
+
+    } catch (_: Throwable) {}
+
+    return response
+}
+
+override fun onPageFinished(
     view: WebView?,
     url: String?
 ) {
@@ -634,669 +872,101 @@ binding.contentMain.webview.webViewClient =
 
     } catch (_: Throwable) {}
 }
-            
-    // =====================================
-    // RESPONSE BODY SNIFFER
-    // =====================================
-
-    try {
-
-        val response =
-            super.shouldInterceptRequest(
-                view,
-                request
-            )
-
-        val mime =
-            response?.mimeType
-                ?.lowercase()
-                .orEmpty()
-                
-// =====================================
-// RESPONSE HEADERS
-// =====================================
-
-try {
-
-    val headers =
-        response?.responseHeaders
-            ?: emptyMap()
-
-    headers.forEach { (k, v) ->
-
-        try {
-
-            val key =
-                k.lowercase()
-
-            val value =
-                v.lowercase()
-
-            if (
-
-                key.contains("content-type") ||
-                key.contains("server") ||
-                key.contains("cache") ||
-                key.contains("cdn") ||
-                key.contains("akamai") ||
-                key.contains("cloudfront") ||
-                key.contains("expires")
-
-            ) {
-
-                Log.e(
-                    "STREAM_HEADER",
-                    "$k -> $v"
-                )
-            }
-
-            // =====================================
-            // LIVE CDN DETECTION
-            // =====================================
-
-            if (
-
-                value.contains("akamai") ||
-                value.contains("cloudfront") ||
-                value.contains("fastly") ||
-                value.contains("edge")
-
-            ) {
-
-                Log.e(
-                    "LIVE_CDN",
-                    "$k -> $v"
-                )
-            }
-
-        } catch (_: Throwable) {}
     }
-
-} catch (_: Throwable) {}
-
-        if (
-
-            mime.contains("json") ||
-            mime.contains("javascript") ||
-            mime.contains("xml") ||
-            mime.contains("text")
-
-        ) {
-
-            try {
-
-                val body =
-                    response?.data
-                        ?.bufferedReader()
-                        ?.use { it.readText() }
-                        .orEmpty()
-                        
-// =====================================
-// M3U8 BODY PARSER
-// =====================================
-
-try {
-
-    if (
-
-        url.contains(
-            ".m3u8",
-            true
-        )
-
-    ) {
-
-        Log.e(
-            "M3U8_BODY",
-            body
-        )
-
-        val lines =
-            body.lines()
-            
-// =====================================
-// LIVE HLS DETECTION
-// =====================================
-
-val isLiveStream =
-
-    !body.contains(
-        "#EXT-X-ENDLIST",
-        true
-    ) &&
-
-    (
-
-        body.contains(
-            "#EXTINF",
-            true
-        ) ||
-
-        body.contains(
-            "#EXT-X-TARGETDURATION",
-            true
-        )
-    )
-
-if (isLiveStream) {
-
-    Log.e(
-        "LIVE_HLS_CONFIRMED",
-        url
-    )
-
-    bestLiveUrl =
-        url
-
-    bestLiveScore += 500
-}
-
-// =====================================
-// HLS VARIANT PARSER
-// =====================================
-
-for (i in lines.indices) {
-
-    try {
-
-        val current =
-            lines[i].trim()
-
-        if (
-
-            current.contains(
-                "#EXT-X-STREAM-INF",
-                true
-            )
-
-        ) {
-
-            val next =
-
-                if (
-                    i + 1 < lines.size
-                ) {
-
-                    lines[i + 1].trim()
-
-                } else {
-                    ""
-                }
-
-            if (
-
-                next.endsWith(".m3u8") ||
-                next.contains(".m3u8?")
-
-            ) {
-
-                val absolute =
-
-                    if (
-                        next.startsWith("http")
-                    ) {
-
-                        next
-
-                    } else {
-
-                        val base =
-
-                            url
-                                .substringBeforeLast("/")
-
-                        "$base/$next"
-                    }
-
-                Log.e(
-                    "HLS_VARIANT",
-                    absolute
-                )
-
-                var variantScore =
-                    calculateStreamScore(
-                        absolute
-                    )
-
-                // =========================
-                // BANDWIDTH BONUS
-                // =========================
-
-                try {
-
-                    val bwRegex =
-"BANDWIDTH=(\\d+)"
-                        .toRegex()
-
-                    val bw =
-                        bwRegex
-                            .find(current)
-                            ?.groupValues
-                            ?.getOrNull(1)
-                            ?.toIntOrNull()
-                            ?: 0
-
-                    variantScore +=
-                        (bw / 100000)
-
-                } catch (_: Throwable) {}
-
-                if (
-                    variantScore >
-                    bestLiveScore
-                ) {
-
-                    bestLiveScore =
-                        variantScore
-
-                    bestLiveUrl =
-                        absolute
-
-                    Log.e(
-                        "BEST_VARIANT",
-                        "$bestLiveScore -> $bestLiveUrl"
-                    )
-                }
-            }
-        }
-
-    } catch (_: Throwable) {}
-}
-
-        lines.forEach { line ->
-
-            try {
-
-                val l =
-                    line.trim()
-
-                if (
-
-                    l.endsWith(".m3u8") ||
-                    l.contains(".m3u8?")
-
-                ) {
-
-                    val absolute =
-
-                        if (
-                            l.startsWith("http")
-                        ) {
-
-                            l
-
-                        } else {
-
-                            val base =
-
-                                url.substringBeforeLast(
-                                    "/"
-                                )
-
-                            "$base/$l"
-                        }
-
-                    Log.e(
-                        "M3U8_CHILD",
-                        absolute
-                    )
-
-                    val childScore =
-                        calculateStreamScore(
-                            absolute
-                        )
-
-                    if (
-                        childScore >
-                        bestLiveScore
-                    ) {
-
-                        bestLiveScore =
-                            childScore
-
-                        bestLiveUrl =
-                            absolute
-
-                        Log.e(
-                            "BEST_M3U8_CHILD",
-                            bestLiveUrl
-                        )
-                    }
-                }
-
-            } catch (_: Throwable) {}
-        }
-    }
-
-} catch (_: Throwable) {}
-                        
-// =====================================
-// PLAYER SOURCE EXTRACTION
-// =====================================
-
-try {
-
-    val liveRegex =
-"(https?:[^\"'\\\\\\s]+?(m3u8|mpd)(\\\\?[^\"'\\\\\\s]*)?)"
-        .toRegex(
-            RegexOption.IGNORE_CASE
-        )
-
-    liveRegex
-        .findAll(body)
-        .forEach {
-
-            try {
-
-                val extracted =
-                    it.value
-                        .replace("\\/", "/")
-                        .replace("\\\\", "")
-
-                val score =
-                    calculateStreamScore(
-                        extracted
-                    )
-
-                Log.e(
-                    "PLAYER_SOURCE",
-                    "$score -> $extracted"
-                )
-
-                if (
-
-                    score >= 200 &&
-
-                    (
-
-                        extracted.contains(
-                            "master.m3u8",
-                            true
-                        ) ||
-
-                        extracted.contains(
-                            "live.m3u8",
-                            true
-                        ) ||
-
-                        (
-                            extracted.contains(
-                                "manifest.ism",
-                                true
-                            ) &&
-
-                            !extracted.contains(
-                                "chunklist",
-                                true
-                            ) &&
-
-                            !extracted.contains(
-                                "index-v",
-                                true
-                            ) &&
-
-                            !extracted.contains(
-                                "index-a",
-                                true
-                            )
-                        )
-                    )
-                ) {
-
-                    bestLiveUrl =
-                        extracted
-
-                    bestLiveScore =
-                        score
-
-                    Log.e(
-                        "REAL_LIVE_STREAM",
-                        bestLiveUrl
-                    )
-                }
-
-            } catch (_: Throwable) {}
-        }
-
-} catch (_: Throwable) {}
-
-                val regex =
-"(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
-    .toRegex()
-
-                regex.findAll(body)
-                    .forEach {
-
-                        try {
-
-                            val found =
-                                it.value
-                                    .replace("\\\\/", "/")
-
-                            Log.e(
-                                "BODY_MEDIA",
-                                found
-                            )
-                            
-// =====================================
-// STREAM SCORE
-// =====================================
-
-val score =
-    calculateStreamScore(found)
-
-if (
-
-    score >= 150 &&
-
-    (
-
-        found.contains(
-            "master.m3u8",
-            true
-        ) ||
-
-        found.contains(
-            "live.m3u8",
-            true
-        ) ||
-
-        (
-            found.contains(
-                "manifest.ism",
-                true
-            ) &&
-
-            !found.contains(
-                "chunklist",
-                true
-            ) &&
-
-            !found.contains(
-                "index-v",
-                true
-            ) &&
-
-            !found.contains(
-                "index-a",
-                true
-            )
-        )
-    )
-) {
-
-    detectAndSaveUrl(
-        found
-    )
-}
-
-                        } catch (_: Throwable) {}
-                    }
-
-            } catch (_: Throwable) {}
-        }
-
-    } catch (_: Throwable) {}
-
-} catch (_: Throwable) {}
-
-// =====================================
-// ALWAYS PASS THROUGH DETECTOR
-// =====================================
-
-detectAndSaveUrl(url)
-
-// =====================================
-// RESPONSE BODY MEDIA SNIFF
-// =====================================
-
-return super.shouldInterceptRequest(
-    view,
-    request
-)
-
-}
-
-override fun onPageFinished(
-    view: WebView?,
-    url: String?
-) {
-
-    super.onPageFinished(
-        view,
-        url
-    )
-
-    val js = """
-
-(function() {
-
-let results = [];
-
-if (!window.__gelMediaResults) {
-    window.__gelMediaResults = [];
-}
-
-function gelPush(url) {
-
-    try {
-
-        if (!url) return;
-
-        url = String(url);
-
-        results.push(url);
-
-        window.__gelMediaResults.push(url);
-
-    } catch(e) {}
-}
-
-// =====================================
-// IMG
-// =====================================
-
-document
-.querySelectorAll("img")
-.forEach(function(el) {
-
-    if (el.src) {
-        gelPush(el.src);
-    }
-
-});
-
-
 
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
 // =====================================
 
 binding.contentMain.webview.webChromeClient =
-object : WebChromeClient() {
+    object : WebChromeClient() {
 
-override fun onCreateWindow(  
-view: WebView?,  
-isDialog: Boolean,  
-isUserGesture: Boolean,  
-resultMsg: android.os.Message?
+        override fun onCreateWindow(
+            view: WebView?,
+            isDialog: Boolean,
+            isUserGesture: Boolean,
+            resultMsg: android.os.Message?
+        ): Boolean {
 
-): Boolean {
+            return try {
 
-return try {  
+                val transport =
+                    resultMsg?.obj
+                        as? WebView.WebViewTransport
 
-    val transport =  
-        resultMsg?.obj  
-            as? WebView.WebViewTransport  
+                transport?.webView =
+                    binding.contentMain.webview
 
-    transport?.webView =  
-        binding.contentMain.webview  
+                resultMsg?.sendToTarget()
 
-    resultMsg?.sendToTarget()  
+                true
 
-    true  
+            } catch (_: Throwable) {
 
-} catch (_: Throwable) {  
+                false
+            }
+        }
 
-    false  
-}
+        override fun onShowCustomView(
+            view: View?,
+            callback: CustomViewCallback?
+        ) {
 
-}
+            if (customView != null) {
 
-override fun onShowCustomView(  
-        view: View?,  
-        callback: CustomViewCallback?  
-    ) {  
+                callback?.onCustomViewHidden()
+                return
+            }
 
-        if (customView != null) {  
+            customView =
+                view
 
-            callback?.onCustomViewHidden()  
-            return  
-        }  
+            customViewCallback =
+                callback
 
-        customView = view  
+            window.decorView.systemUiVisibility =
+                (
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    )
 
-        customViewCallback = callback  
+            addContentView(
+                view,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
 
-        window.decorView.systemUiVisibility =  
-            (  
-                View.SYSTEM_UI_FLAG_FULLSCREEN  
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION  
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY  
-            )  
+            binding.contentMain.webview.visibility =
+                View.GONE
+        }
 
-        addContentView(  
-            view,  
-            FrameLayout.LayoutParams(  
-                ViewGroup.LayoutParams.MATCH_PARENT,  
-                ViewGroup.LayoutParams.MATCH_PARENT  
-            )  
-        )  
+        override fun onHideCustomView() {
 
-        binding.contentMain.webview.visibility =  
-            View.GONE  
-    }  
+            customView?.visibility =
+                View.GONE
 
-    override fun onHideCustomView() {  
+            (customView?.parent as? ViewGroup)
+                ?.removeView(customView)
 
-        customView?.visibility =  
-            View.GONE  
+            customView =
+                null
 
-        (customView?.parent as? ViewGroup)  
-            ?.removeView(customView)  
+            binding.contentMain.webview.visibility =
+                View.VISIBLE
 
-        customView = null  
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_VISIBLE
 
-        binding.contentMain.webview.visibility =  
-            View.VISIBLE  
+            customViewCallback
+                ?.onCustomViewHidden()
 
-        window.decorView.systemUiVisibility =  
-            View.SYSTEM_UI_FLAG_VISIBLE  
-
-        customViewCallback  
-            ?.onCustomViewHidden()  
-    }  
-}  
+            customViewCallback =
+                null
+        }
+    }
 
     // =====================================  
     // HANDLE INCOMING INTENT  
@@ -9579,67 +9249,92 @@ private fun startStreamMonitor() {
 
                 try {
 
-                    val js = """
+                    val js =
+                        """
 
 (function() {
 
 let results = [];
 
+function gelPush(url) {
+
+    try {
+
+        if (!url) {
+            return;
+        }
+
+        url =
+            String(url);
+
+        results.push(url);
+
+    } catch(e) {}
+}
+
 // =====================================
 // VIDEO TAGS
 // =====================================
 
-document
-    .querySelectorAll("video")
-    .forEach(function(v) {
+try {
 
-        try {
+    document
+        .querySelectorAll("video")
+        .forEach(function(v) {
 
-            if (v.currentSrc) {
+            try {
 
-                results.push(v.currentSrc);
+                if (v.currentSrc) {
 
-                console.log(
-                    "GEL_VIDEO_CURRENT:",
-                    v.currentSrc
-                );
-            }
+                    gelPush(v.currentSrc);
 
-            if (v.src) {
+                    console.log(
+                        "GEL_VIDEO_CURRENT:",
+                        v.currentSrc
+                    );
+                }
 
-                results.push(v.src);
+                if (v.src) {
 
-                console.log(
-                    "GEL_VIDEO_SRC:",
-                    v.src
-                );
-            }
+                    gelPush(v.src);
 
-        } catch(e) {}
-    });
+                    console.log(
+                        "GEL_VIDEO_SRC:",
+                        v.src
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
 
 // =====================================
 // SOURCE TAGS
 // =====================================
 
-document
-    .querySelectorAll("source")
-    .forEach(function(s) {
+try {
 
-        try {
+    document
+        .querySelectorAll("source")
+        .forEach(function(s) {
 
-            if (s.src) {
+            try {
 
-                results.push(s.src);
+                if (s.src) {
 
-                console.log(
-                    "GEL_SOURCE_SRC:",
-                    s.src
-                );
-            }
+                    gelPush(s.src);
 
-        } catch(e) {}
-    });
+                    console.log(
+                        "GEL_SOURCE_SRC:",
+                        s.src
+                    );
+                }
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
 
 // =====================================
 // FETCH HOOK
@@ -9655,80 +9350,90 @@ try {
             window.fetch;
 
         window.fetch =
-            async function() {
+            function() {
 
                 try {
 
-                    const url =
+                    let reqUrl =
                         arguments[0];
 
                     if (
-                        typeof url === "string"
+                        typeof reqUrl !== "string" &&
+                        reqUrl &&
+                        reqUrl.url
                     ) {
 
+                        reqUrl =
+                            reqUrl.url;
+                    }
+
+                    if (reqUrl) {
+
                         const lower =
-    url.toLowerCase();
+                            String(reqUrl).toLowerCase();
 
-if (
+                        if (
+                            lower.includes(".m3u8") ||
+                            lower.includes(".mpd") ||
+                            lower.includes(".mp4") ||
+                            lower.includes(".m4s") ||
+                            lower.includes(".ts") ||
+                            lower.includes("playlist") ||
+                            lower.includes("manifest") ||
+                            lower.includes("chunklist") ||
+                            lower.includes("live") ||
+                            lower.includes("videoplayback")
+                        ) {
 
-    lower.includes(".m3u8") ||
-    lower.includes(".mpd") ||
-    lower.includes(".mp4") ||
-    lower.includes(".m4s") ||
-    lower.includes(".ts") ||
-    lower.includes("playlist") ||
-    lower.includes("manifest") ||
-    lower.includes("chunklist") ||
-    lower.includes("live")
+                            gelPush(reqUrl);
 
-) {
-
-    results.push(url);
-
-    console.log(
-        "GEL_MEDIA_URL:",
-        url
-    );
-}
+                            console.log(
+                                "GEL_FETCH_URL:",
+                                reqUrl
+                            );
+                        }
                     }
 
                 } catch(e) {}
 
                 return originalFetch
-    .apply(this, arguments)
-    .then(async function(response) {
+                    .apply(this, arguments)
+                    .then(function(response) {
 
-        try {
+                        try {
 
-            const clone =
-                response.clone();
+                            const clone =
+                                response.clone();
 
-            const text =
-                await clone.text();
+                            clone.text()
+                                .then(function(text) {
 
-            const regex =
-/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+                                    try {
 
-            let match;
+                                        const regex =
+                                            /https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4|m4s|ts)(\?[^"'\\s]*)?/gi;
 
-            while (
-                (match = regex.exec(text)) !== null
-            ) {
+                                        let match;
 
-                gelPush(
-                    match[0]
-                );
+                                        while (
+                                            (match = regex.exec(text)) !== null
+                                        ) {
 
-                console.log(
-                    "GEL_FETCH_RESPONSE:",
-                    match[0]
-                );
-            }
+                                            gelPush(match[0]);
 
-        } catch(e) {}
+                                            console.log(
+                                                "GEL_FETCH_RESPONSE:",
+                                                match[0]
+                                            );
+                                        }
 
-        return response;
-    });
+                                    } catch(e) {}
+                                });
+
+                        } catch(e) {}
+
+                        return response;
+                    });
             };
     }
 
@@ -9760,7 +9465,6 @@ try {
                             url.toLowerCase();
 
                         if (
-
                             lower.includes(".m3u8") ||
                             lower.includes(".mpd") ||
                             lower.includes(".mp4") ||
@@ -9769,40 +9473,30 @@ try {
                             lower.includes("playlist") ||
                             lower.includes("manifest") ||
                             lower.includes("chunklist") ||
-                            lower.includes("live")
-
+                            lower.includes("live") ||
+                            lower.includes("videoplayback")
                         ) {
 
-                            results.push(url);
+                            gelPush(url);
 
-// =====================================
-// MPD HUNT
-// =====================================
+                            console.log(
+                                "GEL_MEDIA_XHR:",
+                                url
+                            );
+                        }
 
-try {
+                        if (
+                            lower.includes(".mpd") ||
+                            lower.includes("dash") ||
+                            lower.includes("manifest")
+                        ) {
 
-    if (
+                            gelPush(url);
 
-        lower.includes(".mpd") ||
-        lower.includes("dash") ||
-        lower.includes("manifest")
-
-    ) {
-
-        console.log(
-            "GEL_MPD_CANDIDATE:",
-            url
-        );
-
-        gelPush(url);
-    }
-
-} catch(e) {}
-
-console.log(
-    "GEL_MEDIA_XHR:",
-    url
-);
+                            console.log(
+                                "GEL_MPD_CANDIDATE:",
+                                url
+                            );
                         }
                     }
 
@@ -9813,8 +9507,6 @@ console.log(
                     arguments
                 );
             };
-        }
-
     }
 
 } catch(e) {}
@@ -9825,30 +9517,45 @@ console.log(
 
 try {
 
-    const perf =
-        performance.getEntriesByType(
-            "resource"
-        );
+    performance
+        .getEntriesByType("resource")
+        .forEach(function(r) {
 
-    perf.forEach(function(r) {
+            try {
 
-        try {
+                const u =
+                    r.name || "";
 
-            const u =
-                r.name || "";
+                if (!u) {
+                    return;
+                }
 
-            if (u) {
+                const lower =
+                    u.toLowerCase();
 
-                results.push(u);
+                if (
+                    lower.includes(".m3u8") ||
+                    lower.includes(".mpd") ||
+                    lower.includes(".mp4") ||
+                    lower.includes(".m4s") ||
+                    lower.includes(".ts") ||
+                    lower.includes("playlist") ||
+                    lower.includes("manifest") ||
+                    lower.includes("chunklist") ||
+                    lower.includes("live") ||
+                    lower.includes("videoplayback")
+                ) {
 
-                console.log(
-                    "GEL_PERFORMANCE:",
-                    u
-                );
-            }
+                    gelPush(u);
 
-        } catch(e) {}
-    });
+                    console.log(
+                        "GEL_PERFORMANCE:",
+                        u
+                    );
+                }
+
+            } catch(e) {}
+        });
 
 } catch(e) {}
 
@@ -9869,12 +9576,12 @@ try {
                     v.src.startsWith("blob:")
                 ) {
 
-                    results.push(v.src)
+                    gelPush(v.src);
 
                     console.log(
                         "GEL_BLOB_VIDEO:",
                         v.src
-                    )
+                    );
                 }
 
                 if (
@@ -9882,24 +9589,24 @@ try {
                     v.currentSrc.startsWith("blob:")
                 ) {
 
-                    results.push(v.currentSrc)
+                    gelPush(v.currentSrc);
 
                     console.log(
                         "GEL_BLOB_CURRENT:",
                         v.currentSrc
-                    )
+                    );
                 }
 
             } catch(e) {}
-        })
+        });
 
 } catch(e) {}
 
 return JSON.stringify(
     [...new Set(results)]
-)
+);
 
-})()
+})();
 
 """.trimIndent()
 
@@ -9930,11 +9637,12 @@ return JSON.stringify(
                                     "MONITOR"
                                 )
 
-                                detectAndSaveUrl(found)
+                                detectAndSaveUrl(
+                                    found
+                                )
                             }
 
-                        } catch (_: Throwable) {
-                        }
+                        } catch (_: Throwable) {}
 
                         // =====================================
                         // FORCE PLAYBACK / PLAYER WAKEUP
@@ -9948,10 +9656,6 @@ return JSON.stringify(
 (function() {
 
 try {
-
-    // =====================================
-    // FORCE VIDEO PLAY
-    // =====================================
 
     document
         .querySelectorAll("video")
@@ -9971,10 +9675,6 @@ try {
             } catch(e) {}
         });
 
-    // =====================================
-    // FORCE PLAY BUTTONS
-    // =====================================
-
     document
         .querySelectorAll(
             "button, .play, .play-button, .vjs-big-play-button"
@@ -9991,8 +9691,8 @@ try {
 } catch(e) {}
 
 })();
-"""
-                            ) { }
+""".trimIndent()
+                            ) {}
 
                         } catch (_: Throwable) {}
 
@@ -10008,6 +9708,7 @@ try {
                             )
                         }
                     }
+
                 } catch (_: Throwable) {
 
                     if (monitorRunning) {
