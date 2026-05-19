@@ -4208,19 +4208,19 @@ binding.contentMain.result.setOnLongClickListener { v ->
         textView.layout
             ?: return@setOnLongClickListener true
 
-val x =
-(
-    lastTouchX -
-    textView.totalPaddingLeft +
-    textView.scrollX
-).toInt()
+    val x =
+        (
+            lastTouchX -
+                textView.totalPaddingLeft +
+                textView.scrollX
+        ).toInt()
 
-val y =
-(
-    lastTouchY -
-    textView.totalPaddingTop +
-    textView.scrollY
-).toInt()
+    val y =
+        (
+            lastTouchY -
+                textView.totalPaddingTop +
+                textView.scrollY
+        ).toInt()
 
     val line =
         layout.getLineForVertical(y)
@@ -4232,19 +4232,20 @@ val y =
         )
 
     val regex =
-        "(https?://[^\\s]+)".toRegex()
+        "(https?://[^\\s\"'<>]+)"
+            .toRegex()
 
     var selectedUrl = ""
 
-    regex.findAll(text).forEach {
+    regex.findAll(text).forEach { match ->
 
         if (
-            offset >= it.range.first &&
-            offset <= it.range.last
+            offset >= match.range.first &&
+            offset <= match.range.last
         ) {
 
             selectedUrl =
-                it.value
+                match.value
         }
     }
 
@@ -4253,6 +4254,7 @@ val y =
         selectedUrl =
             regex.find(text)
                 ?.value
+                ?.trim()
                 ?: ""
     }
 
@@ -4264,245 +4266,144 @@ val y =
         selectedUrl
 
     val popup =
-    PopupMenu(this, v)
+        PopupMenu(this, v)
 
-popup.menu.add("OPEN PLAYER")
+    popup.menu.add("OPEN PLAYER")
+    popup.menu.add("TEST STREAM")
+    popup.menu.add("SHARE URL")
+    popup.menu.add("COPY URL")
 
-popup.menu.add("TEST STREAM")
+    popup.setOnMenuItemClickListener { item ->
 
-popup.menu.add("SHARE URL")
-
-popup.menu.add("COPY URL")
-
-popup.setOnMenuItemClickListener {
-
-    when (it.title.toString()) {
-
-        "OPEN PLAYER" -> {
-
-            val finalUrl =
-
-                if (
-                    bestLiveUrl.isNotBlank()
-                ) {
-
-                    bestLiveUrl
-
-                } else {
-
-                    lastSelectedUrl
-                }
-
-            try {
-
-                val intent =
-                    Intent(
-                        Intent.ACTION_VIEW
-                    )
-
-                intent.setDataAndType(
-                    Uri.parse(finalUrl),
-                    "video/*"
-                )
-
-                startActivity(intent)
-
-            } catch (_: Throwable) {
-
-                Toast.makeText(
-                    this,
-                    "No compatible player",
-                    Toast.LENGTH_SHORT
-                ).show()
+        val finalUrl =
+            if (bestLiveUrl.isNotBlank()) {
+                bestLiveUrl
+            } else {
+                lastSelectedUrl
             }
 
-            true
-        }
+        when (item.title.toString()) {
 
-        "TEST STREAM" -> {
+            "OPEN PLAYER" -> {
 
-            val finalUrl =
+                try {
 
-                if (
-                    bestLiveUrl.isNotBlank()
-                ) {
+                    val intent =
+                        Intent(
+                            Intent.ACTION_VIEW
+                        ).apply {
 
-                    bestLiveUrl
+                            setDataAndType(
+                                Uri.parse(finalUrl),
+                                "video/*"
+                            )
+                        }
 
-                } else {
-
-                    lastSelectedUrl
-                }
-
-            try {
-
-                val intent =
-                    Intent(
-                        Intent.ACTION_VIEW
-                    )
-
-                intent.data =
-                    Uri.parse(finalUrl)
-
-                startActivity(intent)
-
-            } catch (_: Throwable) {}
-
-            true
-        }
-
-        "SHARE URL" -> {
-
-            val finalUrl =
-
-                if (
-                    bestLiveUrl.isNotBlank()
-                ) {
-
-                    bestLiveUrl
-
-                } else {
-
-                    lastSelectedUrl
-                }
-
-            try {
-
-                val share =
-                    Intent(
-                        Intent.ACTION_SEND
-                    )
-
-                share.type =
-                    "text/plain"
-
-                share.putExtra(
-                    Intent.EXTRA_TEXT,
-                    finalUrl
-                )
-
-                startActivity(
-                    Intent.createChooser(
-                        share,
-                        "Share Stream"
-                    )
-                )
-
-            } catch (_: Throwable) {}
-
-            true
-        }
-
-        "COPY URL" -> {
-
-            val finalUrl =
-
-                if (
-                    bestLiveUrl.isNotBlank()
-                ) {
-
-                    bestLiveUrl
-
-                } else {
-
-                    lastSelectedUrl
-                }
-
-            try {
-
-                val clipboard =
-                    getSystemService(
-                        CLIPBOARD_SERVICE
-                    ) as ClipboardManager
-
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(
-                        "stream",
-                        finalUrl
-                    )
-                )
-
-                Toast.makeText(
-                    this,
-                    "URL copied",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-            } catch (_: Throwable) {}
-
-            true
-        }
-
-        else -> false
-    }
-}
-
-                val intent =
-                    Intent(Intent.ACTION_VIEW).apply {
-
-                        setDataAndType(
-                            Uri.parse(selectedUrl),
-                            "video/*"
+                    startActivity(
+                        Intent.createChooser(
+                            intent,
+                            "Open With"
                         )
-                    }
-
-                startActivity(
-                    Intent.createChooser(
-                        intent,
-                        "Open With"
                     )
-                )
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "No compatible player",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                true
             }
 
             "TEST STREAM" -> {
 
-                testStream(selectedUrl)
+                try {
+
+                    val intent =
+                        Intent(
+                            Intent.ACTION_VIEW
+                        ).apply {
+
+                            data =
+                                Uri.parse(finalUrl)
+                        }
+
+                    startActivity(intent)
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "Cannot test stream",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                true
             }
 
             "SHARE URL" -> {
 
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
+                try {
 
-                        type = "text/plain"
+                    val shareIntent =
+                        Intent(
+                            Intent.ACTION_SEND
+                        ).apply {
 
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            selectedUrl
+                            type =
+                                "text/plain"
+
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                finalUrl
+                            )
+                        }
+
+                    startActivity(
+                        Intent.createChooser(
+                            shareIntent,
+                            "Share Stream"
                         )
-                    }
-
-                startActivity(
-                    Intent.createChooser(
-                        shareIntent,
-                        "Share URL"
                     )
-                )
+
+                } catch (_: Throwable) {}
+
+                true
             }
 
             "COPY URL" -> {
 
-                val clipboard =
-                    getSystemService(
-                        CLIPBOARD_SERVICE
-                    ) as ClipboardManager
+                try {
 
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(
-                        "stream",
-                        selectedUrl
+                    val clipboard =
+                        getSystemService(
+                            CLIPBOARD_SERVICE
+                        ) as ClipboardManager
+
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            "stream",
+                            finalUrl
+                        )
                     )
-                )
 
-                Toast.makeText(
-                    this,
-                    "Copied",
-                    Toast.LENGTH_SHORT
-                ).show()
+                    Toast.makeText(
+                        this,
+                        "URL copied",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {}
+
+                true
             }
-        }
 
-        true
+            else -> false
+        }
     }
 
     popup.show()
@@ -4513,18 +4414,17 @@ popup.setOnMenuItemClickListener {
 } // END onCreate()
 
 private fun extractUrlFromText(
-text: String
+    text: String
 ): String {
 
-val regex =
-    "(https?://[^\\s\"'<>]+)"
-        .toRegex()
+    val regex =
+        "(https?://[^\\s\"'<>]+)"
+            .toRegex()
 
-return regex.find(text)  
-    ?.value  
-    ?.trim()  
-    ?: ""
-
+    return regex.find(text)
+        ?.value
+        ?.trim()
+        ?: ""
 }
 
 // =====================================  
