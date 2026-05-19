@@ -9923,6 +9923,24 @@ private fun calculateStreamScore(
         url.lowercase()
 
     var score = 0
+    
+// =====================================
+// JWPLAYER / HOSTED VOD DETECTION
+// =====================================
+
+val isJwPlayerVod =
+    lower.contains("jwpsrv.com") ||
+        lower.contains("jwplayer") ||
+        (
+            lower.contains("/media/") &&
+                lower.contains("/versions/")
+        )
+
+if (isJwPlayerVod) {
+
+    score -=
+        1200
+}
 
     // =====================================
     // MASTER PLAYLIST
@@ -9964,11 +9982,14 @@ private fun calculateStreamScore(
     // =====================================
 
     if (
+    !isJwPlayerVod &&
+    (
         lower.contains("live") ||
-        lower.contains("broadcast")
-    ) {
-        score += 40
-    }
+            lower.contains("broadcast")
+    )
+) {
+    score += 40
+}
 
     // =====================================
     // HLS
@@ -10083,18 +10104,21 @@ if (
     // =====================================
 
     if (
+    !isJwPlayerVod &&
+    (
         lower.contains("/live/") ||
-        lower.contains("live.m3u8") ||
-        lower.contains("playlist_live") ||
-        lower.contains("is_live") ||
-        lower.contains("livestream") ||
-        lower.contains("live-stream") ||
-        lower.contains("broadcast") ||
-        lower.contains("channel") ||
-        lower.contains("linear")
-    ) {
-        score += 300
-    }
+            lower.contains("live.m3u8") ||
+            lower.contains("playlist_live") ||
+            lower.contains("is_live") ||
+            lower.contains("livestream") ||
+            lower.contains("live-stream") ||
+            lower.contains("broadcast") ||
+            lower.contains("channel") ||
+            lower.contains("linear")
+    )
+) {
+    score += 300
+}
 
     // =====================================
     // VOD PENALTY
