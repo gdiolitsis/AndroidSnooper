@@ -6866,6 +6866,18 @@ if (isPlayableHlsStream) {
 // BEST STREAM
 // =====================================
 
+// =====================================
+// JWPLAYER / HOSTED VOD
+// =====================================
+
+val isJwPlayerVod =
+    lower.contains("jwpsrv.com") ||
+        lower.contains("jwplayer") ||
+        (
+            lower.contains("/media/") &&
+                lower.contains("/versions/")
+        )
+
 val isBadBestStream =
     isJwPlayerVod ||
         isYoutubeDashVideoOnly ||
@@ -7003,18 +7015,6 @@ try {
     }
 
 } catch (_: Throwable) {}
-    
-// =====================================
-// VOD / HOSTED MEDIA CLASSIFICATION
-// =====================================
-
-val isJwPlayerVod =
-    lower.contains("jwpsrv.com") ||
-        lower.contains("jwplayer") ||
-        (
-            lower.contains("/media/") &&
-                lower.contains("/versions/")
-            )
 
 // =====================================
 // STREAM SCORE ENGINE
