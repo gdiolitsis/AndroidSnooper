@@ -4973,6 +4973,8 @@ try {
     }
 
 } catch (_: Throwable) {}
+
+    } catch (_: Throwable) {}
 }
 
 private fun extractUrlFromText(
@@ -7333,20 +7335,21 @@ val streamPriority =
         isJwPlayerVod ->
             80
 
-        // =========================
-        // LIVE MASTER HLS
-        // =========================
+// =========================
+// LIVE MASTER HLS
+// =========================
 
-        lower.contains("master.m3u8") &&
-            !lower.contains("/vod/") &&
-            (
-                lower.contains("/live/") ||
-                    lower.contains("livestream") ||
-                    lower.contains("broadcast") ||
-                    lower.contains("linear") ||
-                    lower.contains("live.m3u8")
-                ) ->
-            1000
+!isJwPlayerVod &&
+    lower.contains("master.m3u8") &&
+    !lower.contains("/vod/") &&
+    (
+        lower.contains("/live/") ||
+            lower.contains("livestream") ||
+            lower.contains("broadcast") ||
+            lower.contains("linear") ||
+            lower.contains("live.m3u8")
+    ) ->
+    1000
 
         // =========================
         // LIVE HLS
@@ -9317,6 +9320,14 @@ val sorted =
 
             val lower =
                 url.lowercase()
+                
+            val isJwPlayerVod =
+    lower.contains("jwpsrv.com") ||
+        lower.contains("jwplayer") ||
+        (
+            lower.contains("/media/") &&
+                lower.contains("/versions/")
+        )
 
             when {
 
@@ -9354,17 +9365,21 @@ val sorted =
                 // MASTER
                 // =====================================
 
-                lower.contains("master.m3u8") &&
-                !lower.contains("/vod/") ->
-                    1000
+                !isJwPlayerVod &&
+    lower.contains("master.m3u8") &&
+    !lower.contains("/vod/") ->
+    1000
 
-                lower.contains(".m3u8") &&
-                (
-                    lower.contains("live") ||
-                    lower.contains("channel") ||
-                    lower.contains("index")
-                ) ->
-                    950
+                !isJwPlayerVod &&
+    lower.contains(".m3u8") &&
+    (
+        lower.contains("/live/") ||
+            lower.contains("livestream") ||
+            lower.contains("broadcast") ||
+            lower.contains("linear") ||
+            lower.contains("live.m3u8")
+    ) ->
+    950
 
                 lower.contains(".mpd") ->
                     900
@@ -10400,7 +10415,10 @@ if (
 // =====================================
 
 if (
-    lower.contains("manifest.ism/live.m3u8")
+    lower.contains("manifest.ism/live.m3u8") &&
+    !lower.contains("jwpsrv.com") &&
+    !lower.contains("/media/") &&
+    !lower.contains("/versions/")
 ) {
     score += 1000
 }
