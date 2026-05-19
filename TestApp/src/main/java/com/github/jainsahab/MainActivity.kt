@@ -536,35 +536,61 @@ binding.contentMain.result.setTextIsSelectable(true)
 // =====================================
 
 binding.contentMain.webview.webViewClient =
-object : WebViewClient() {
+    object : WebViewClient() {
 
-override fun shouldOverrideUrlLoading(  
-        view: WebView?,  
-        request: WebResourceRequest?  
-    ): Boolean {  
+        override fun shouldOverrideUrlLoading(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): Boolean {
 
-        val url =  
-            request?.url.toString()  
+            val url =
+                request
+                    ?.url
+                    ?.toString()
+                    ?: ""
 
-        return try {  
+            return try {
 
-            view?.loadUrl(url)  
+                if (url.isNotBlank()) {
 
-            true  
+                    observeWebViewRequestUrl(url)
 
-        } catch (_: Throwable) {  
+                    view?.loadUrl(url)
 
-            false  
-        }  
-    }  
+                    true
 
-    override fun shouldInterceptRequest(  
-        view: WebView?,  
-        request: WebResourceRequest?  
-    ): WebResourceResponse? {  
+                } else {
 
-        val url =  
-            request?.url.toString()  
+                    false
+                }
+
+            } catch (_: Throwable) {
+
+                false
+            }
+        }
+
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): WebResourceResponse? {
+
+            try {
+
+                observeWebViewRequestUrl(
+                    request
+                        ?.url
+                        ?.toString()
+                )
+
+            } catch (_: Throwable) {}
+
+            return super.shouldInterceptRequest(
+                view,
+                request
+            )
+        }
+    }
             
 // =====================================
 // NETWORK MEDIA DETECTION
@@ -3310,6 +3336,98 @@ try {
                 );
             }
         });
+    }
+
+} catch (e) {}
+
+// =====================================
+// PERFORMANCE RESOURCE HLS / M3U8 SCAN
+// =====================================
+
+try {
+
+    function gelCleanUrl(u) {
+
+        if (!u) {
+            return "";
+        }
+
+        try {
+
+            u = String(u)
+                .replace(/\\u0026/g, "&")
+                .replace(/\\\//g, "/")
+                .replace(/&amp;/g, "&");
+
+            u = decodeURIComponent(u);
+
+        } catch (e) {}
+
+        return u;
+    }
+
+    function gelPushIfStream(u, tag) {
+
+        try {
+
+            var clean =
+                gelCleanUrl(u);
+
+            var low =
+                clean.toLowerCase();
+
+            if (
+                low.indexOf(".m3u8") !== -1 ||
+                low.indexOf("hlsmanifesturl") !== -1 ||
+                low.indexOf("manifest/hls") !== -1 ||
+                low.indexOf("hls_playlist") !== -1 ||
+                low.indexOf("/api/manifest/hls") !== -1
+            ) {
+
+                results.push(clean);
+
+                console.log(
+                    tag,
+                    clean
+                );
+            }
+
+        } catch (e) {}
+    }
+
+    var entries =
+        performance.getEntriesByType("resource");
+
+    if (entries && entries.length) {
+
+        entries.forEach(function(entry) {
+
+            try {
+
+                gelPushIfStream(
+                    entry.name,
+                    "GEL_PERFORMANCE_HLS:"
+                );
+
+            } catch (e) {}
+        });
+    }
+
+    if (performance.getEntriesByType("navigation")) {
+
+        performance
+            .getEntriesByType("navigation")
+            .forEach(function(entry) {
+
+                try {
+
+                    gelPushIfStream(
+                        entry.name,
+                        "GEL_NAVIGATION_HLS:"
+                    );
+
+                } catch (e) {}
+            });
     }
 
 } catch (e) {}
@@ -8081,6 +8199,30 @@ val forensicNote =
         else ->
             dashPairNote
     }
+    
+// =====================================
+// EXTRA PLAYABLE LINKS
+// =====================================
+
+val extraPlayableLinks =
+    buildString {
+
+        if (youtubeWatchUrl.isNotBlank()) {
+
+            append("▶️ YOUTUBE WATCH PLAYABLE")
+            append("\n")
+            append(youtubeWatchUrl)
+            append("\n\n")
+        }
+
+        if (bestStreamUrl.isNotBlank()) {
+
+            append("⭐ BEST STREAM")
+            append("\n")
+            append(bestStreamUrl)
+            append("\n\n")
+        }
+    }
 
 // =====================================
 // UI OUTPUT
@@ -8091,7 +8233,7 @@ runOnUiThread {
     binding.contentMain.result.append(
         """
 
-$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge$forensicNote
+$extraPlayableLinks$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge$forensicNote
 
 $displayUrl
 
@@ -10366,6 +10508,55 @@ private fun resetLiveDetection() {
         Log.e(
             "LIVE_RESET",
             "Recovery started"
+        )
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
+// WEBVIEW NETWORK STREAM OBSERVER
+// =====================================
+
+private fun observeWebViewRequestUrl(
+    rawUrl: String?
+) {
+
+    if (rawUrl.isNullOrBlank()) {
+        return
+    }
+
+    try {
+
+        val url =
+            rawUrl.trim()
+
+        val lower =
+            url.lowercase()
+
+        val looksInteresting =
+            lower.contains(".m3u8") ||
+            lower.contains("m3u8") ||
+            lower.contains("hlsmanifesturl") ||
+            lower.contains("manifest/hls") ||
+            lower.contains("hls_playlist") ||
+            lower.contains("/api/manifest/hls") ||
+            lower.contains("googlevideo.com") ||
+            lower.contains("youtube.com/embed") ||
+            lower.contains("youtube.com/watch") ||
+            lower.contains("euronews.com/api/live") ||
+            lower.contains("euronews.com/api/geoblocking")
+
+        if (!looksInteresting) {
+            return
+        }
+
+        Log.e(
+            "WEBVIEW_STREAM_REQ",
+            url
+        )
+
+        detectAndSaveUrl(
+            url
         )
 
     } catch (_: Throwable) {}
