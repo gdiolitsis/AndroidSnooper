@@ -6866,21 +6866,14 @@ if (isPlayableHlsStream) {
 // BEST STREAM
 // =====================================
 
-val isJwPlayerVod =
-    lower.contains("jwpsrv.com") ||
-        lower.contains("jwplayer") ||
-        (
-            lower.contains("/media/") &&
-                lower.contains("/versions/")
-        )
-
 val isBadBestStream =
     isJwPlayerVod ||
         isYoutubeDashVideoOnly ||
         isYoutubeDashAudioOnly ||
         isEuronewsGeoApi ||
         isEuronewsLiveApi ||
-        isSegmentTs ||
+        lower.endsWith(".ts") ||
+        lower.contains(".ts?") ||
         lower.contains(".m4s") ||
         lower.contains("chunklist") ||
         lower.contains("index-a") ||
