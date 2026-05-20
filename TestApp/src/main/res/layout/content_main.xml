@@ -81,7 +81,8 @@
                 android:id="@+id/testStream"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TEST STREAM" />           
+                android:text="TEST STREAM"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/shareStreams"
@@ -130,7 +131,8 @@
                 android:id="@+id/btnImages"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="IMAGES" />
+                android:text="IMAGES"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/btnAudio"
