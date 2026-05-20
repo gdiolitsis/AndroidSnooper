@@ -190,20 +190,27 @@ private var youtubeWatchUrl =
     ""
 
 // =====================================
-// BEST LIVE TRACKER
+// BEST DETECTED TRACKER
 // =====================================
 
-private var bestLiveUrl =
-    ""
+val score =
+    calculateStreamScore(
+        cleanedUrl
+    )
 
-private var bestLiveScore =
-    0
-    
-private val dashVideoMap =
-    mutableMapOf<String, String>()
+if (score > bestLiveScore) {
 
-private val dashAudioMap =
-    mutableMapOf<String, String>()
+    bestLiveScore =
+        score
+
+    bestLiveUrl =
+        cleanedUrl
+
+    Log.e(
+        "BEST_DETECTED_UPDATE",
+        "$bestLiveScore -> $bestLiveUrl"
+    )
+}
 
 // =====================================
 // STREAM VALIDATION CACHE
@@ -9962,71 +9969,7 @@ val streamPriority =
             1
     }
 
-// =====================================
-// LIVE SOURCE CLASSIFICATION
-// =====================================
-
-val isRealLive =
-    !isJwPlayerVod &&
-        (
-            cleanedUrl.contains(
-                "yt_live_broadcast",
-                true
-            ) ||
-                cleanedUrl.contains(
-                    "live=1",
-                    true
-                ) ||
-                cleanedUrl.contains(
-                    "live.m3u8",
-                    true
-                ) ||
-                (
-                    cleanedUrl.contains(
-                        ".m3u8",
-                        true
-                    ) &&
-                        !cleanedUrl.contains(
-                            "#EXT-X-ENDLIST",
-                            true
-                        ) &&
-                        (
-                            lower.contains("/live/") ||
-                                lower.contains("livestream") ||
-                                lower.contains("broadcast") ||
-                                lower.contains("linear")
-                            )
-                    )
-            )
-
-if (isRealLive) {
-
-    Log.e(
-        "REAL_LIVE_SOURCE",
-        cleanedUrl
-    )
-
-    if (
-        streamPriority > bestLiveScore
-    ) {
-
-        bestLiveScore =
-            streamPriority + 1000
-
-        bestLiveUrl =
-            cleanedUrl
-
-        Log.e(
-            "BEST_REAL_LIVE",
-            "$bestLiveScore -> $bestLiveUrl"
-        )
-    }
-}
-
-if (
-    streamPriority < 20 &&
-    !isRealLive
-) {
+if (streamPriority < 20) {
     return
 }
 
@@ -10154,143 +10097,18 @@ val isGarbage =
     lower.contains("banner") ||  
     lower.contains("recaptcha") ||  
     lower.contains("gstatic")  
-
+    
 // =====================================
-// SEGMENT INTELLIGENCE
+// SEGMENT FILES
 // =====================================
 
 if (isSegmentTs) {
 
-    try {
+    Log.e(
+        "SEGMENT_IGNORED",
+        cleanedUrl
+    )
 
-        val candidateBases =
-            mutableSetOf<String>()
-
-        candidateBases.add(
-            cleanedUrl.substringBeforeLast("/")
-        )
-
-        // =====================================
-        // REMOVE COMMON SEGMENT FOLDERS
-        // =====================================
-
-        listOf(
-
-            "/chunk",
-            "/chunks",
-            "/segment",
-            "/segments",
-            "/frag",
-            "/fragments",
-            "/video",
-            "/audio",
-            "/dash",
-            "/hls"
-
-        ).forEach { marker ->
-
-            if (
-                cleanedUrl.contains(marker)
-            ) {
-
-                candidateBases.add(
-                    cleanedUrl.substringBefore(marker)
-                )
-            }
-        }
-
-        val manifestCandidates =
-            mutableSetOf<String>()
-
-        candidateBases.forEach { base ->
-
-            manifestCandidates.add(
-                "$base/index.m3u8"
-            )
-
-            manifestCandidates.add(
-                "$base/master.m3u8"
-            )
-
-            manifestCandidates.add(
-                "$base/playlist.m3u8"
-            )
-
-            manifestCandidates.add(
-                "$base/live.m3u8"
-            )
-
-            manifestCandidates.add(
-                "$base/manifest.m3u8"
-            )
-
-            manifestCandidates.add(
-                "$base/index.mpd"
-            )
-
-            manifestCandidates.add(
-                "$base/manifest.mpd"
-            )
-        }
-
-        manifestCandidates.forEach { candidate ->
-
-            if (
-                !detectedStreams.contains(candidate)
-            ) {
-
-                detectedStreams.add(candidate)
-
-                detectedVideos.add(candidate)
-
-                streamScores[candidate] =
-                    900
-                    
-                    markStreamSource(
-    candidate,
-    "DERIVED"
-)
-
-                lastSelectedUrl =
-                    candidate
-
-                runOnUiThread {
-
-                    binding.contentMain.result.append(
-                        """
-
-📺 DERIVED MANIFEST
-
-$candidate
-
-────────────────────
-
-""".trimIndent()
-                    )
-                }
-
-                try {
-
-    autoValidateStream(candidate)
-
-} catch (_: Throwable) {}
-            }
-        }
-
-    } catch (_: Throwable) {}
-
-    return
-}
-
-if (isGarbage) {
-    return
-}
-
-if (
-    !isVideo &&
-    !isImage &&
-    !isAudio
-) {
     return
 }
 
