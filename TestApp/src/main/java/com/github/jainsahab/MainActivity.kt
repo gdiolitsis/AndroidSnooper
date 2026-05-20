@@ -78,6 +78,22 @@ private var lastSelectedUrl =
     mutableMapOf<String, String>()
     
 // =====================================
+// LIVE / DASH STATE
+// =====================================
+
+private var bestLiveUrl =
+    ""
+
+private var bestLiveScore =
+    0
+
+private val dashVideoMap =
+    mutableMapOf<String, String>()
+
+private val dashAudioMap =
+    mutableMapOf<String, String>()
+    
+// =====================================
 // STREAM META
 // =====================================
 
@@ -188,29 +204,6 @@ private var youtubeEmbedUrl =
 
 private var youtubeWatchUrl =
     ""
-
-// =====================================
-// BEST DETECTED TRACKER
-// =====================================
-
-val score =
-    calculateStreamScore(
-        cleanedUrl
-    )
-
-if (score > bestLiveScore) {
-
-    bestLiveScore =
-        score
-
-    bestLiveUrl =
-        cleanedUrl
-
-    Log.e(
-        "BEST_DETECTED_UPDATE",
-        "$bestLiveScore -> $bestLiveUrl"
-    )
-}
 
 // =====================================
 // STREAM VALIDATION CACHE
@@ -9468,7 +9461,30 @@ if (score > bestLiveScore) {
         "$bestLiveScore -> $bestLiveUrl"
     )
 }
-        
+
+// =====================================
+// BEST DETECTED TRACKER
+// =====================================
+
+val score =
+    calculateStreamScore(
+        cleanedUrl
+    )
+
+if (score > bestLiveScore) {
+
+    bestLiveScore =
+        score
+
+    bestLiveUrl =
+        cleanedUrl
+
+    Log.e(
+        "BEST_DETECTED_UPDATE",
+        "$bestLiveScore -> $bestLiveUrl"
+    )
+}
+       
 // =====================================
 // DUPLICATE FILTER
 // =====================================
