@@ -710,6 +710,33 @@ override fun shouldInterceptRequest(
                 rawBytes
                     ?.toString(Charsets.UTF_8)
                     .orEmpty()
+                    
+// =====================================
+// STRONG M3U8 EXTRACTION
+// =====================================
+
+try {
+
+    extractM3u8UrlsFromText(
+        body
+    ).forEach { found ->
+
+        markStreamSource(
+            found,
+            "M3U8_BODY_STRONG"
+        )
+
+        detectAndSaveUrl(
+            found
+        )
+
+        Log.e(
+            "M3U8_BODY_STRONG",
+            found
+        )
+    }
+
+} catch (_: Throwable) {}
 
             // =====================================
             // BODY MEDIA EXTRACTION
@@ -1194,142 +1221,168 @@ sortedStreams.addAll(
     detectedAudio  
 )  
 
-// =====================================  
-// IMAGES  
-// =====================================  
+// =====================================
+// IMAGES
+// =====================================
 
-sortedStreams.addAll(  
-    detectedImages  
-)  
+sortedStreams.addAll(
+    detectedImages
+)
 
-val streamList =  
-    sortedStreams.toTypedArray()  
+// =====================================
+// EXPORTABLE STREAM LIST
+// =====================================
 
-androidx.appcompat.app.AlertDialog.Builder(this)  
-    .setTitle("Select Stream")  
+val streamList =
+    sortedStreams
+        .filter { url ->
 
-    .setItems(streamList) { _, which ->  
+            isExportableStream(
+                url
+            )
+        }
+        .distinct()
+        .toTypedArray()
 
-        val url =  
-            streamList[which]  
+if (streamList.isEmpty()) {
 
-        try {  
+    Toast.makeText(
+        this,
+        "No exportable streams found",
+        Toast.LENGTH_SHORT
+    ).show()
 
-            val lower =  
-                url.lowercase()  
+} else {
 
-            val mimeType =  
-                when {  
+    androidx.appcompat.app.AlertDialog.Builder(this)
+        .setTitle("Select Stream")
 
-                    // =========================  
-                    // STREAMS / VIDEO  
-                    // =========================  
+        .setItems(streamList) { _, which ->
 
-                    lower.contains(".m3u8") ->  
-                        "video/*"  
+            val url =
+                streamList[which]
 
-                    lower.contains(".mpd") ->  
-                        "video/*"  
+            try {
 
-                    lower.contains(".mp4") ->  
-                        "video/*"  
+                val lower =
+                    url.lowercase()
 
-                    lower.contains(".mkv") ->  
-                        "video/*"  
+                val mimeType =
+                    when {
 
-                    lower.contains(".webm") ->  
-                        "video/*"  
+                        // =========================
+                        // STREAMS / VIDEO
+                        // =========================
 
-                    lower.contains(".ts") ->  
-                        "video/*"  
+                        lower.contains(".m3u8") ->
+                            "video/*"
 
-                    // =========================  
-                    // AUDIO  
-                    // =========================  
+                        lower.contains(".mpd") ->
+                            "video/*"
 
-                    lower.contains(".mp3") ->  
-                        "audio/mpeg"  
+                        lower.contains(".mp4") ->
+                            "video/*"
 
-                    lower.contains(".aac") ->  
-                        "audio/aac"  
+                        lower.contains(".mkv") ->
+                            "video/*"
 
-                    lower.contains(".wav") ->  
-                        "audio/wav"  
+                        lower.contains(".webm") ->
+                            "video/*"
 
-                    lower.contains(".ogg") ->  
-                        "audio/ogg"  
+                        lower.endsWith(".ts") ||
+                            lower.contains(".ts?") ->
+                            "video/*"
 
-                    lower.contains(".flac") ->  
-                        "audio/flac"  
+                        lower.contains("youtube.com/watch") ||
+                            lower.contains("youtu.be/") ->
+                            "video/*"
 
-                    // =========================  
-                    // IMAGES  
-                    // =========================  
+                        // =========================
+                        // AUDIO
+                        // =========================
 
-                    lower.contains(".jpg") ||  
-                    lower.contains(".jpeg") ->  
-                        "image/jpeg"  
+                        lower.contains(".mp3") ->
+                            "audio/mpeg"
 
-                    lower.contains(".png") ->  
-                        "image/png"  
+                        lower.contains(".aac") ->
+                            "audio/aac"
 
-                    lower.contains(".webp") ->  
-                        "image/webp"  
+                        lower.contains(".wav") ->
+                            "audio/wav"
 
-                    lower.contains(".gif") ->  
-                        "image/gif"  
+                        lower.contains(".ogg") ->
+                            "audio/ogg"
 
-                    // =========================  
-                    // FALLBACK  
-                    // =========================  
+                        lower.contains(".flac") ->
+                            "audio/flac"
 
-                    else ->  
-                        "*/*"  
-                }  
+                        // =========================
+                        // IMAGES
+                        // =========================
 
-            val cleanUrl =  
-                url  
-                    .trim()  
-                    .replace("\n", "")  
-                    .replace("\r", "")  
-                    .replace(" ", "")  
+                        lower.contains(".jpg") ||
+                            lower.contains(".jpeg") ->
+                            "image/jpeg"
 
-            val intent =  
-                Intent(Intent.ACTION_VIEW).apply {  
+                        lower.contains(".png") ->
+                            "image/png"
 
-                    setDataAndType(  
-                        Uri.parse(cleanUrl),  
-                        mimeType  
-                    )  
+                        lower.contains(".webp") ->
+                            "image/webp"
 
-                    addCategory(  
-                        Intent.CATEGORY_BROWSABLE  
-                    )  
+                        lower.contains(".gif") ->
+                            "image/gif"
 
-                    addFlags(  
-                        Intent.FLAG_ACTIVITY_NEW_TASK  
-                    )  
-                }  
+                        // =========================
+                        // FALLBACK
+                        // =========================
 
-            startActivity(  
-                Intent.createChooser(  
-                    intent,  
-                    "Open Stream With"  
-                )  
-            )  
+                        else ->
+                            "*/*"
+                    }
 
-        } catch (t: Throwable) {  
+                val cleanUrl =
+                    url
+                        .trim()
+                        .replace("\n", "")
+                        .replace("\r", "")
+                        .replace(" ", "")
 
-            Log.e(  
-                "PLAYER_OPEN",  
-                "failed",  
-                t  
-            )  
-        }  
-    }  
+                val intent =
+                    Intent(Intent.ACTION_VIEW).apply {
 
-    .show()
+                        setDataAndType(
+                            Uri.parse(cleanUrl),
+                            mimeType
+                        )
 
+                        addCategory(
+                            Intent.CATEGORY_BROWSABLE
+                        )
+
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        intent,
+                        "Open Stream With"
+                    )
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "PLAYER_OPEN",
+                    "failed",
+                    t
+                )
+            }
+        }
+
+        .show()
 }
 
 binding.contentMain.shareStreams.setOnClickListener {
@@ -1354,10 +1407,31 @@ sortedStreams.addAll(
 // =====================================
 
 val streamList =
-    sortedStreams.toTypedArray()
+    sortedStreams
+        .filter { url ->
+
+            isExportableStream(
+                url
+            )
+        }
+        .distinct()
+        .toTypedArray()
+
+if (streamList.isEmpty()) {
+
+    Toast.makeText(
+        this,
+        "No exportable streams found",
+        Toast.LENGTH_SHORT
+    ).show()
+
+    return@setOnMenuItemClickListener true
+}
 
 val checkedItems =
-    BooleanArray(streamList.size)
+    BooleanArray(
+        streamList.size
+    )
 
 val selected =
     mutableListOf<String>()
@@ -1579,15 +1653,6 @@ dialog.getButton(
 
 binding.contentMain.testStream.setOnClickListener {
 
-    if (detectedStreams.isEmpty()) {
-
-        binding.contentMain.result.append(
-            "\n\nNO STREAMS DETECTED\n"
-        )
-
-        return@setOnClickListener
-    }
-
     val sortedStreams =
         mutableListOf<String>()
 
@@ -1604,7 +1669,24 @@ binding.contentMain.testStream.setOnClickListener {
     )
 
     val streamList =
-        sortedStreams.toTypedArray()
+        sortedStreams
+            .filter { url ->
+
+                isExportableStream(
+                    url
+                )
+            }
+            .distinct()
+            .toTypedArray()
+
+    if (streamList.isEmpty()) {
+
+        binding.contentMain.result.append(
+            "\n\nNO EXPORTABLE STREAMS DETECTED\n"
+        )
+
+        return@setOnClickListener
+    }
 
     androidx.appcompat.app.AlertDialog.Builder(this)
 
@@ -1615,7 +1697,9 @@ binding.contentMain.testStream.setOnClickListener {
             val selectedUrl =
                 streamList[which]
 
-            testStream(selectedUrl)
+            testStream(
+                selectedUrl
+            )
         }
 
         .show()
@@ -2607,10 +2691,69 @@ try {
 try {
 
     const html =
-        document.documentElement.outerHTML;
+        document.documentElement.outerHTML || "";
+
+    // =====================================
+    // HTML HLS MANIFEST URL SCAN
+    // =====================================
+
+    try {
+
+        const hlsRegex =
+            /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+        let hlsMatch;
+
+        while (
+            (hlsMatch = hlsRegex.exec(html)) !== null
+        ) {
+
+            try {
+
+                let clean =
+                    String(hlsMatch[1])
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\u003d/g, "=")
+                        .replace(/\\u003f/g, "?")
+                        .replace(/\\u002f/g, "/")
+                        .replace(/\\\//g, "/")
+                        .replace(/&amp;/g, "&");
+
+                try {
+                    clean =
+                        decodeURIComponent(clean);
+                } catch(e) {}
+
+                if (
+                    clean &&
+                    (
+                        clean.indexOf(".m3u8") !== -1 ||
+                        clean.indexOf("manifest/hls") !== -1 ||
+                        clean.indexOf("hls_playlist") !== -1
+                    )
+                ) {
+
+                    gelPush(
+                        clean
+                    );
+
+                    console.log(
+                        "GEL_HTML_HLS_MANIFEST:",
+                        clean
+                    );
+                }
+
+            } catch(e) {}
+        }
+
+    } catch(e) {}
+
+    // =====================================
+    // STRONG HTML MEDIA REGEX
+    // =====================================
 
     const regex =
-/(https?:\/\/[^"'\\s]+?\.(m3u8|mpd|mp4|m4s|ts)(\?[^"'\\s]*)?)/gi;
+        /(https?:\\?\/\\?\/[^"'\\s<>]+?(m3u8|mpd|mp4|m4s|ts)(\?[^"'\\s<>]*)?)/gi;
 
     let match;
 
@@ -2618,12 +2761,32 @@ try {
         (match = regex.exec(html)) !== null
     ) {
 
-        gelPush(match[1]);
+        try {
 
-        console.log(
-            "GEL_HTML_MEDIA:",
-            match[1]
-        );
+            let clean =
+                String(match[1])
+                    .replace(/\\u0026/g, "&")
+                    .replace(/\\u003d/g, "=")
+                    .replace(/\\u003f/g, "?")
+                    .replace(/\\u002f/g, "/")
+                    .replace(/\\\//g, "/")
+                    .replace(/&amp;/g, "&");
+
+            try {
+                clean =
+                    decodeURIComponent(clean);
+            } catch(e) {}
+
+            gelPush(
+                clean
+            );
+
+            console.log(
+                "GEL_HTML_MEDIA:",
+                clean
+            );
+
+        } catch(e) {}
     }
 
 } catch(e) {}
@@ -2662,6 +2825,142 @@ try {
 
         } catch(e) {}
     });
+
+} catch(e) {}
+
+// =====================================
+// STRONG HLS / M3U8 HUNT
+// =====================================
+
+try {
+
+    const html =
+        document.documentElement.outerHTML || "";
+
+    function gelCleanMediaUrl(u) {
+
+        try {
+
+            return String(u)
+                .replace(/\\u0026/g, "&")
+                .replace(/\\u003d/g, "=")
+                .replace(/\\u003f/g, "?")
+                .replace(/\\u002f/g, "/")
+                .replace(/\\\//g, "/")
+                .replace(/&amp;/g, "&")
+                .trim();
+
+        } catch(e) {
+
+            return u;
+        }
+    }
+
+    // =====================================
+    // DIRECT M3U8
+    // =====================================
+
+    try {
+
+        const directRegex =
+            /https?:\\?\/\\?\/[^"'<>\\s]+?\.m3u8[^"'<>\\s]*/gi;
+
+        let match;
+
+        while (
+            (match = directRegex.exec(html)) !== null
+        ) {
+
+            const clean =
+                gelCleanMediaUrl(match[0]);
+
+            if (
+                clean &&
+                clean.indexOf(".m3u8") !== -1
+            ) {
+
+                gelPush(clean);
+
+                console.log(
+                    "GEL_STRONG_M3U8:",
+                    clean
+                );
+            }
+        }
+
+    } catch(e) {}
+
+    // =====================================
+    // HLS MANIFEST URL
+    // =====================================
+
+    try {
+
+        const hlsRegex =
+            /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+        let hls;
+
+        while (
+            (hls = hlsRegex.exec(html)) !== null
+        ) {
+
+            const clean =
+                gelCleanMediaUrl(hls[1]);
+
+            if (
+                clean &&
+                (
+                    clean.indexOf(".m3u8") !== -1 ||
+                    clean.indexOf("manifest/hls") !== -1 ||
+                    clean.indexOf("hls_playlist") !== -1
+                )
+            ) {
+
+                gelPush(clean);
+
+                console.log(
+                    "GEL_HLS_MANIFEST_URL:",
+                    clean
+                );
+            }
+        }
+
+    } catch(e) {}
+
+    // =====================================
+    // PLAYER CONFIG KEYS
+    // =====================================
+
+    try {
+
+        const playerRegex =
+            /(file|src|source|stream|hls|url)["']?\s*[:=]\s*["']([^"']+?\.m3u8[^"']*)["']/gi;
+
+        let player;
+
+        while (
+            (player = playerRegex.exec(html)) !== null
+        ) {
+
+            const clean =
+                gelCleanMediaUrl(player[2]);
+
+            if (
+                clean &&
+                clean.indexOf(".m3u8") !== -1
+            ) {
+
+                gelPush(clean);
+
+                console.log(
+                    "GEL_PLAYER_M3U8_KEY:",
+                    clean
+                );
+            }
+        }
+
+    } catch(e) {}
 
 } catch(e) {}
 
@@ -2800,7 +3099,20 @@ try {
 
                 try {
 
-                    this.__gelUrl = url;
+                    this.__gelUrl =
+                        url;
+
+                    if (url) {
+
+                        gelPush(
+                            url
+                        );
+
+                        console.log(
+                            "GEL_XHR_URL:",
+                            url
+                        );
+                    }
 
                 } catch(e) {}
 
@@ -2828,151 +3140,610 @@ try {
                                 }
 
                                 const txt =
-                                    this.responseText;
+                                    this.responseText || "";
 
                                 if (!txt) {
                                     return;
                                 }
                                 
 // =====================================
-// YOUTUBE PLAYER RESPONSE
+// YOUTUBE FULL PLAYER FORENSICS
 // =====================================
 
 try {
 
-    if (
-        txt.includes(
-            "dashManifestUrl"
-        ) ||
+    const hasYoutubePlayerData =
+        txt.includes("ytInitialPlayerResponse") ||
+        txt.includes("dashManifestUrl") ||
+        txt.includes("hlsManifestUrl") ||
+        txt.includes("adaptiveFormats") ||
+        txt.includes("streamingData") ||
+        txt.includes("googlevideo.com") ||
+        txt.includes("videoplayback");
 
-        txt.includes(
-            "hlsManifestUrl"
-        ) ||
-
-        txt.includes(
-            "ytInitialPlayerResponse"
-        )
-    ) {
+    if (hasYoutubePlayerData) {
 
         console.log(
-            "GEL_PLAYER_RESPONSE_FOUND"
+            "GEL_YOUTUBE_PLAYER_DATA_FOUND"
         );
 
-// =====================================
-// RAW PLAYER RESPONSE DEBUG
-// =====================================
+        // =====================================
+        // RAW PLAYER RESPONSE DEBUG
+        // =====================================
 
-try {
+        try {
 
-    if (
+            console.log(
+                "GEL_RAW_PLAYER_RESPONSE:",
+                txt.substring(
+                    0,
+                    5000
+                )
+            );
 
-        txt.includes(
-            "ytInitialPlayerResponse"
-        ) ||
+        } catch(e) {}
 
-        txt.includes(
-            "dashManifestUrl"
-        ) ||
+        // =====================================
+        // CLEAN HELPER
+        // =====================================
 
-        txt.includes(
-            "hlsManifestUrl"
-        )
-
-    ) {
-
-        console.log(
-            "GEL_RAW_PLAYER_RESPONSE:",
-            txt.substring(0, 5000)
-        );
-    }
-
-} catch(e) {}
-
-        // =============================
-        // DASH MANIFEST
-        // =============================
-
-        const dashRegex =
-/"https:\/\/[^"]+?\.mpd[^"]*"/gi;
-
-        let dash;
-
-        while (
-            (dash = dashRegex.exec(txt)) !== null
-        ) {
+        function gelCleanYoutubeUrl(u) {
 
             try {
 
-                const url =
-                    dash[0]
+                u =
+                    String(u)
                         .replace(/^"/, "")
                         .replace(/"$/, "")
                         .replace(/\\u0026/g, "&")
-                        .replace(/\\\//g, "/");
+                        .replace(/\\u003d/g, "=")
+                        .replace(/\\u003f/g, "?")
+                        .replace(/\\u002f/g, "/")
+                        .replace(/\\\//g, "/")
+                        .replace(/&amp;/g, "&");
 
-                gelPush(url);
+                try {
+                    u =
+                        decodeURIComponent(u);
+                } catch(e) {}
 
-                console.log(
-                    "GEL_DASH_MANIFEST:",
-                    url
-                );
+                return u;
 
-            } catch(e) {}
+            } catch(e) {
+
+                return "";
+            }
         }
 
-        // =============================
-        // HLS MANIFEST
-        // =============================
+        // =====================================
+        // hlsManifestUrl
+        // =====================================
 
-        const hlsRegex =
-/"https:\/\/[^"]+?\.m3u8[^"]*"/gi;
+        try {
 
-        let hls;
+            const hlsManifestRegex =
+                /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
 
-        while (
-            (hls = hlsRegex.exec(txt)) !== null
-        ) {
+            let hlsMatch;
 
-            try {
+            while (
+                (hlsMatch = hlsManifestRegex.exec(txt)) !== null
+            ) {
 
-                const url =
-                    hls[0]
-                        .replace(/^"/, "")
-                        .replace(/"$/, "")
-                        .replace(/\\u0026/g, "&")
-                        .replace(/\\\//g, "/");
+                try {
 
-                gelPush(url);
+                    const clean =
+                        gelCleanYoutubeUrl(
+                            hlsMatch[1]
+                        );
 
-                console.log(
-                    "GEL_HLS_MANIFEST:",
-                    url
-                );
+                    if (
+                        clean &&
+                        (
+                            clean.indexOf(".m3u8") !== -1 ||
+                            clean.indexOf("manifest/hls") !== -1 ||
+                            clean.indexOf("hls_playlist") !== -1
+                        )
+                    ) {
 
-            } catch(e) {}
-        }
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_YOUTUBE_HLS_MANIFEST_URL:",
+                            clean
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // dashManifestUrl
+        // =====================================
+
+        try {
+
+            const dashManifestRegex =
+                /dashManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+            let dashMatch;
+
+            while (
+                (dashMatch = dashManifestRegex.exec(txt)) !== null
+            ) {
+
+                try {
+
+                    const clean =
+                        gelCleanYoutubeUrl(
+                            dashMatch[1]
+                        );
+
+                    if (
+                        clean &&
+                        (
+                            clean.indexOf(".mpd") !== -1 ||
+                            clean.indexOf("dash") !== -1
+                        )
+                    ) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_YOUTUBE_DASH_MANIFEST_URL:",
+                            clean
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // DIRECT YOUTUBE M3U8
+        // =====================================
+
+        try {
+
+            const directHlsRegex =
+                /https?:\\?\/\\?\/[^"'\\s<>]+?(\.m3u8|manifest\/hls|hls_playlist)[^"'\\s<>]*/gi;
+
+            let hls;
+
+            while (
+                (hls = directHlsRegex.exec(txt)) !== null
+            ) {
+
+                try {
+
+                    const clean =
+                        gelCleanYoutubeUrl(
+                            hls[0]
+                        );
+
+                    if (clean) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_YOUTUBE_DIRECT_HLS:",
+                            clean
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // DIRECT YOUTUBE MPD
+        // =====================================
+
+        try {
+
+            const directDashRegex =
+                /https?:\\?\/\\?\/[^"'\\s<>]+?\.mpd[^"'\\s<>]*/gi;
+
+            let dash;
+
+            while (
+                (dash = directDashRegex.exec(txt)) !== null
+            ) {
+
+                try {
+
+                    const clean =
+                        gelCleanYoutubeUrl(
+                            dash[0]
+                        );
+
+                    if (clean) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_YOUTUBE_DIRECT_MPD:",
+                            clean
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // GOOGLEVIDEO / VIDEOPLAYBACK
+        // =====================================
+
+        try {
+
+            const videoPlaybackRegex =
+                /https?:\\?\/\\?\/[^"'\\s<>]+?googlevideo\.com\/videoplayback[^"'\\s<>]*/gi;
+
+            let vp;
+
+            while (
+                (vp = videoPlaybackRegex.exec(txt)) !== null
+            ) {
+
+                try {
+
+                    const clean =
+                        gelCleanYoutubeUrl(
+                            vp[0]
+                        );
+
+                    if (clean) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_YOUTUBE_VIDEOPLAYBACK:",
+                            clean
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // SIGNATURE CIPHER / URL PARAM
+        // =====================================
+
+        try {
+
+            const cipherRegex =
+                /"(url|signatureCipher|cipher)"\s*:\s*"([^"]+)"/gi;
+
+            let cipher;
+
+            while (
+                (cipher = cipherRegex.exec(txt)) !== null
+            ) {
+
+                try {
+
+                    const clean =
+                        gelCleanYoutubeUrl(
+                            cipher[2]
+                        );
+
+                    if (
+                        clean &&
+                        (
+                            clean.indexOf("googlevideo.com") !== -1 ||
+                            clean.indexOf("videoplayback") !== -1 ||
+                            clean.indexOf(".m3u8") !== -1 ||
+                            clean.indexOf(".mpd") !== -1
+                        )
+                    ) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_YOUTUBE_CIPHER_URL:",
+                            clean
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
     }
 
-} catch(e) {}
+} catch(e) {}                                
 
-                                const regex =
-/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
+                                // =====================================
+                                // YOUTUBE PLAYER RESPONSE DETECTION
+                                // =====================================
 
-                                let match;
+                                try {
 
-                                while (
-                                    (match = regex.exec(txt)) !== null
-                                ) {
+                                    if (
+                                        txt.includes("dashManifestUrl") ||
+                                        txt.includes("hlsManifestUrl") ||
+                                        txt.includes("ytInitialPlayerResponse")
+                                    ) {
 
-                                    gelPush(
-                                        match[0]
-                                    );
+                                        console.log(
+                                            "GEL_PLAYER_RESPONSE_FOUND"
+                                        );
 
-                                    console.log(
-                                        "GEL_XHR_RESPONSE:",
-                                        match[0]
-                                    );
-                                }
+                                        try {
+
+                                            console.log(
+                                                "GEL_RAW_PLAYER_RESPONSE:",
+                                                txt.substring(
+                                                    0,
+                                                    5000
+                                                )
+                                            );
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // YOUTUBE DASH MANIFEST
+                                // =====================================
+
+                                try {
+
+                                    const dashRegex =
+                                        /"https:\\?\/\\?\/[^"]+?\.mpd[^"]*"/gi;
+
+                                    let dash;
+
+                                    while (
+                                        (dash = dashRegex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(dash[0])
+                                                    .replace(/^"/, "")
+                                                    .replace(/"$/, "")
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            gelPush(
+                                                clean
+                                            );
+
+                                            console.log(
+                                                "GEL_YOUTUBE_DASH_MANIFEST:",
+                                                clean
+                                            );
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // YOUTUBE HLS MANIFEST
+                                // =====================================
+
+                                try {
+
+                                    const hlsRegex =
+                                        /"https:\\?\/\\?\/[^"]+?\.m3u8[^"]*"/gi;
+
+                                    let hls;
+
+                                    while (
+                                        (hls = hlsRegex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(hls[0])
+                                                    .replace(/^"/, "")
+                                                    .replace(/"$/, "")
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            gelPush(
+                                                clean
+                                            );
+
+                                            console.log(
+                                                "GEL_YOUTUBE_HLS_MANIFEST:",
+                                                clean
+                                            );
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // XHR HLS MANIFEST URL SCAN
+                                // =====================================
+
+                                try {
+
+                                    const hlsRegex =
+                                        /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                                    let hlsMatch;
+
+                                    while (
+                                        (hlsMatch = hlsRegex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(hlsMatch[1])
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            if (
+                                                clean &&
+                                                (
+                                                    clean.indexOf(".m3u8") !== -1 ||
+                                                    clean.indexOf("manifest/hls") !== -1 ||
+                                                    clean.indexOf("hls_playlist") !== -1
+                                                )
+                                            ) {
+
+                                                gelPush(
+                                                    clean
+                                                );
+
+                                                console.log(
+                                                    "GEL_XHR_HLS_MANIFEST:",
+                                                    clean
+                                                );
+                                            }
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // XHR DASH MANIFEST SCAN
+                                // =====================================
+
+                                try {
+
+                                    const dashRegex =
+                                        /https?:\\?\/\\?\/[^"'\\s<>]+?\.mpd[^"'\\s<>]*/gi;
+
+                                    let dash;
+
+                                    while (
+                                        (dash = dashRegex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(dash[0])
+                                                    .replace(/^"/, "")
+                                                    .replace(/"$/, "")
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            gelPush(
+                                                clean
+                                            );
+
+                                            console.log(
+                                                "GEL_DASH_MANIFEST:",
+                                                clean
+                                            );
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // STRONG XHR MEDIA REGEX
+                                // =====================================
+
+                                try {
+
+                                    const regex =
+                                        /https?:\\?\/\\?\/[^"'\\s<>]+?(m3u8|mpd|mp4|m4s|ts)(\?[^"'\\s<>]*)?/gi;
+
+                                    let match;
+
+                                    while (
+                                        (match = regex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(match[0])
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            gelPush(
+                                                clean
+                                            );
+
+                                            console.log(
+                                                "GEL_XHR_RESPONSE:",
+                                                clean
+                                            );
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
 
                             } catch(e) {}
                         }
@@ -3790,24 +4561,428 @@ try {
 
                             try {
 
-                                const regex =
-/https?:\/\/[^"'\\s]+?(m3u8|mpd|mp4)(\?[^"'\\s]*)?/gi;
-
-                                let match;
-
-                                while (
-                                    (match = regex.exec(txt)) !== null
-                                ) {
-
-                                    gelPush(
-                                        match[0]
-                                    );
-
-                                    console.log(
-                                        "GEL_FETCH_RESPONSE:",
-                                        match[0]
-                                    );
+                                if (!txt) {
+                                    return;
                                 }
+
+                                // =====================================
+                                // FETCH YOUTUBE FULL PLAYER FORENSICS
+                                // =====================================
+
+                                try {
+
+                                    const hasYoutubePlayerData =
+                                        txt.includes("ytInitialPlayerResponse") ||
+                                        txt.includes("dashManifestUrl") ||
+                                        txt.includes("hlsManifestUrl") ||
+                                        txt.includes("adaptiveFormats") ||
+                                        txt.includes("streamingData") ||
+                                        txt.includes("googlevideo.com") ||
+                                        txt.includes("videoplayback");
+
+                                    if (hasYoutubePlayerData) {
+
+                                        console.log(
+                                            "GEL_FETCH_YOUTUBE_PLAYER_DATA_FOUND"
+                                        );
+
+                                        try {
+
+                                            console.log(
+                                                "GEL_FETCH_RAW_PLAYER_RESPONSE:",
+                                                txt.substring(
+                                                    0,
+                                                    5000
+                                                )
+                                            );
+
+                                        } catch(e) {}
+
+                                        function gelCleanFetchYoutubeUrl(u) {
+
+                                            try {
+
+                                                u =
+                                                    String(u)
+                                                        .replace(/^"/, "")
+                                                        .replace(/"$/, "")
+                                                        .replace(/\\u0026/g, "&")
+                                                        .replace(/\\u003d/g, "=")
+                                                        .replace(/\\u003f/g, "?")
+                                                        .replace(/\\u002f/g, "/")
+                                                        .replace(/\\\//g, "/")
+                                                        .replace(/&amp;/g, "&");
+
+                                                try {
+                                                    u =
+                                                        decodeURIComponent(u);
+                                                } catch(e) {}
+
+                                                return u;
+
+                                            } catch(e) {
+
+                                                return "";
+                                            }
+                                        }
+
+                                        // =====================================
+                                        // FETCH hlsManifestUrl
+                                        // =====================================
+
+                                        try {
+
+                                            const hlsManifestRegex =
+                                                /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                                            let hlsMatch;
+
+                                            while (
+                                                (hlsMatch = hlsManifestRegex.exec(txt)) !== null
+                                            ) {
+
+                                                try {
+
+                                                    const clean =
+                                                        gelCleanFetchYoutubeUrl(
+                                                            hlsMatch[1]
+                                                        );
+
+                                                    if (
+                                                        clean &&
+                                                        (
+                                                            clean.indexOf(".m3u8") !== -1 ||
+                                                            clean.indexOf("manifest/hls") !== -1 ||
+                                                            clean.indexOf("hls_playlist") !== -1
+                                                        )
+                                                    ) {
+
+                                                        gelPush(
+                                                            clean
+                                                        );
+
+                                                        console.log(
+                                                            "GEL_FETCH_YOUTUBE_HLS_MANIFEST_URL:",
+                                                            clean
+                                                        );
+                                                    }
+
+                                                } catch(e) {}
+                                            }
+
+                                        } catch(e) {}
+
+                                        // =====================================
+                                        // FETCH dashManifestUrl
+                                        // =====================================
+
+                                        try {
+
+                                            const dashManifestRegex =
+                                                /dashManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                                            let dashMatch;
+
+                                            while (
+                                                (dashMatch = dashManifestRegex.exec(txt)) !== null
+                                            ) {
+
+                                                try {
+
+                                                    const clean =
+                                                        gelCleanFetchYoutubeUrl(
+                                                            dashMatch[1]
+                                                        );
+
+                                                    if (
+                                                        clean &&
+                                                        (
+                                                            clean.indexOf(".mpd") !== -1 ||
+                                                            clean.indexOf("dash") !== -1
+                                                        )
+                                                    ) {
+
+                                                        gelPush(
+                                                            clean
+                                                        );
+
+                                                        console.log(
+                                                            "GEL_FETCH_YOUTUBE_DASH_MANIFEST_URL:",
+                                                            clean
+                                                        );
+                                                    }
+
+                                                } catch(e) {}
+                                            }
+
+                                        } catch(e) {}
+
+                                        // =====================================
+                                        // FETCH DIRECT YOUTUBE HLS
+                                        // =====================================
+
+                                        try {
+
+                                            const directHlsRegex =
+                                                /https?:\\?\/\\?\/[^"'\\s<>]+?(\.m3u8|manifest\/hls|hls_playlist)[^"'\\s<>]*/gi;
+
+                                            let hls;
+
+                                            while (
+                                                (hls = directHlsRegex.exec(txt)) !== null
+                                            ) {
+
+                                                try {
+
+                                                    const clean =
+                                                        gelCleanFetchYoutubeUrl(
+                                                            hls[0]
+                                                        );
+
+                                                    if (clean) {
+
+                                                        gelPush(
+                                                            clean
+                                                        );
+
+                                                        console.log(
+                                                            "GEL_FETCH_YOUTUBE_DIRECT_HLS:",
+                                                            clean
+                                                        );
+                                                    }
+
+                                                } catch(e) {}
+                                            }
+
+                                        } catch(e) {}
+
+                                        // =====================================
+                                        // FETCH DIRECT YOUTUBE MPD
+                                        // =====================================
+
+                                        try {
+
+                                            const directDashRegex =
+                                                /https?:\\?\/\\?\/[^"'\\s<>]+?\.mpd[^"'\\s<>]*/gi;
+
+                                            let dash;
+
+                                            while (
+                                                (dash = directDashRegex.exec(txt)) !== null
+                                            ) {
+
+                                                try {
+
+                                                    const clean =
+                                                        gelCleanFetchYoutubeUrl(
+                                                            dash[0]
+                                                        );
+
+                                                    if (clean) {
+
+                                                        gelPush(
+                                                            clean
+                                                        );
+
+                                                        console.log(
+                                                            "GEL_FETCH_YOUTUBE_DIRECT_MPD:",
+                                                            clean
+                                                        );
+                                                    }
+
+                                                } catch(e) {}
+                                            }
+
+                                        } catch(e) {}
+
+                                        // =====================================
+                                        // FETCH GOOGLEVIDEO / VIDEOPLAYBACK
+                                        // =====================================
+
+                                        try {
+
+                                            const videoPlaybackRegex =
+                                                /https?:\\?\/\\?\/[^"'\\s<>]+?googlevideo\.com\/videoplayback[^"'\\s<>]*/gi;
+
+                                            let vp;
+
+                                            while (
+                                                (vp = videoPlaybackRegex.exec(txt)) !== null
+                                            ) {
+
+                                                try {
+
+                                                    const clean =
+                                                        gelCleanFetchYoutubeUrl(
+                                                            vp[0]
+                                                        );
+
+                                                    if (clean) {
+
+                                                        gelPush(
+                                                            clean
+                                                        );
+
+                                                        console.log(
+                                                            "GEL_FETCH_YOUTUBE_VIDEOPLAYBACK:",
+                                                            clean
+                                                        );
+                                                    }
+
+                                                } catch(e) {}
+                                            }
+
+                                        } catch(e) {}
+
+                                        // =====================================
+                                        // FETCH SIGNATURE CIPHER / URL PARAM
+                                        // =====================================
+
+                                        try {
+
+                                            const cipherRegex =
+                                                /"(url|signatureCipher|cipher)"\s*:\s*"([^"]+)"/gi;
+
+                                            let cipher;
+
+                                            while (
+                                                (cipher = cipherRegex.exec(txt)) !== null
+                                            ) {
+
+                                                try {
+
+                                                    const clean =
+                                                        gelCleanFetchYoutubeUrl(
+                                                            cipher[2]
+                                                        );
+
+                                                    if (
+                                                        clean &&
+                                                        (
+                                                            clean.indexOf("googlevideo.com") !== -1 ||
+                                                            clean.indexOf("videoplayback") !== -1 ||
+                                                            clean.indexOf(".m3u8") !== -1 ||
+                                                            clean.indexOf(".mpd") !== -1
+                                                        )
+                                                    ) {
+
+                                                        gelPush(
+                                                            clean
+                                                        );
+
+                                                        console.log(
+                                                            "GEL_FETCH_YOUTUBE_CIPHER_URL:",
+                                                            clean
+                                                        );
+                                                    }
+
+                                                } catch(e) {}
+                                            }
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // FETCH HLS MANIFEST URL SCAN
+                                // =====================================
+
+                                try {
+
+                                    const hlsRegex =
+                                        /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                                    let hlsMatch;
+
+                                    while (
+                                        (hlsMatch = hlsRegex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(hlsMatch[1])
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            if (
+                                                clean &&
+                                                (
+                                                    clean.indexOf(".m3u8") !== -1 ||
+                                                    clean.indexOf("manifest/hls") !== -1 ||
+                                                    clean.indexOf("hls_playlist") !== -1
+                                                )
+                                            ) {
+
+                                                gelPush(
+                                                    clean
+                                                );
+
+                                                console.log(
+                                                    "GEL_FETCH_HLS_MANIFEST:",
+                                                    clean
+                                                );
+                                            }
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
+
+                                // =====================================
+                                // STRONG FETCH MEDIA REGEX
+                                // =====================================
+
+                                try {
+
+                                    const regex =
+                                        /https?:\\?\/\\?\/[^"'\\s<>]+?(m3u8|mpd|mp4|m4s|ts)(\?[^"'\\s<>]*)?/gi;
+
+                                    let match;
+
+                                    while (
+                                        (match = regex.exec(txt)) !== null
+                                    ) {
+
+                                        try {
+
+                                            let clean =
+                                                String(match[0])
+                                                    .replace(/\\u0026/g, "&")
+                                                    .replace(/\\u003d/g, "=")
+                                                    .replace(/\\u003f/g, "?")
+                                                    .replace(/\\u002f/g, "/")
+                                                    .replace(/\\\//g, "/")
+                                                    .replace(/&amp;/g, "&");
+
+                                            try {
+                                                clean =
+                                                    decodeURIComponent(clean);
+                                            } catch(e) {}
+
+                                            gelPush(
+                                                clean
+                                            );
+
+                                            console.log(
+                                                "GEL_FETCH_RESPONSE:",
+                                                clean
+                                            );
+
+                                        } catch(e) {}
+                                    }
+
+                                } catch(e) {}
 
                             } catch(e) {}
                         });
@@ -4683,6 +5858,124 @@ private fun extractUrlFromText(
         ?.value
         ?.trim()
         ?: ""
+}
+
+// =====================================
+// CLEAN MEDIA URL
+// =====================================
+
+private fun cleanMediaUrl(
+    raw: String
+): String {
+
+    return try {
+
+        Uri.decode(
+            raw
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .replace("\\\\/", "/")
+                .replace("&amp;", "&")
+                .replace("\\u003d", "=")
+                .replace("\\u003f", "?")
+                .replace("\\u002f", "/")
+                .trim()
+        )
+
+    } catch (_: Throwable) {
+
+        raw
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .replace("\\\\/", "/")
+            .replace("&amp;", "&")
+            .trim()
+    }
+}
+
+// =====================================
+// EXTRACT M3U8 URLS FROM TEXT
+// =====================================
+
+private fun extractM3u8UrlsFromText(
+    text: String
+): List<String> {
+
+    val results =
+        mutableSetOf<String>()
+
+    try {
+
+        val patterns =
+            listOf(
+
+                // Direct normal URLs
+                "https?://[^\"'\\s<>]+?\\.m3u8[^\"'\\s<>]*",
+
+                // Escaped JSON URLs
+                "https?:\\\\/\\\\/[^\"'\\s<>]+?\\.m3u8[^\"'\\s<>]*",
+
+                // YouTube / player hlsManifestUrl style
+                "hlsManifestUrl[\"']?\\s*[:=]\\s*[\"']([^\"']+)[\"']",
+
+                // Generic player keys
+                "(file|src|source|stream|hls|url)[\"']?\\s*[:=]\\s*[\"']([^\"']+?\\.m3u8[^\"']*)[\"']"
+            )
+
+        patterns.forEach { pattern ->
+
+            try {
+
+                val regex =
+                    pattern.toRegex(
+                        setOf(
+                            RegexOption.IGNORE_CASE,
+                            RegexOption.MULTILINE
+                        )
+                    )
+
+                regex.findAll(text)
+                    .forEach { match ->
+
+                        val found =
+                            when {
+
+                                match.groupValues.size >= 3 &&
+                                    match.groupValues[2].contains(
+                                        ".m3u8",
+                                        true
+                                    ) ->
+                                    match.groupValues[2]
+
+                                match.groupValues.size >= 2 &&
+                                    match.groupValues[1].contains(
+                                        ".m3u8",
+                                        true
+                                    ) ->
+                                    match.groupValues[1]
+
+                                else ->
+                                    match.value
+                            }
+
+                        val clean =
+                            cleanMediaUrl(found)
+
+                        if (
+                            clean.contains(".m3u8", true) &&
+                            clean.startsWith("http", true)
+                        ) {
+
+                            results.add(clean)
+                        }
+                    }
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (_: Throwable) {}
+
+    return results.toList()
 }
 
 // =====================================  
@@ -6754,11 +8047,82 @@ if (score > bestLiveScore) {
 // DUPLICATE FILTER
 // =====================================
 
+// =====================================
+// NORMALIZED URL
+// =====================================
+
 val normalizedUrl =
-    cleanedUrl
-        .substringBefore("?")
-        .substringBefore("#")
-        .trim()
+
+    when {
+
+        // =====================================
+        // KEEP YOUTUBE WATCH FULL
+        // =====================================
+
+        cleanedUrl.contains(
+            "youtube.com/watch",
+            true
+        ) ->
+            cleanedUrl
+                .substringBefore("&")
+                .substringBefore("#")
+                .trim()
+
+        // =====================================
+        // GROUP GOOGLEVIDEO TEMP ENDPOINTS
+        // =====================================
+
+        cleanedUrl.contains(
+            "googlevideo.com/videoplayback",
+            true
+        ) -> {
+
+            try {
+
+                val uri =
+                    Uri.parse(cleanedUrl)
+
+                val id =
+                    uri.getQueryParameter("id")
+                        ?.substringBefore(".")
+                        .orEmpty()
+
+                val itag =
+                    uri.getQueryParameter("itag")
+                        .orEmpty()
+
+                val mime =
+                    uri.getQueryParameter("mime")
+                        .orEmpty()
+
+                "googlevideo://$id/$itag/$mime"
+
+            } catch (_: Throwable) {
+
+                cleanedUrl
+                    .substringBefore("?")
+                    .substringBefore("#")
+                    .trim()
+            }
+        }
+
+        // =====================================
+        // NORMAL STREAMS
+        // =====================================
+
+        else ->
+            cleanedUrl
+                .substringBefore("?")
+                .substringBefore("#")
+                .trim()
+    }
+
+// =====================================
+// SAVED URL KEY
+// =====================================
+
+val savedUrl =
+    normalizedUrl
 
 // =====================================
 // STREAM HIT TRACKING
@@ -6779,7 +8143,7 @@ if (currentHits >= 3) {
 }
 
 if (
-    detectedStreams.contains(normalizedUrl)
+    detectedStreams.contains(savedUrl)
 ) {
     return
 }
@@ -7594,7 +8958,7 @@ if (
 // SAVE STREAM
 // =====================================
 
-detectedStreams.add(normalizedUrl)
+detectedStreams.add(savedUrl)
 
 // =====================================
 // FORENSIC SOURCE
@@ -7646,7 +9010,7 @@ try {
 // STREAM PRIORITY SAVE
 // =====================================
 
-streamScores[cleanedUrl] =
+streamScores[savedUrl] =
     streamPriority
 
 // =====================================
@@ -7676,19 +9040,19 @@ if (
 // =====================================
 
 if (isVideo) {
-    detectedVideos.add(cleanedUrl)
+    detectedVideos.add(savedUrl)
 }
 
 if (isImage) {
-    detectedImages.add(cleanedUrl)
+    detectedImages.add(savedUrl)
 }
 
 if (isAudio) {
-    detectedAudio.add(cleanedUrl)
+    detectedAudio.add(savedUrl)
 }
 
 if (isMasterStream) {
-    detectedMasterStreams.add(cleanedUrl)
+    detectedMasterStreams.add(savedUrl)
 }
 
 // =====================================
@@ -7705,8 +9069,8 @@ try {
     ) {
 
         val score =
-            streamScores[cleanedUrl]
-                ?: 0
+    streamScores[savedUrl]
+        ?: 0
 
         if (score >= 900) {
 
@@ -7958,9 +9322,11 @@ val streamBadge =
             "🔴 YOUTUBE LIVE AUDIO"
 
         lower.contains("googlevideo.com") &&
-            lower.contains("source=yt_live_broadcast") &&
-            lower.contains("live=1") ->
-            "🔴 YOUTUBE LIVE"
+    lower.contains("source=yt_live_broadcast") &&
+    lower.contains("live=1") &&
+    !lower.contains("mime=video") &&
+    !lower.contains("mime=audio") ->
+    "🔴 YOUTUBE LIVE ENDPOINT"
 
         isYoutubeDashVideoOnly ->
             "🟠 YOUTUBE DASH VIDEO ONLY"
@@ -8073,6 +9439,48 @@ val cdnType =
         else ->
             "Generic CDN"
     }
+    
+// =====================================
+// EXTRA PLAYABLE LINKS
+// =====================================
+
+val extraPlayableLinks =
+    buildString {
+
+        if (youtubeWatchUrl.isNotBlank()) {
+
+            append("▶️ YOUTUBE WATCH PLAYABLE")
+            append("\n")
+            append(youtubeWatchUrl)
+            append("\n\n")
+        }
+
+        if (bestStreamUrl.isNotBlank()) {
+
+            append("⭐ BEST STREAM")
+            append("\n")
+            append(bestStreamUrl)
+            append("\n\n")
+        }
+    }
+
+// =====================================
+// YOUTUBE LIVE EXPORT NOTE
+// =====================================
+
+val youtubeLiveExportNote =
+    if (
+        isYoutubeLiveDash &&
+        youtubeWatchUrl.isNotBlank() &&
+        !extraPlayableLinks.contains(youtubeWatchUrl)
+    ) {
+
+        "\n▶️ PLAYABLE WATCH URL\n$youtubeWatchUrl"
+
+    } else {
+
+        ""
+    }
 
 // =====================================
 // SAVE LAST URL
@@ -8101,6 +9509,10 @@ val dashPairNote =
 
 val forensicNote =
     when {
+    
+        isYoutubeLiveDash &&
+            !isYoutubeHlsManifest ->
+            "\nℹ️ YouTube live detected — direct HLS .m3u8 not exposed. Use Watch URL / DASH evidence."
 
         isYoutubeDashVideoOnly ->
             "\n⚠️ VIDEO ONLY — YouTube DASH fragment, no audio$dashPairNote"
@@ -8120,31 +9532,7 @@ val forensicNote =
         else ->
             dashPairNote
     }
-    
-// =====================================
-// EXTRA PLAYABLE LINKS
-// =====================================
 
-val extraPlayableLinks =
-    buildString {
-
-        if (youtubeWatchUrl.isNotBlank()) {
-
-            append("▶️ YOUTUBE WATCH PLAYABLE")
-            append("\n")
-            append(youtubeWatchUrl)
-            append("\n\n")
-        }
-
-        if (bestStreamUrl.isNotBlank()) {
-
-            append("⭐ BEST STREAM")
-            append("\n")
-            append(bestStreamUrl)
-            append("\n\n")
-        }
-    }
-    
 // =====================================
 // SAVE STREAM SNAPSHOT
 // =====================================
@@ -8180,7 +9568,7 @@ runOnUiThread {
     binding.contentMain.result.append(
         """
 
-$extraPlayableLinks$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge$forensicNote
+$extraPlayableLinks$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmentBadge$forensicNote$youtubeLiveExportNote
 
 $displayUrl
 
@@ -8846,16 +10234,56 @@ private fun isExportableStream(
     ) {
         return false
     }
+    
+ // =====================================
+// YOUTUBE TEMP MEDIA ENDPOINTS
+// =====================================
 
-    // =====================================
-    // GOOD STREAMS
-    // =====================================
+if (
+    lower.contains("googlevideo.com/videoplayback")
+) {
+    return false
+}
 
-    return (
+// =====================================
+// TEMP / SEGMENT FILES
+// =====================================
+
+if (
+    lower.endsWith(".m4s") ||
+    lower.contains(".m4s?") ||
+    (
+        (
+            lower.endsWith(".ts") ||
+                lower.contains(".ts?")
+        ) &&
+            (
+                lower.contains("segment") ||
+                    lower.contains("segments") ||
+                    lower.contains("chunk") ||
+                    lower.contains("chunks") ||
+                    lower.contains("frag") ||
+                    lower.contains("fragments") ||
+                    lower.contains("sq=") ||
+                    lower.contains("range=")
+            )
+    )
+) {
+    return false
+}
+
+// =====================================
+// GOOD STREAMS
+// =====================================
+
+return (
 
     lower.contains(".m3u8") ||
         lower.contains(".mpd") ||
         lower.contains(".mp4") ||
+        lower.contains(".webm") ||
+        lower.endsWith(".ts") ||
+        lower.contains(".ts?") ||
         lower.contains("youtube.com/watch") ||
         lower.contains("youtu.be/")
 
@@ -9164,6 +10592,12 @@ private fun showAllMedia() {
 
 val sorted =
     detectedStreams
+        .filter { url ->
+
+            isExportableStream(
+                url
+            )
+        }
         .sortedByDescending { url ->
 
             val validation =
@@ -9304,10 +10738,16 @@ private fun showVideos() {
         StringBuilder()
 
     detectedVideos
-        .sortedByDescending {
+    .filter { url ->
 
-            streamScores[it] ?: 0
-        }
+        isExportableStream(
+            url
+        )
+    }
+    .sortedByDescending {
+
+        streamScores[it] ?: 0
+    }
         .forEach { url ->
 
             sb.append(
