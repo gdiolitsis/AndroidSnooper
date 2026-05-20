@@ -30,125 +30,134 @@
         android:padding="10dp" />
 
     <!-- ===================================== -->
-    <!-- MAIN ACTIONS -->
+    <!-- ACTION BUTTONS -->
     <!-- ===================================== -->
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="2">
+        android:orientation="vertical"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
 
-        <Button
-            android:id="@+id/openBrowser"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="OPEN WITH ANALYZER" />
-
-        <Button
-            android:id="@+id/openChrome"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="OPEN WITH BROWSER" />
-
-    </LinearLayout>
-
-    <!-- ===================================== -->
-    <!-- PLAYER ACTIONS -->
-    <!-- ===================================== -->
-
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fillViewport="true"
-        android:scrollbars="none">
-
+        <!-- ROW 1 -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:weightSum="5">
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/openBrowser"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="OPEN WITH ANALYZER" />
+
+            <Button
+                android:id="@+id/openChrome"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="OPEN WITH BROWSER" />
+
+        </LinearLayout>
+
+        <!-- ROW 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
 
             <Button
                 android:id="@+id/openPlayer"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
                 android:text="OPEN PLAYER" />
 
             <Button
-                android:id="@+id/testStream"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="TEST STREAM"
-                android:visibility="gone" />
-
-            <Button
                 android:id="@+id/shareStreams"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
                 android:text="COPY/SHARE" />
 
             <Button
                 android:id="@+id/exportM3u"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
                 android:text="EXPORT M3U" />
 
         </LinearLayout>
 
-    </HorizontalScrollView>
-
-    <!-- ===================================== -->
-    <!-- FILTER BUTTONS -->
-    <!-- ===================================== -->
-
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fillViewport="true"
-        android:scrollbars="none">
-
+        <!-- ROW 3 -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
 
             <Button
                 android:id="@+id/btnAll"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
                 android:text="ALL" />
 
             <Button
                 android:id="@+id/btnVideos"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
                 android:text="VIDEOS" />
 
             <Button
-                android:id="@+id/btnImages"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="IMAGES"
-                android:visibility="gone" />
-
-            <Button
                 android:id="@+id/btnAudio"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
                 android:text="AUDIO" />
 
             <Button
                 android:id="@+id/btnClear"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
                 android:text="CLEAR" />
 
         </LinearLayout>
 
-    </HorizontalScrollView>
+        <!-- HIDDEN / UNUSED -->
+        <Button
+            android:id="@+id/btnImages"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="IMAGES" />
+
+        <Button
+            android:id="@+id/testStream"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="TEST STREAM" />
+
+    </LinearLayout>
 
     <!-- ===================================== -->
     <!-- WEBVIEW -->
