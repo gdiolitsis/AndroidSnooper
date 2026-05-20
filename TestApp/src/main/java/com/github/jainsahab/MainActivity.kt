@@ -1923,64 +1923,6 @@ dialog.getButton(
 }
 
 // =====================================
-// TEST STREAM BUTTON
-// =====================================
-
-binding.contentMain.testStream.setOnClickListener {
-
-    val sortedStreams =
-        mutableListOf<String>()
-
-    sortedStreams.addAll(
-        detectedVideos
-    )
-
-    sortedStreams.addAll(
-        detectedAudio
-    )
-
-    sortedStreams.addAll(
-        detectedImages
-    )
-
-    val streamList =
-        sortedStreams
-            .filter { url ->
-
-                isExportableStream(
-                    url
-                )
-            }
-            .distinct()
-            .toTypedArray()
-
-    if (streamList.isEmpty()) {
-
-        binding.contentMain.result.append(
-            "\n\nNO EXPORTABLE STREAMS DETECTED\n"
-        )
-
-        return@setOnClickListener
-    }
-
-    androidx.appcompat.app.AlertDialog.Builder(this)
-
-        .setTitle("Select Stream To Test")
-
-        .setItems(streamList) { _, which ->
-
-            val selectedUrl =
-                streamList[which]
-
-            testStream(
-                selectedUrl
-            )
-        }
-
-        .show()
-}
-
-// =====================================
 // EXPORT M3U
 // =====================================
 
@@ -2083,11 +2025,6 @@ binding.contentMain.exportM3u.setOnClickListener {
     binding.contentMain.btnVideos.setOnClickListener {  
 
         showVideos()  
-    }  
-
-    binding.contentMain.btnImages.setOnClickListener {  
-
-        showImages()  
     }  
 
     binding.contentMain.btnAudio.setOnClickListener {  
@@ -2287,7 +2224,6 @@ binding.contentMain.result.setOnLongClickListener { v ->
         PopupMenu(this, v)
 
 popup.menu.add("OPEN PLAYER")
-popup.menu.add("TEST STREAM")
 popup.menu.add("SHARE URL")
 popup.menu.add("COPY URL")
 
@@ -2351,33 +2287,6 @@ popup.setOnMenuItemClickListener { item ->
         Toast.makeText(
             this,
             "No compatible player",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    true
-}
-
-"TEST STREAM" -> {
-
-    try {
-
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
-
-                data =
-                    Uri.parse(finalUrl)
-            }
-
-        startActivity(intent)
-
-    } catch (_: Throwable) {
-
-        Toast.makeText(
-            this,
-            "Cannot test stream",
             Toast.LENGTH_SHORT
         ).show()
     }
