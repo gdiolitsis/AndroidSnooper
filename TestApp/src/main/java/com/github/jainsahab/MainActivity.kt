@@ -9466,15 +9466,15 @@ if (score > bestLiveScore) {
 // BEST DETECTED TRACKER
 // =====================================
 
-val score =
+val detectedScore =
     calculateStreamScore(
         cleanedUrl
     )
 
-if (score > bestLiveScore) {
+if (detectedScore > bestLiveScore) {
 
     bestLiveScore =
-        score
+        detectedScore
 
     bestLiveUrl =
         cleanedUrl
