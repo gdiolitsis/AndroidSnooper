@@ -73,6 +73,10 @@ private val streamHeaders =
   
 private var lastSelectedUrl =
     ""
+    
+    private val hlsVerdicts =
+    mutableMapOf<String, String>()
+    
 // =====================================
 // STREAM META
 // =====================================
@@ -796,26 +800,92 @@ try {
                 val lines =
                     body.lines()
 
-                val isLiveStream =
-                    !body.contains("#EXT-X-ENDLIST", true) &&
-                        (
-                            body.contains("#EXTINF", true) ||
-                                body.contains("#EXT-X-TARGETDURATION", true)
-                            )
+// =====================================
+// LIVE / VOD HLS DETECTION
+// =====================================
 
-                if (isLiveStream) {
+val hasEndList =
+    body.contains(
+        "#EXT-X-ENDLIST",
+        true
+    )
 
-                    Log.e(
-                        "LIVE_HLS_CONFIRMED",
-                        url
-                    )
+val hasSegments =
+    body.contains(
+        "#EXTINF",
+        true
+    ) ||
+        body.contains(
+            "#EXT-X-TARGETDURATION",
+            true
+        )
 
-                    bestLiveUrl =
-                        url
+val isLiveStream =
+    !hasEndList &&
+        hasSegments
 
-                    bestLiveScore +=
-                        500
-                }
+// =====================================
+// HLS BODY VERDICT
+// =====================================
+
+val hlsVerdict =
+    classifyHlsBody(
+        url,
+        body
+    )
+
+hlsVerdicts[url] =
+    hlsVerdict
+
+streamValidation[url] =
+    hlsVerdict
+
+Log.e(
+    "HLS_VERDICT",
+    "$hlsVerdict -> $url"
+)
+
+when (hlsVerdict) {
+
+    "HLS_LIVE",
+    "HLS_LIVE_CANDIDATE" -> {
+
+        Log.e(
+            "LIVE_HLS_CONFIRMED",
+            url
+        )
+
+        bestLiveUrl =
+            url
+
+        bestLiveScore +=
+            1000
+    }
+
+    "HLS_MASTER" -> {
+
+        Log.e(
+            "HLS_MASTER_CONFIRMED",
+            url
+        )
+    }
+
+    "HLS_VOD" -> {
+
+        Log.e(
+            "VOD_HLS_CONFIRMED",
+            url
+        )
+    }
+
+    else -> {
+
+        Log.e(
+            "HLS_UNKNOWN",
+            url
+        )
+    }
+}
 
                 lines.forEachIndexed { index, line ->
 
@@ -919,11 +989,54 @@ override fun onPageFinished(
             runDeepMediaScan(
                 view
             )
+
+            // =====================================
+            // DELAYED DEEP MEDIA RESCAN
+            // =====================================
+
+            try {
+
+                view?.postDelayed(
+                    {
+                        try {
+
+                            runDeepMediaScan(
+                                view
+                            )
+
+                            Log.e(
+                                "DEEP_RESCAN",
+                                "after 2500ms"
+                            )
+
+                        } catch (_: Throwable) {}
+                    },
+                    2500
+                )
+
+                view?.postDelayed(
+                    {
+                        try {
+
+                            runDeepMediaScan(
+                                view
+                            )
+
+                            Log.e(
+                                "DEEP_RESCAN",
+                                "after 6000ms"
+                            )
+
+                        } catch (_: Throwable) {}
+                    },
+                    6000
+                )
+
+            } catch (_: Throwable) {}
         }
 
     } catch (_: Throwable) {}
 }
-    }
 
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
@@ -2687,6 +2800,341 @@ try {
 } catch(e) {}
 
 // =====================================
+// IFRAME DEEP MEDIA SCAN
+// =====================================
+
+try {
+
+    document
+        .querySelectorAll("iframe")
+        .forEach(function(frame) {
+
+            try {
+
+                if (frame.src) {
+
+                    gelPush(
+                        frame.src
+                    );
+
+                    console.log(
+                        "GEL_IFRAME_SRC:",
+                        frame.src
+                    );
+                }
+
+                const doc =
+                    frame.contentDocument ||
+                    frame.contentWindow?.document;
+
+                if (!doc) {
+                    return;
+                }
+
+                const iframeHtml =
+                    doc.documentElement.outerHTML || "";
+
+                if (!iframeHtml) {
+                    return;
+                }
+
+                // =====================================
+                // IFRAME HLS MANIFEST URL
+                // =====================================
+
+                try {
+
+                    const hlsRegex =
+                        /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                    let hlsMatch;
+
+                    while (
+                        (hlsMatch = hlsRegex.exec(iframeHtml)) !== null
+                    ) {
+
+                        try {
+
+                            let clean =
+                                String(hlsMatch[1])
+                                    .replace(/\\u0026/g, "&")
+                                    .replace(/\\u003d/g, "=")
+                                    .replace(/\\u003f/g, "?")
+                                    .replace(/\\u002f/g, "/")
+                                    .replace(/\\\//g, "/")
+                                    .replace(/&amp;/g, "&");
+
+                            try {
+                                clean =
+                                    decodeURIComponent(clean);
+                            } catch(e) {}
+
+                            if (clean) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_IFRAME_HLS_MANIFEST:",
+                                    clean
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+
+                } catch(e) {}
+
+                // =====================================
+                // IFRAME DIRECT MEDIA URLS
+                // =====================================
+
+                try {
+
+                    const mediaRegex =
+                        /https?:\\?\/\\?\/[^"'\\s<>]+?(m3u8|mpd|mp4|m4s|ts|videoplayback)[^"'\\s<>]*/gi;
+
+                    let match;
+
+                    while (
+                        (match = mediaRegex.exec(iframeHtml)) !== null
+                    ) {
+
+                        try {
+
+                            let clean =
+                                String(match[0])
+                                    .replace(/\\u0026/g, "&")
+                                    .replace(/\\u003d/g, "=")
+                                    .replace(/\\u003f/g, "?")
+                                    .replace(/\\u002f/g, "/")
+                                    .replace(/\\\//g, "/")
+                                    .replace(/&amp;/g, "&");
+
+                            try {
+                                clean =
+                                    decodeURIComponent(clean);
+                            } catch(e) {}
+
+                            if (clean) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_IFRAME_MEDIA:",
+                                    clean
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+
+                } catch(e) {}
+
+                // =====================================
+                // IFRAME ELEMENT SOURCES
+                // =====================================
+
+                try {
+
+                    doc
+                        .querySelectorAll("video, audio, source, img, script, a")
+                        .forEach(function(el) {
+
+                            try {
+
+                                if (el.src) {
+
+                                    gelPush(
+                                        el.src
+                                    );
+
+                                    console.log(
+                                        "GEL_IFRAME_ELEMENT_SRC:",
+                                        el.src
+                                    );
+                                }
+
+                                if (el.href) {
+
+                                    gelPush(
+                                        el.href
+                                    );
+
+                                    console.log(
+                                        "GEL_IFRAME_ELEMENT_HREF:",
+                                        el.href
+                                    );
+                                }
+
+                                if (el.currentSrc) {
+
+                                    gelPush(
+                                        el.currentSrc
+                                    );
+
+                                    console.log(
+                                        "GEL_IFRAME_CURRENT_SRC:",
+                                        el.currentSrc
+                                    );
+                                }
+
+                            } catch(e) {}
+                        });
+
+                } catch(e) {}
+
+            } catch(e) {
+
+                console.log(
+                    "GEL_IFRAME_CROSS_ORIGIN_LOCKED"
+                );
+            }
+        });
+
+} catch(e) {}
+
+// =====================================
+// YOUTUBE EMBED / WATCH DEEP SCAN
+// =====================================
+
+try {
+
+    function gelExtractYoutubeId(u) {
+
+        try {
+
+            const url =
+                String(u);
+
+            if (
+                url.indexOf("youtube.com/embed/") !== -1
+            ) {
+
+                return url
+                    .split("youtube.com/embed/")[1]
+                    .split("?")[0]
+                    .split("&")[0]
+                    .split("/")[0]
+                    .trim();
+            }
+
+            if (
+                url.indexOf("youtube.com/watch") !== -1
+            ) {
+
+                const parsed =
+                    new URL(url);
+
+                return (
+                    parsed.searchParams.get("v") || ""
+                ).trim();
+            }
+
+            if (
+                url.indexOf("youtu.be/") !== -1
+            ) {
+
+                return url
+                    .split("youtu.be/")[1]
+                    .split("?")[0]
+                    .split("&")[0]
+                    .split("/")[0]
+                    .trim();
+            }
+
+        } catch(e) {}
+
+        return "";
+    }
+
+    document
+        .querySelectorAll("iframe, a, script")
+        .forEach(function(el) {
+
+            try {
+
+                const candidates =
+                    [];
+
+                if (el.src) {
+                    candidates.push(el.src);
+                }
+
+                if (el.href) {
+                    candidates.push(el.href);
+                }
+
+                if (el.textContent) {
+                    candidates.push(el.textContent);
+                }
+
+                candidates.forEach(function(raw) {
+
+                    try {
+
+                        const txt =
+                            String(raw);
+
+                        const regex =
+                            /(https?:\\?\/\\?\/)?(www\.)?(youtube\.com\/embed\/|youtube\.com\/watch\?v=|youtu\.be\/)[A-Za-z0-9_-]{6,}/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            let clean =
+                                String(match[0])
+                                    .replace(/\\u0026/g, "&")
+                                    .replace(/\\u003d/g, "=")
+                                    .replace(/\\u003f/g, "?")
+                                    .replace(/\\u002f/g, "/")
+                                    .replace(/\\\//g, "/")
+                                    .replace(/&amp;/g, "&")
+                                    .trim();
+
+                            if (
+                                clean.indexOf("http") !== 0
+                            ) {
+                                clean =
+                                    "https://" + clean;
+                            }
+
+                            const videoId =
+                                gelExtractYoutubeId(
+                                    clean
+                                );
+
+                            if (videoId) {
+
+                                const watchUrl =
+                                    "https://www.youtube.com/watch?v=" + videoId;
+
+                                gelPush(
+                                    watchUrl
+                                );
+
+                                console.log(
+                                    "GEL_YOUTUBE_WATCH_EXTRACTED:",
+                                    watchUrl
+                                );
+                            }
+                        }
+
+                    } catch(e) {}
+                });
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+// =====================================
 // HTML REGEX SCAN
 // =====================================
 
@@ -3000,6 +3448,822 @@ try {
 
         } catch(e) {}
     }
+
+} catch(e) {}
+
+// =====================================
+// SCRIPT JSON DEEP MEDIA SCAN
+// =====================================
+
+try {
+
+    document
+        .querySelectorAll("script")
+        .forEach(function(script) {
+
+            try {
+
+                const txt =
+                    script.textContent || "";
+
+                if (!txt) {
+                    return;
+                }
+
+                const looksInteresting =
+                    txt.indexOf(".m3u8") !== -1 ||
+                    txt.indexOf("hlsManifestUrl") !== -1 ||
+                    txt.indexOf("dashManifestUrl") !== -1 ||
+                    txt.indexOf("manifest/hls") !== -1 ||
+                    txt.indexOf("hls_playlist") !== -1 ||
+                    txt.indexOf(".mpd") !== -1 ||
+                    txt.indexOf("googlevideo.com") !== -1 ||
+                    txt.indexOf("videoplayback") !== -1 ||
+                    txt.indexOf("jwpsrv.com") !== -1;
+
+                if (!looksInteresting) {
+                    return;
+                }
+
+                console.log(
+                    "GEL_SCRIPT_JSON_FOUND"
+                );
+
+                // =====================================
+                // HLS MANIFEST URL
+                // =====================================
+
+                try {
+
+                    const hlsRegex =
+                        /hlsManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                    let hlsMatch;
+
+                    while (
+                        (hlsMatch = hlsRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            let clean =
+                                String(hlsMatch[1])
+                                    .replace(/\\u0026/g, "&")
+                                    .replace(/\\u003d/g, "=")
+                                    .replace(/\\u003f/g, "?")
+                                    .replace(/\\u002f/g, "/")
+                                    .replace(/\\\//g, "/")
+                                    .replace(/&amp;/g, "&");
+
+                            try {
+                                clean =
+                                    decodeURIComponent(clean);
+                            } catch(e) {}
+
+                            if (clean) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_SCRIPT_HLS_MANIFEST:",
+                                    clean
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+
+                } catch(e) {}
+
+                // =====================================
+                // DASH MANIFEST URL
+                // =====================================
+
+                try {
+
+                    const dashRegex =
+                        /dashManifestUrl["']?\s*[:=]\s*["']([^"']+)["']/gi;
+
+                    let dashMatch;
+
+                    while (
+                        (dashMatch = dashRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            let clean =
+                                String(dashMatch[1])
+                                    .replace(/\\u0026/g, "&")
+                                    .replace(/\\u003d/g, "=")
+                                    .replace(/\\u003f/g, "?")
+                                    .replace(/\\u002f/g, "/")
+                                    .replace(/\\\//g, "/")
+                                    .replace(/&amp;/g, "&");
+
+                            try {
+                                clean =
+                                    decodeURIComponent(clean);
+                            } catch(e) {}
+
+                            if (clean) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_SCRIPT_DASH_MANIFEST:",
+                                    clean
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+
+                } catch(e) {}
+
+                // =====================================
+                // DIRECT MEDIA URLS
+                // =====================================
+
+                try {
+
+                    const mediaRegex =
+                        /https?:\\?\/\\?\/[^"'\\s<>]+?(m3u8|mpd|mp4|m4s|ts|videoplayback)[^"'\\s<>]*/gi;
+
+                    let match;
+
+                    while (
+                        (match = mediaRegex.exec(txt)) !== null
+                    ) {
+
+                        try {
+
+                            let clean =
+                                String(match[0])
+                                    .replace(/\\u0026/g, "&")
+                                    .replace(/\\u003d/g, "=")
+                                    .replace(/\\u003f/g, "?")
+                                    .replace(/\\u002f/g, "/")
+                                    .replace(/\\\//g, "/")
+                                    .replace(/&amp;/g, "&");
+
+                            try {
+                                clean =
+                                    decodeURIComponent(clean);
+                            } catch(e) {}
+
+                            if (clean) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_SCRIPT_MEDIA:",
+                                    clean
+                                );
+                            }
+
+                        } catch(e) {}
+                    }
+
+                } catch(e) {}
+
+            } catch(e) {}
+        });
+
+} catch(e) {}
+
+// =====================================
+// MUTATION OBSERVER DEEP MEDIA SCAN
+// =====================================
+
+try {
+
+    if (!window.__gelMutationMediaHooked) {
+
+        window.__gelMutationMediaHooked = true;
+
+        function gelCleanMutationUrl(u) {
+
+            try {
+
+                let clean =
+                    String(u)
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\u003d/g, "=")
+                        .replace(/\\u003f/g, "?")
+                        .replace(/\\u002f/g, "/")
+                        .replace(/\\\//g, "/")
+                        .replace(/&amp;/g, "&")
+                        .trim();
+
+                try {
+                    clean =
+                        decodeURIComponent(clean);
+                } catch(e) {}
+
+                return clean;
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function gelMutationLooksMedia(u) {
+
+            try {
+
+                const lower =
+                    String(u).toLowerCase();
+
+                return (
+                    lower.indexOf(".m3u8") !== -1 ||
+                    lower.indexOf("manifest/hls") !== -1 ||
+                    lower.indexOf("hls_playlist") !== -1 ||
+                    lower.indexOf(".mpd") !== -1 ||
+                    lower.indexOf(".mp4") !== -1 ||
+                    lower.indexOf(".m4s") !== -1 ||
+                    lower.indexOf(".ts") !== -1 ||
+                    lower.indexOf("videoplayback") !== -1 ||
+                    lower.indexOf("googlevideo.com") !== -1 ||
+                    lower.indexOf("jwpsrv.com") !== -1 ||
+                    lower.indexOf("playlist") !== -1 ||
+                    lower.indexOf("manifest") !== -1
+                );
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        function gelScanMutationNode(node) {
+
+            try {
+
+                if (!node) {
+                    return;
+                }
+
+                if (node.src) {
+
+                    const clean =
+                        gelCleanMutationUrl(node.src);
+
+                    if (
+                        clean &&
+                        gelMutationLooksMedia(clean)
+                    ) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_MUTATION_SRC:",
+                            clean
+                        );
+                    }
+                }
+
+                if (node.currentSrc) {
+
+                    const clean =
+                        gelCleanMutationUrl(node.currentSrc);
+
+                    if (
+                        clean &&
+                        gelMutationLooksMedia(clean)
+                    ) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_MUTATION_CURRENT_SRC:",
+                            clean
+                        );
+                    }
+                }
+
+                if (node.href) {
+
+                    const clean =
+                        gelCleanMutationUrl(node.href);
+
+                    if (
+                        clean &&
+                        gelMutationLooksMedia(clean)
+                    ) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_MUTATION_HREF:",
+                            clean
+                        );
+                    }
+                }
+
+                if (node.textContent) {
+
+                    const txt =
+                        String(node.textContent);
+
+                    if (
+                        gelMutationLooksMedia(txt)
+                    ) {
+
+                        const regex =
+                            /https?:\\?\/\\?\/[^"'\\s<>]+?(m3u8|mpd|mp4|m4s|ts|videoplayback)[^"'\\s<>]*/gi;
+
+                        let match;
+
+                        while (
+                            (match = regex.exec(txt)) !== null
+                        ) {
+
+                            const clean =
+                                gelCleanMutationUrl(
+                                    match[0]
+                                );
+
+                            if (clean) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_MUTATION_TEXT_MEDIA:",
+                                    clean
+                                );
+                            }
+                        }
+                    }
+                }
+
+                if (node.querySelectorAll) {
+
+                    node
+                        .querySelectorAll("video, audio, source, iframe, script, a")
+                        .forEach(function(child) {
+
+                            try {
+
+                                gelScanMutationNode(
+                                    child
+                                );
+
+                            } catch(e) {}
+                        });
+                }
+
+            } catch(e) {}
+        }
+
+        const observer =
+            new MutationObserver(function(mutations) {
+
+                try {
+
+                    mutations.forEach(function(mutation) {
+
+                        try {
+
+                            mutation.addedNodes.forEach(function(node) {
+
+                                try {
+
+                                    gelScanMutationNode(
+                                        node
+                                    );
+
+                                } catch(e) {}
+                            });
+
+                        } catch(e) {}
+                    });
+
+                } catch(e) {}
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        console.log(
+            "GEL_MUTATION_OBSERVER_READY"
+        );
+    }
+
+} catch(e) {}
+
+// =====================================
+// MEDIA ATTRIBUTE HOOK SCAN
+// =====================================
+
+try {
+
+    if (!window.__gelMediaAttributeHooked) {
+
+        window.__gelMediaAttributeHooked = true;
+
+        function gelCleanAttributeUrl(u) {
+
+            try {
+
+                let clean =
+                    String(u)
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\u003d/g, "=")
+                        .replace(/\\u003f/g, "?")
+                        .replace(/\\u002f/g, "/")
+                        .replace(/\\\//g, "/")
+                        .replace(/&amp;/g, "&")
+                        .trim();
+
+                try {
+                    clean =
+                        decodeURIComponent(clean);
+                } catch(e) {}
+
+                return clean;
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function gelAttributeLooksMedia(u) {
+
+            try {
+
+                const lower =
+                    String(u).toLowerCase();
+
+                return (
+                    lower.indexOf(".m3u8") !== -1 ||
+                    lower.indexOf("manifest/hls") !== -1 ||
+                    lower.indexOf("hls_playlist") !== -1 ||
+                    lower.indexOf(".mpd") !== -1 ||
+                    lower.indexOf(".mp4") !== -1 ||
+                    lower.indexOf(".m4s") !== -1 ||
+                    lower.indexOf(".ts") !== -1 ||
+                    lower.indexOf("videoplayback") !== -1 ||
+                    lower.indexOf("googlevideo.com") !== -1 ||
+                    lower.indexOf("jwpsrv.com") !== -1 ||
+                    lower.indexOf("playlist") !== -1 ||
+                    lower.indexOf("manifest") !== -1 ||
+                    lower.indexOf("chunklist") !== -1 ||
+                    lower.indexOf("live") !== -1
+                );
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        // =====================================
+        // setAttribute HOOK
+        // =====================================
+
+        try {
+
+            const originalSetAttribute =
+                Element.prototype.setAttribute;
+
+            Element.prototype.setAttribute =
+                function(name, value) {
+
+                    try {
+
+                        const attr =
+                            String(name || "")
+                                .toLowerCase();
+
+                        if (
+                            attr === "src" ||
+                            attr === "href" ||
+                            attr === "data-src" ||
+                            attr === "poster"
+                        ) {
+
+                            const clean =
+                                gelCleanAttributeUrl(
+                                    value
+                                );
+
+                            if (
+                                clean &&
+                                gelAttributeLooksMedia(clean)
+                            ) {
+
+                                gelPush(
+                                    clean
+                                );
+
+                                console.log(
+                                    "GEL_ATTRIBUTE_MEDIA:",
+                                    attr,
+                                    clean
+                                );
+                            }
+                        }
+
+                    } catch(e) {}
+
+                    return originalSetAttribute.apply(
+                        this,
+                        arguments
+                    );
+                };
+
+        } catch(e) {}
+
+        // =====================================
+        // VIDEO SRC PROPERTY HOOK
+        // =====================================
+
+        try {
+
+            const videoDescriptor =
+                Object.getOwnPropertyDescriptor(
+                    HTMLMediaElement.prototype,
+                    "src"
+                );
+
+            if (
+                videoDescriptor &&
+                videoDescriptor.set
+            ) {
+
+                Object.defineProperty(
+                    HTMLMediaElement.prototype,
+                    "src",
+                    {
+                        set: function(value) {
+
+                            try {
+
+                                const clean =
+                                    gelCleanAttributeUrl(
+                                        value
+                                    );
+
+                                if (
+                                    clean &&
+                                    gelAttributeLooksMedia(clean)
+                                ) {
+
+                                    gelPush(
+                                        clean
+                                    );
+
+                                    console.log(
+                                        "GEL_MEDIA_SRC_SET:",
+                                        clean
+                                    );
+                                }
+
+                            } catch(e) {}
+
+                            return videoDescriptor.set.call(
+                                this,
+                                value
+                            );
+                        },
+
+                        get: function() {
+
+                            return videoDescriptor.get.call(
+                                this
+                            );
+                        }
+                    }
+                );
+            }
+
+        } catch(e) {}
+
+        console.log(
+            "GEL_MEDIA_ATTRIBUTE_HOOK_READY"
+        );
+    }
+
+} catch(e) {}
+
+// =====================================
+// GLOBAL OBJECT DEEP MEDIA SCAN
+// =====================================
+
+try {
+
+    const visited =
+        new WeakSet();
+
+    function gelCleanGlobalUrl(u) {
+
+        try {
+
+            return String(u)
+                .replace(/\\u0026/g, "&")
+                .replace(/\\u003d/g, "=")
+                .replace(/\\u003f/g, "?")
+                .replace(/\\u002f/g, "/")
+                .replace(/\\\//g, "/")
+                .replace(/&amp;/g, "&")
+                .trim();
+
+        } catch(e) {
+
+            return "";
+        }
+    }
+
+    function gelLooksLikeMedia(u) {
+
+        try {
+
+            const lower =
+                String(u).toLowerCase();
+
+            return (
+                lower.indexOf(".m3u8") !== -1 ||
+                lower.indexOf("manifest/hls") !== -1 ||
+                lower.indexOf("hls_playlist") !== -1 ||
+                lower.indexOf(".mpd") !== -1 ||
+                lower.indexOf("dashmanifesturl") !== -1 ||
+                lower.indexOf("hlsmanifesturl") !== -1 ||
+                lower.indexOf("googlevideo.com/videoplayback") !== -1 ||
+                lower.indexOf("videoplayback") !== -1
+            );
+
+        } catch(e) {
+
+            return false;
+        }
+    }
+
+    function gelDeepScanObject(obj, path, depth) {
+
+        try {
+
+            if (!obj) {
+                return;
+            }
+
+            if (depth > 5) {
+                return;
+            }
+
+            if (
+                typeof obj === "string"
+            ) {
+
+                if (gelLooksLikeMedia(obj)) {
+
+                    const clean =
+                        gelCleanGlobalUrl(obj);
+
+                    if (clean) {
+
+                        gelPush(
+                            clean
+                        );
+
+                        console.log(
+                            "GEL_GLOBAL_MEDIA:",
+                            path,
+                            clean
+                        );
+                    }
+                }
+
+                return;
+            }
+
+            if (
+                typeof obj !== "object" &&
+                typeof obj !== "function"
+            ) {
+                return;
+            }
+
+            if (visited.has(obj)) {
+                return;
+            }
+
+            visited.add(obj);
+
+            const keys =
+                Object.keys(obj);
+
+            for (
+                let i = 0;
+                i < keys.length && i < 300;
+                i++
+            ) {
+
+                try {
+
+                    const key =
+                        keys[i];
+
+                    const lowerKey =
+                        String(key).toLowerCase();
+
+                    const value =
+                        obj[key];
+
+                    if (
+                        lowerKey.indexOf("url") !== -1 ||
+                        lowerKey.indexOf("src") !== -1 ||
+                        lowerKey.indexOf("hls") !== -1 ||
+                        lowerKey.indexOf("dash") !== -1 ||
+                        lowerKey.indexOf("manifest") !== -1 ||
+                        lowerKey.indexOf("stream") !== -1 ||
+                        lowerKey.indexOf("media") !== -1 ||
+                        lowerKey.indexOf("playback") !== -1 ||
+                        lowerKey.indexOf("adaptive") !== -1 ||
+                        lowerKey.indexOf("format") !== -1
+                    ) {
+
+                        gelDeepScanObject(
+                            value,
+                            path + "." + key,
+                            depth + 1
+                        );
+
+                    } else if (
+                        typeof value === "string" &&
+                        gelLooksLikeMedia(value)
+                    ) {
+
+                        gelDeepScanObject(
+                            value,
+                            path + "." + key,
+                            depth + 1
+                        );
+                    }
+
+                } catch(e) {}
+            }
+
+        } catch(e) {}
+    }
+
+    // =====================================
+    // KNOWN PLAYER GLOBALS
+    // =====================================
+
+    const globals =
+        [
+            "ytInitialPlayerResponse",
+            "ytInitialData",
+            "__NEXT_DATA__",
+            "__NUXT__",
+            "__INITIAL_STATE__",
+            "__PLAYER_CONFIG__",
+            "playerConfig",
+            "videoConfig",
+            "jwplayer",
+            "jwConfig",
+            "JWPLAYER_CONFIG",
+            "bitmovin",
+            "videojs"
+        ];
+
+    globals.forEach(function(name) {
+
+        try {
+
+            if (window[name]) {
+
+                gelDeepScanObject(
+                    window[name],
+                    "window." + name,
+                    0
+                );
+            }
+
+        } catch(e) {}
+    });
 
 } catch(e) {}
 
@@ -7510,6 +8774,217 @@ private fun resolveRelativeUrl(
 }
 
 // =====================================
+// EXPAND LIVE HLS CANDIDATES
+// =====================================
+
+private fun expandLiveHlsCandidates(
+    url: String
+): List<String> {
+
+    val results =
+        mutableSetOf<String>()
+
+    try {
+
+        val clean =
+            url
+                .trim()
+                .substringBefore("#")
+
+        val lower =
+            clean.lowercase()
+
+        if (
+            !lower.contains(".m3u8") &&
+            !lower.contains("manifest/hls") &&
+            !lower.contains("hls_playlist")
+        ) {
+            return emptyList()
+        }
+
+        val base =
+            clean.substringBeforeLast(
+                "/",
+                ""
+            )
+
+        if (base.isBlank()) {
+            return emptyList()
+        }
+
+        // =====================================
+        // DIRECT LIVE SIBLINGS
+        // =====================================
+
+        listOf(
+            "live.m3u8",
+            "master.m3u8",
+            "playlist.m3u8",
+            "playlist_live.m3u8",
+            "index.m3u8",
+            "index_live.m3u8",
+            "stream.m3u8",
+            "manifest.m3u8",
+            "live/index.m3u8",
+            "live/playlist.m3u8",
+            "live/master.m3u8"
+        ).forEach { name ->
+
+            results.add(
+                "$base/$name"
+            )
+        }
+
+        // =====================================
+        // MANIFEST.ISM SPECIAL
+        // =====================================
+
+        if (lower.contains("manifest.ism")) {
+
+            val manifestBase =
+                clean.substringBefore(
+                    "manifest.ism"
+                ) + "manifest.ism"
+
+            listOf(
+                "master.m3u8",
+                "live.m3u8",
+                "playlist.m3u8",
+                "index.m3u8",
+                "chunklist.m3u8"
+            ).forEach { name ->
+
+                results.add(
+                    "$manifestBase/$name"
+                )
+            }
+        }
+
+        // =====================================
+        // REMOVE CHILD VARIANT NAMES
+        // =====================================
+
+        val parentBase =
+            clean
+                .substringBeforeLast("/")
+                .substringBeforeLast("/index_")
+                .substringBeforeLast("/index-v")
+                .substringBeforeLast("/index-a")
+                .substringBeforeLast("/manifest-audio")
+
+        if (parentBase.isNotBlank()) {
+
+            listOf(
+                "master.m3u8",
+                "live.m3u8",
+                "playlist.m3u8",
+                "index.m3u8"
+            ).forEach { name ->
+
+                results.add(
+                    "$parentBase/$name"
+                )
+            }
+        }
+
+    } catch (_: Throwable) {}
+
+    return results
+        .filter { candidate ->
+
+            candidate.startsWith(
+                "http",
+                true
+            )
+        }
+        .distinct()
+}
+
+// =====================================
+// CLASSIFY HLS BODY
+// =====================================
+
+private fun classifyHlsBody(
+    url: String,
+    body: String
+): String {
+
+    return try {
+
+        val lowerUrl =
+            url.lowercase()
+
+        val hasExtM3u =
+            body.contains(
+                "#EXTM3U",
+                true
+            )
+
+        val hasEndList =
+            body.contains(
+                "#EXT-X-ENDLIST",
+                true
+            )
+
+        val hasStreamInf =
+            body.contains(
+                "#EXT-X-STREAM-INF",
+                true
+            )
+
+        val hasMedia =
+            body.contains(
+                "#EXT-X-MEDIA",
+                true
+            )
+
+        val hasTargetDuration =
+            body.contains(
+                "#EXT-X-TARGETDURATION",
+                true
+            )
+
+        val hasExtInf =
+            body.contains(
+                "#EXTINF",
+                true
+            )
+
+        val hasSegments =
+            hasTargetDuration ||
+                hasExtInf
+
+        when {
+
+            !hasExtM3u ->
+                "NOT_HLS"
+
+            hasStreamInf ||
+                hasMedia ->
+                "HLS_MASTER"
+
+            hasEndList ->
+                "HLS_VOD"
+
+            !hasEndList &&
+                hasSegments ->
+                "HLS_LIVE"
+
+            lowerUrl.contains("live.m3u8") &&
+                hasSegments ->
+                "HLS_LIVE_CANDIDATE"
+
+            else ->
+                "HLS_UNKNOWN"
+        }
+
+    } catch (_: Throwable) {
+
+        "HLS_UNKNOWN"
+    }
+}
+
+// =====================================
 // DETECT + SAVE URL
 // =====================================
 
@@ -8234,6 +9709,59 @@ val isPlayableHlsStream =
     lower.contains(".m3u8") ||
     lower.contains("application/x-mpegurl") ||
     lower.contains("application/vnd.apple.mpegurl")
+
+// =====================================
+// LIVE HLS DEEP CANDIDATES
+// =====================================
+
+try {
+
+    if (isPlayableHlsStream) {
+
+        expandLiveHlsCandidates(
+            cleanedUrl
+        ).forEach { candidate ->
+
+            if (
+                candidate != cleanedUrl &&
+                !detectedStreams.contains(candidate)
+            ) {
+
+                markStreamSource(
+                    candidate,
+                    "LIVE_HLS_CANDIDATE"
+                )
+
+                detectedStreams.add(
+                    candidate
+                )
+
+                detectedVideos.add(
+                    candidate
+                )
+
+                streamScores[candidate] =
+                    calculateStreamScore(
+                        candidate
+                    ) + 250
+
+                Log.e(
+                    "LIVE_HLS_CANDIDATE",
+                    candidate
+                )
+
+                try {
+
+                    autoValidateStream(
+                        candidate
+                    )
+
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+
+} catch (_: Throwable) {}
 
 // =====================================
 // STREAM PRIORITY SCORE
@@ -11188,6 +12716,234 @@ try {
 } catch(e) {}
 
 // =====================================
+// PERFORMANCE DEEP MEDIA SCAN
+// =====================================
+
+try {
+
+    const entries =
+        performance.getEntriesByType(
+            "resource"
+        );
+
+    entries.forEach(function(entry) {
+
+        try {
+
+            const url =
+                entry.name || "";
+
+            if (!url) {
+                return;
+            }
+
+            const lower =
+                url.toLowerCase();
+
+            const initiator =
+                entry.initiatorType || "";
+
+            const looksLikeMedia =
+                lower.indexOf(".m3u8") !== -1 ||
+                lower.indexOf(".mpd") !== -1 ||
+                lower.indexOf(".mp4") !== -1 ||
+                lower.indexOf(".m4s") !== -1 ||
+                lower.indexOf(".ts") !== -1 ||
+                lower.indexOf("manifest") !== -1 ||
+                lower.indexOf("playlist") !== -1 ||
+                lower.indexOf("chunklist") !== -1 ||
+                lower.indexOf("videoplayback") !== -1 ||
+                lower.indexOf("googlevideo.com") !== -1 ||
+                lower.indexOf("jwpsrv.com") !== -1;
+
+            const looksLikeLive =
+                lower.indexOf("/live/") !== -1 ||
+                lower.indexOf("live.m3u8") !== -1 ||
+                lower.indexOf("livestream") !== -1 ||
+                lower.indexOf("broadcast") !== -1 ||
+                lower.indexOf("linear") !== -1 ||
+                lower.indexOf("yt_live_broadcast") !== -1 ||
+                lower.indexOf("live=1") !== -1;
+
+            if (
+                looksLikeMedia ||
+                looksLikeLive ||
+                initiator === "video" ||
+                initiator === "audio" ||
+                initiator === "xmlhttprequest" ||
+                initiator === "fetch"
+            ) {
+
+                let clean =
+                    String(url)
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\u003d/g, "=")
+                        .replace(/\\u003f/g, "?")
+                        .replace(/\\u002f/g, "/")
+                        .replace(/\\\//g, "/")
+                        .replace(/&amp;/g, "&")
+                        .trim();
+
+                try {
+                    clean =
+                        decodeURIComponent(clean);
+                } catch(e) {}
+
+                gelPush(
+                    clean
+                );
+
+                console.log(
+                    "GEL_PERFORMANCE_DEEP:",
+                    initiator,
+                    clean
+                );
+            }
+
+        } catch(e) {}
+    });
+
+} catch(e) {}
+
+// =====================================
+// PERFORMANCE OBSERVER LIVE MEDIA SCAN
+// =====================================
+
+try {
+
+    if (!window.__gelPerformanceObserverHooked) {
+
+        window.__gelPerformanceObserverHooked = true;
+
+        function gelCleanPerfObserverUrl(u) {
+
+            try {
+
+                let clean =
+                    String(u)
+                        .replace(/\\u0026/g, "&")
+                        .replace(/\\u003d/g, "=")
+                        .replace(/\\u003f/g, "?")
+                        .replace(/\\u002f/g, "/")
+                        .replace(/\\\//g, "/")
+                        .replace(/&amp;/g, "&")
+                        .trim();
+
+                try {
+                    clean =
+                        decodeURIComponent(clean);
+                } catch(e) {}
+
+                return clean;
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function gelPerfObserverLooksMedia(u) {
+
+            try {
+
+                const lower =
+                    String(u).toLowerCase();
+
+                return (
+                    lower.indexOf(".m3u8") !== -1 ||
+                    lower.indexOf("manifest/hls") !== -1 ||
+                    lower.indexOf("hls_playlist") !== -1 ||
+                    lower.indexOf(".mpd") !== -1 ||
+                    lower.indexOf(".mp4") !== -1 ||
+                    lower.indexOf(".m4s") !== -1 ||
+                    lower.indexOf(".ts") !== -1 ||
+                    lower.indexOf("videoplayback") !== -1 ||
+                    lower.indexOf("googlevideo.com") !== -1 ||
+                    lower.indexOf("jwpsrv.com") !== -1 ||
+                    lower.indexOf("playlist") !== -1 ||
+                    lower.indexOf("chunklist") !== -1 ||
+                    lower.indexOf("manifest") !== -1 ||
+                    lower.indexOf("live") !== -1 ||
+                    lower.indexOf("broadcast") !== -1 ||
+                    lower.indexOf("linear") !== -1
+                );
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        const perfObserver =
+            new PerformanceObserver(function(list) {
+
+                try {
+
+                    list
+                        .getEntries()
+                        .forEach(function(entry) {
+
+                            try {
+
+                                const url =
+                                    entry.name || "";
+
+                                if (!url) {
+                                    return;
+                                }
+
+                                const initiator =
+                                    entry.initiatorType || "";
+
+                                const clean =
+                                    gelCleanPerfObserverUrl(
+                                        url
+                                    );
+
+                                if (
+                                    clean &&
+                                    (
+                                        gelPerfObserverLooksMedia(clean) ||
+                                        initiator === "video" ||
+                                        initiator === "audio" ||
+                                        initiator === "fetch" ||
+                                        initiator === "xmlhttprequest"
+                                    )
+                                ) {
+
+                                    gelPush(
+                                        clean
+                                    );
+
+                                    console.log(
+                                        "GEL_PERFORMANCE_OBSERVER:",
+                                        initiator,
+                                        clean
+                                    );
+                                }
+
+                            } catch(e) {}
+                        });
+
+                } catch(e) {}
+            });
+
+        perfObserver.observe(
+            {
+                entryTypes: [
+                    "resource"
+                ]
+            }
+        );
+
+        console.log(
+            "GEL_PERFORMANCE_OBSERVER_READY"
+        );
+    }
+
+} catch(e) {}
+
+// =====================================
 // BLOB / MSE
 // =====================================
 
@@ -11353,6 +13109,119 @@ try {
         4000
     )
 }
+
+// =====================================
+// MEDIA SOURCE / SOURCEBUFFER HOOK SCAN
+// =====================================
+
+try {
+
+    if (!window.__gelMseHooked) {
+
+        window.__gelMseHooked = true;
+
+        // =====================================
+        // MEDIA SOURCE DETECTION
+        // =====================================
+
+        try {
+
+            if (window.MediaSource) {
+
+                console.log(
+                    "GEL_MSE_AVAILABLE"
+                );
+
+                const originalAddSourceBuffer =
+                    MediaSource.prototype.addSourceBuffer;
+
+                MediaSource.prototype.addSourceBuffer =
+                    function(mimeType) {
+
+                        try {
+
+                            console.log(
+                                "GEL_MSE_SOURCE_BUFFER:",
+                                mimeType
+                            );
+
+                            if (
+                                mimeType &&
+                                (
+                                    String(mimeType).toLowerCase().indexOf("video") !== -1 ||
+                                    String(mimeType).toLowerCase().indexOf("audio") !== -1 ||
+                                    String(mimeType).toLowerCase().indexOf("mp4") !== -1
+                                )
+                            ) {
+
+                                gelPush(
+                                    "blob:mse-detected"
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        return originalAddSourceBuffer.apply(
+                            this,
+                            arguments
+                        );
+                    };
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // SOURCEBUFFER APPEND DETECTION
+        // =====================================
+
+        try {
+
+            if (window.SourceBuffer) {
+
+                const originalAppendBuffer =
+                    SourceBuffer.prototype.appendBuffer;
+
+                SourceBuffer.prototype.appendBuffer =
+                    function(buffer) {
+
+                        try {
+
+                            const size =
+                                buffer
+                                    ? buffer.byteLength || buffer.length || 0
+                                    : 0;
+
+                            console.log(
+                                "GEL_MSE_APPEND_BUFFER:",
+                                size
+                            );
+
+                            if (
+                                size > 0
+                            ) {
+
+                                gelPush(
+                                    "blob:mse-active-buffer"
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        return originalAppendBuffer.apply(
+                            this,
+                            arguments
+                        );
+                    };
+            }
+
+        } catch(e) {}
+
+        console.log(
+            "GEL_MSE_HOOK_READY"
+        );
+    }
+
+} catch(e) {}
 
 // =====================================  
 // MENU  
