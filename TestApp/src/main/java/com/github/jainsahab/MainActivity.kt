@@ -1385,6 +1385,8 @@ if (streamList.isEmpty()) {
         .show()
 }
 
+} // END OPEN PLAYER
+
 binding.contentMain.shareStreams.setOnClickListener {
 
 val sortedStreams =
@@ -1425,7 +1427,7 @@ if (streamList.isEmpty()) {
         Toast.LENGTH_SHORT
     ).show()
 
-    return@setOnMenuItemClickListener true
+    return@setOnClickListener
 }
 
 val checkedItems =
