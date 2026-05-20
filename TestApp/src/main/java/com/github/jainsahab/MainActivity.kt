@@ -990,10 +990,6 @@ override fun onPageFinished(
                 view
             )
 
-            // =====================================
-            // DELAYED DEEP MEDIA RESCAN
-            // =====================================
-
             try {
 
                 view?.postDelayed(
@@ -1037,6 +1033,8 @@ override fun onPageFinished(
 
     } catch (_: Throwable) {}
 }
+
+} // END WEBVIEW CLIENT
 
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
