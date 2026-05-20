@@ -10607,8 +10607,22 @@ val streamBadge =
         // MEDIA TYPES
         // =====================================
 
-        lower.contains(".m3u8") ->
-            "📺 HLS"
+        lower.contains(".m3u8") &&
+    (
+        lower.contains("token") ||
+            lower.contains("auth") ||
+            lower.contains("signature") ||
+            lower.contains("sig=") ||
+            lower.contains("expires") ||
+            lower.contains("expire=") ||
+            lower.contains("key=") ||
+            lower.contains("x-plex-token") ||
+            lower.contains("session")
+    ) ->
+    "📺 TOKENIZED HLS"
+
+lower.contains(".m3u8") ->
+    "📺 HLS"
 
         lower.contains(".mpd") ->
             "📡 DASH"
