@@ -13,6 +13,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -536,6 +537,168 @@ binding.contentMain.webview.setOnTouchListener { v, _ ->
     )
 
     false
+}
+
+// =====================================
+// WEBVIEW IMAGE LONG PRESS MENU
+// =====================================
+
+binding.contentMain.webview.setOnLongClickListener { view ->
+
+    try {
+
+        val webView =
+            view as? WebView
+                ?: return@setOnLongClickListener false
+
+        val hit =
+            webView.hitTestResult
+
+        val imageUrl =
+            when (hit.type) {
+
+                WebView.HitTestResult.IMAGE_TYPE,
+                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+
+                    hit.extra
+                        ?.trim()
+                        .orEmpty()
+                }
+
+                else -> {
+                    ""
+                }
+            }
+
+        if (imageUrl.isBlank()) {
+            return@setOnLongClickListener false
+        }
+
+        val popup =
+            PopupMenu(
+                this,
+                webView
+            )
+
+        popup.menu.add(
+            "COPY IMAGE URL"
+        )
+
+        popup.menu.add(
+            "OPEN IMAGE"
+        )
+
+        popup.menu.add(
+            "SHARE IMAGE URL"
+        )
+
+        popup.setOnMenuItemClickListener { item ->
+
+            when (item.title.toString()) {
+
+                "COPY IMAGE URL" -> {
+
+                    try {
+
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
+
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "image_url",
+                                imageUrl
+                            )
+                        )
+
+                        Toast.makeText(
+                            this,
+                            "Image URL copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    } catch (_: Throwable) {}
+
+                    true
+                }
+
+                "OPEN IMAGE" -> {
+
+                    try {
+
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse(imageUrl)
+                            ).apply {
+
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open Image With"
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Cannot open image",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                    true
+                }
+
+                "SHARE IMAGE URL" -> {
+
+                    try {
+
+                        val shareIntent =
+                            Intent(
+                                Intent.ACTION_SEND
+                            ).apply {
+
+                                type =
+                                    "text/plain"
+
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    imageUrl
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share Image URL"
+                            )
+                        )
+
+                    } catch (_: Throwable) {}
+
+                    true
+                }
+
+                else -> false
+            }
+        }
+
+        popup.show()
+
+        true
+
+    } catch (_: Throwable) {
+
+        false
+    }
 }
 
 // =====================================
