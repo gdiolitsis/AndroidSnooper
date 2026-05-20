@@ -12984,6 +12984,119 @@ try {
 
 } catch(e) {}
 
+// =====================================
+// MEDIA SOURCE / SOURCEBUFFER HOOK SCAN
+// =====================================
+
+try {
+
+    if (!window.__gelMseHooked) {
+
+        window.__gelMseHooked = true;
+
+        // =====================================
+        // MEDIA SOURCE DETECTION
+        // =====================================
+
+        try {
+
+            if (window.MediaSource) {
+
+                console.log(
+                    "GEL_MSE_AVAILABLE"
+                );
+
+                const originalAddSourceBuffer =
+                    MediaSource.prototype.addSourceBuffer;
+
+                MediaSource.prototype.addSourceBuffer =
+                    function(mimeType) {
+
+                        try {
+
+                            console.log(
+                                "GEL_MSE_SOURCE_BUFFER:",
+                                mimeType
+                            );
+
+                            if (
+                                mimeType &&
+                                (
+                                    String(mimeType).toLowerCase().indexOf("video") !== -1 ||
+                                    String(mimeType).toLowerCase().indexOf("audio") !== -1 ||
+                                    String(mimeType).toLowerCase().indexOf("mp4") !== -1
+                                )
+                            ) {
+
+                                gelPush(
+                                    "blob:mse-detected"
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        return originalAddSourceBuffer.apply(
+                            this,
+                            arguments
+                        );
+                    };
+            }
+
+        } catch(e) {}
+
+        // =====================================
+        // SOURCEBUFFER APPEND DETECTION
+        // =====================================
+
+        try {
+
+            if (window.SourceBuffer) {
+
+                const originalAppendBuffer =
+                    SourceBuffer.prototype.appendBuffer;
+
+                SourceBuffer.prototype.appendBuffer =
+                    function(buffer) {
+
+                        try {
+
+                            const size =
+                                buffer
+                                    ? buffer.byteLength || buffer.length || 0
+                                    : 0;
+
+                            console.log(
+                                "GEL_MSE_APPEND_BUFFER:",
+                                size
+                            );
+
+                            if (
+                                size > 0
+                            ) {
+
+                                gelPush(
+                                    "blob:mse-active-buffer"
+                                );
+                            }
+
+                        } catch(e) {}
+
+                        return originalAppendBuffer.apply(
+                            this,
+                            arguments
+                        );
+                    };
+            }
+
+        } catch(e) {}
+
+        console.log(
+            "GEL_MSE_HOOK_READY"
+        );
+    }
+
+} catch(e) {}
+
 return JSON.stringify(
     [...new Set(results)]
 );
@@ -13107,119 +13220,6 @@ try {
         4000
     )
 }
-
-// =====================================
-// MEDIA SOURCE / SOURCEBUFFER HOOK SCAN
-// =====================================
-
-try {
-
-    if (!window.__gelMseHooked) {
-
-        window.__gelMseHooked = true;
-
-        // =====================================
-        // MEDIA SOURCE DETECTION
-        // =====================================
-
-        try {
-
-            if (window.MediaSource) {
-
-                console.log(
-                    "GEL_MSE_AVAILABLE"
-                );
-
-                const originalAddSourceBuffer =
-                    MediaSource.prototype.addSourceBuffer;
-
-                MediaSource.prototype.addSourceBuffer =
-                    function(mimeType) {
-
-                        try {
-
-                            console.log(
-                                "GEL_MSE_SOURCE_BUFFER:",
-                                mimeType
-                            );
-
-                            if (
-                                mimeType &&
-                                (
-                                    String(mimeType).toLowerCase().indexOf("video") !== -1 ||
-                                    String(mimeType).toLowerCase().indexOf("audio") !== -1 ||
-                                    String(mimeType).toLowerCase().indexOf("mp4") !== -1
-                                )
-                            ) {
-
-                                gelPush(
-                                    "blob:mse-detected"
-                                );
-                            }
-
-                        } catch(e) {}
-
-                        return originalAddSourceBuffer.apply(
-                            this,
-                            arguments
-                        );
-                    };
-            }
-
-        } catch(e) {}
-
-        // =====================================
-        // SOURCEBUFFER APPEND DETECTION
-        // =====================================
-
-        try {
-
-            if (window.SourceBuffer) {
-
-                const originalAppendBuffer =
-                    SourceBuffer.prototype.appendBuffer;
-
-                SourceBuffer.prototype.appendBuffer =
-                    function(buffer) {
-
-                        try {
-
-                            const size =
-                                buffer
-                                    ? buffer.byteLength || buffer.length || 0
-                                    : 0;
-
-                            console.log(
-                                "GEL_MSE_APPEND_BUFFER:",
-                                size
-                            );
-
-                            if (
-                                size > 0
-                            ) {
-
-                                gelPush(
-                                    "blob:mse-active-buffer"
-                                );
-                            }
-
-                        } catch(e) {}
-
-                        return originalAppendBuffer.apply(
-                            this,
-                            arguments
-                        );
-                    };
-            }
-
-        } catch(e) {}
-
-        console.log(
-            "GEL_MSE_HOOK_READY"
-        );
-    }
-
-} catch(e) {}
 
 // =====================================  
 // MENU  
