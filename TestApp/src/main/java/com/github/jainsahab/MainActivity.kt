@@ -91,6 +91,30 @@ private var bestAudioItag = 0
 
 private var liveLocked = false
 private var lockedStreamId = ""
+
+// =====================================
+// STREAM INFO SNAPSHOTS
+// =====================================
+
+data class StreamInfoSnapshot(
+    val url: String,
+    val badge: String,
+    val quality: String,
+    val cdn: String,
+    val security: String,
+    val segment: String,
+    val forensic: String,
+    val youtubeWatch: String,
+    val dashVideo: String,
+    val dashAudio: String,
+    val dashVideoItag: String,
+    val dashAudioItag: String,
+    val bestStream: String,
+    val bestLive: String
+)
+
+private val streamInfoSnapshots =
+    mutableMapOf<String, StreamInfoSnapshot>()
     
 // =====================================
 // LIVE HEARTBEAT MAP
@@ -7816,6 +7840,44 @@ if (isEuronewsYoutubeEmbed) {
 }
 
 // =====================================
+// SAVE YOUTUBE WATCH AS EXPORTABLE STREAM
+// =====================================
+
+try {
+
+    if (
+        youtubeWatchUrl.isNotBlank() &&
+        !detectedStreams.contains(youtubeWatchUrl)
+    ) {
+
+        detectedStreams.add(
+            youtubeWatchUrl
+        )
+
+        detectedVideos.add(
+            youtubeWatchUrl
+        )
+
+        streamScores[youtubeWatchUrl] =
+            9999
+
+        markStreamSource(
+            youtubeWatchUrl,
+            "YOUTUBE_WATCH"
+        )
+
+        streamValidation[youtubeWatchUrl] =
+            "YOUTUBE WATCH"
+
+        Log.e(
+            "YOUTUBE_WATCH_SAVED",
+            youtubeWatchUrl
+        )
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
 // SAVE YOUTUBE DASH PAIRS
 // =====================================
 
@@ -8082,6 +8144,32 @@ val extraPlayableLinks =
             append("\n\n")
         }
     }
+    
+// =====================================
+// SAVE STREAM SNAPSHOT
+// =====================================
+
+try {
+
+    streamInfoSnapshots[cleanedUrl] =
+        StreamInfoSnapshot(
+            url = cleanedUrl,
+            badge = streamBadge,
+            quality = streamQuality,
+            cdn = cdnType,
+            security = securityBadge,
+            segment = segmentBadge,
+            forensic = forensicNote,
+            youtubeWatch = youtubeWatchUrl,
+            dashVideo = youtubeDashVideoUrl,
+            dashAudio = youtubeDashAudioUrl,
+            dashVideoItag = youtubeDashVideoItag,
+            dashAudioItag = youtubeDashAudioItag,
+            bestStream = bestStreamUrl,
+            bestLive = bestLiveUrl
+        )
+
+} catch (_: Throwable) {}
 
 // =====================================
 // UI OUTPUT
@@ -8765,11 +8853,13 @@ private fun isExportableStream(
 
     return (
 
-        lower.contains(".m3u8") ||
+    lower.contains(".m3u8") ||
         lower.contains(".mpd") ||
-        lower.contains(".mp4")
+        lower.contains(".mp4") ||
+        lower.contains("youtube.com/watch") ||
+        lower.contains("youtu.be/")
 
-    )
+)
 }
 
 // =====================================
