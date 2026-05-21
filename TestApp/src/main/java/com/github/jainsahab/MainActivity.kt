@@ -1371,120 +1371,122 @@ binding.contentMain.webview.webChromeClient =
 
 binding.contentMain.openBrowser.setOnClickListener {
 
-detectedStreams.clear()
+    detectedStreams.clear()
 
-detectedVideos.clear()
+    detectedVideos.clear()
 
-detectedImages.clear()
+    detectedImages.clear()
 
-detectedAudio.clear()
+    detectedAudio.clear()
 
-detectedMasterStreams.clear()
+    detectedMasterStreams.clear()
 
-detectedChannels.clear()
+    detectedChannels.clear()
 
-streamScores.clear()
+    streamScores.clear()
 
-streamValidation.clear()
+    streamValidation.clear()
 
-streamSources.clear()
+    streamSources.clear()
 
-streamHeaders.clear()
+    streamHeaders.clear()
 
-streamTokens.clear()
+    streamTokens.clear()
 
-streamResolution.clear()
+    streamResolution.clear()
 
-streamBandwidth.clear()
+    streamBandwidth.clear()
 
-streamCodec.clear()
+    streamCodec.clear()
 
-streamInfoSnapshots.clear()
+    streamInfoSnapshots.clear()
 
-streamHitCounter.clear()
+    streamHitCounter.clear()
 
-blobRelations.clear()
+    blobRelations.clear()
 
-manifestRelations.clear()
+    manifestRelations.clear()
 
-liveHeartbeatMap.clear()
+    liveHeartbeatMap.clear()
 
-bestStreamUrl =
-    ""
+    bestStreamUrl =
+        ""
 
-bestStreamScore =
-    0
+    bestStreamScore =
+        0
 
-bestLiveUrl =
-    ""
+    bestLiveUrl =
+        ""
 
-bestLiveScore =
-    0
+    bestLiveScore =
+        0
 
-youtubeEmbedUrl =
-    ""
+    youtubeEmbedUrl =
+        ""
 
-youtubeWatchUrl =
-    ""
+    youtubeWatchUrl =
+        ""
 
-youtubeDashVideoUrl =
-    ""
+    youtubeDashVideoUrl =
+        ""
 
-youtubeDashAudioUrl =
-    ""
+    youtubeDashAudioUrl =
+        ""
 
-youtubeDashVideoItag =
-    ""
+    youtubeDashVideoItag =
+        ""
 
-youtubeDashAudioItag =
-    ""
+    youtubeDashAudioItag =
+        ""
 
-bestVideoItag =
-    0
+    bestVideoItag =
+        0
 
-bestAudioItag =
-    0
+    bestAudioItag =
+        0
 
-liveLocked =
-    false
+    liveLocked =
+        false
 
-lockedStreamId =
-    ""
+    lockedStreamId =
+        ""
 
-lastSelectedUrl =
-    ""
+    lastSelectedUrl =
+        ""
 
-lastDeepScanTime =
-    0L
+    lastDeepScanTime =
+        0L
 
-monitorRunning =
-    false
+    monitorRunning =
+        false
 
-binding.contentMain.result.text =
-    ""
+    binding.contentMain.result.text =
+        ""
 
-// =====================================
-// RESET WEBVIEW CACHE / JS MEMORY
-// =====================================
-
-try {
+    // =====================================
+    // RESET WEBVIEW LIGHT STATE
+    // =====================================
 
     try {
 
-    binding.contentMain.webview.stopLoading()
+        binding.contentMain.webview.stopLoading()
 
-    binding.contentMain.webview.clearMatches()
+        binding.contentMain.webview.clearMatches()
 
-    CookieManager
-        .getInstance()
-        .flush()
+        CookieManager
+            .getInstance()
+            .flush()
 
-} catch (_: Throwable) {}
+    } catch (_: Throwable) {}
 
-try {
+    // =====================================
+    // RESET WEBVIEW JS MEMORY
+    // =====================================
 
-    binding.contentMain.webview.evaluateJavascript(
-        """
+    try {
+
+        binding.contentMain.webview.evaluateJavascript(
+            """
 
 (function() {
 
@@ -1543,101 +1545,101 @@ try {
 
 })();
 
-        """.trimIndent(),
-        null
+            """.trimIndent(),
+            null
+        )
+
+    } catch (_: Throwable) {}
+
+    val enteredText =
+        binding.contentMain.urlInput
+            .text
+            .toString()
+            .trim()
+
+    val finalUrl =
+        when {
+
+            enteredText.isEmpty() -> {
+
+                "https://www.google.com"
+            }
+
+            enteredText.startsWith("http") -> {
+
+                enteredText
+            }
+
+            enteredText.contains(".") &&
+                !enteredText.contains(" ") -> {
+
+                "https://$enteredText"
+            }
+
+            else -> {
+
+                val query =
+                    enteredText.replace(
+                        " ",
+                        "+"
+                    )
+
+                "https://www.google.com/search?q=$query"
+            }
+        }
+
+    // =====================================
+    // DESKTOP MODE
+    // =====================================
+
+    val desktopMode =
+        true
+
+    if (desktopMode) {
+
+        binding.contentMain.webview.settings.userAgentString =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+    } else {
+
+        binding.contentMain.webview.settings.userAgentString =
+            null
+    }
+
+    // =====================================
+    // HIDE KEYBOARD
+    // =====================================
+
+    try {
+
+        val imm =
+            getSystemService(
+                INPUT_METHOD_SERVICE
+            ) as android.view.inputmethod.InputMethodManager
+
+        imm.hideSoftInputFromWindow(
+            currentFocus?.windowToken,
+            0
+        )
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // REMOVE INPUT FOCUS
+    // =====================================
+
+    binding.contentMain.urlInput.clearFocus()
+
+    // =====================================
+    // LOAD PAGE
+    // =====================================
+
+    binding.contentMain.webview.loadUrl(
+        finalUrl,
+        mapOf(
+            "Cache-Control" to "no-cache"
+        )
     )
-
-} catch (_: Throwable) {}
-
-val enteredText =  
-    binding.contentMain.urlInput  
-        .text  
-        .toString()  
-        .trim()  
-
-val finalUrl =  
-    when {  
-
-        enteredText.isEmpty() -> {  
-
-            "https://www.google.com"  
-        }  
-
-        enteredText.startsWith("http") -> {  
-
-            enteredText  
-        }  
-
-        enteredText.contains(".") &&  
-        !enteredText.contains(" ") -> {  
-
-            "https://$enteredText"  
-        }  
-
-        else -> {  
-
-            val query =  
-                enteredText.replace(  
-                    " ",  
-                    "+"  
-                )  
-
-            "https://www.google.com/search?q=$query"  
-        }  
-    }  
-
-// =====================================  
-// DESKTOP MODE  
-// =====================================  
-
-val desktopMode = true  
-
-if (desktopMode) {  
-
-    binding.contentMain.webview.settings.userAgentString =  
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"  
-
-} else {  
-
-    binding.contentMain.webview.settings.userAgentString =  
-        null  
-}  
-
-// =====================================  
-// HIDE KEYBOARD  
-// =====================================  
-
-try {  
-
-    val imm =  
-        getSystemService(  
-            INPUT_METHOD_SERVICE  
-        ) as android.view.inputmethod.InputMethodManager  
-
-    imm.hideSoftInputFromWindow(  
-        currentFocus?.windowToken,  
-        0  
-    )  
-
-} catch (_: Throwable) {}  
-
-// =====================================  
-// REMOVE INPUT FOCUS  
-// =====================================  
-
-binding.contentMain.urlInput.clearFocus()  
-
-// =====================================
-// LOAD PAGE
-// =====================================
-
-binding.contentMain.webview.loadUrl(
-    finalUrl,
-    mapOf(
-        "Cache-Control" to "no-cache"
-    )
-)
-
 }
 
 // =====================================  
