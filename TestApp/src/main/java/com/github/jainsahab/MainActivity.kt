@@ -1225,64 +1225,6 @@ override fun onPageFinished(
                 view
             )
 
-            // =====================================
-            // DELAYED DEEP MEDIA RESCAN
-            // =====================================
-
-            try {
-
-                view?.postDelayed(
-                    {
-                        try {
-
-                            enablePageTextSelection(
-                                view
-                            )
-
-                            runDeepMediaScan(
-                                view
-                            )
-
-                            Log.e(
-                                "DEEP_RESCAN",
-                                "after 2500ms"
-                            )
-
-                        } catch (_: Throwable) {}
-                    },
-                    2500
-                )
-
-                view?.postDelayed(
-                    {
-                        try {
-
-                            enablePageTextSelection(
-                                view
-                            )
-
-                            runDeepMediaScan(
-                                view
-                            )
-
-                            Log.e(
-                                "DEEP_RESCAN",
-                                "after 6000ms"
-                            )
-
-                        } catch (_: Throwable) {}
-                    },
-                    6000
-                )
-
-            } catch (_: Throwable) {}
-        }
-
-    } catch (_: Throwable) {}
-}
-
-} // END WEBVIEW CLIENT
-
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
 // =====================================
@@ -2173,6 +2115,9 @@ binding.contentMain.btnClear.setOnClickListener {
     liveHeartbeatMap.clear()
 
     lastSelectedUrl = ""
+    
+    lastDeepScanTime =
+    0L
 
     // =====================================
     // CLEAR UI
