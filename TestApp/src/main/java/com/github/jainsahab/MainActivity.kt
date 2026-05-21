@@ -539,8 +539,13 @@ binding.contentMain.webview.setOnTouchListener { v, _ ->
 }
 
 // =====================================
-// WEBVIEW IMAGE LONG PRESS MENU
+// WEBVIEW LONG PRESS MENU
+// IMAGE = CUSTOM POPUP
+// TEXT  = DEFAULT WEBVIEW SELECTION
 // =====================================
+
+binding.contentMain.webview.isLongClickable =
+    true
 
 binding.contentMain.webview.setOnLongClickListener { view ->
 
@@ -569,9 +574,17 @@ binding.contentMain.webview.setOnLongClickListener { view ->
                 }
             }
 
+        // =====================================
+        // NOT IMAGE → LET WEBVIEW SELECT TEXT
+        // =====================================
+
         if (imageUrl.isBlank()) {
             return@setOnLongClickListener false
         }
+
+        // =====================================
+        // IMAGE → CUSTOM IMAGE POPUP
+        // =====================================
 
         val popup =
             PopupMenu(
@@ -727,6 +740,38 @@ binding.contentMain.result.setTextIsSelectable(true)
 
 binding.contentMain.webview.webViewClient =
     object : WebViewClient() {
+    
+// =====================================
+// UPDATE URL BAR ON PAGE STARTED
+// =====================================
+
+override fun onPageStarted(
+    view: WebView?,
+    url: String?,
+    favicon: android.graphics.Bitmap?
+) {
+
+    super.onPageStarted(
+        view,
+        url,
+        favicon
+    )
+
+    try {
+
+        if (!url.isNullOrBlank()) {
+
+            binding.contentMain.urlInput.setText(
+                url
+            )
+
+            binding.contentMain.urlInput.setSelection(
+                binding.contentMain.urlInput.text.length
+            )
+        }
+
+    } catch (_: Throwable) {}
+}
 
         override fun shouldOverrideUrlLoading(
             view: WebView?,
@@ -1139,6 +1184,22 @@ override fun onPageFinished(
             !url.isNullOrBlank()
         ) {
 
+            // =====================================
+            // UPDATE URL BAR
+            // =====================================
+
+            binding.contentMain.urlInput.setText(
+                url
+            )
+
+            binding.contentMain.urlInput.setSelection(
+                binding.contentMain.urlInput.text.length
+            )
+
+            // =====================================
+            // DETECT PAGE URL
+            // =====================================
+
             handleInterceptedMediaUrl(
                 url,
                 null
@@ -1148,15 +1209,35 @@ override fun onPageFinished(
                 url
             )
 
+            // =====================================
+            // ENABLE TEXT SELECTION
+            // =====================================
+
+            enablePageTextSelection(
+                view
+            )
+
+            // =====================================
+            // DEEP MEDIA SCAN
+            // =====================================
+
             runDeepMediaScan(
                 view
             )
+
+            // =====================================
+            // DELAYED DEEP MEDIA RESCAN
+            // =====================================
 
             try {
 
                 view?.postDelayed(
                     {
                         try {
+
+                            enablePageTextSelection(
+                                view
+                            )
 
                             runDeepMediaScan(
                                 view
@@ -1175,6 +1256,10 @@ override fun onPageFinished(
                 view?.postDelayed(
                     {
                         try {
+
+                            enablePageTextSelection(
+                                view
+                            )
 
                             runDeepMediaScan(
                                 view
@@ -2572,6 +2657,64 @@ else -> false
 }
 
 } // END onCreate()
+
+// =====================================
+// ENABLE PAGE TEXT SELECTION
+// =====================================
+
+private fun enablePageTextSelection(
+    view: WebView?
+) {
+
+    try {
+
+        view?.evaluateJavascript(
+            """
+
+(function() {
+
+    try {
+
+        const style =
+            document.createElement("style");
+
+        style.innerHTML =
+            "* {" +
+            "-webkit-user-select: text !important;" +
+            "user-select: text !important;" +
+            "-webkit-touch-callout: default !important;" +
+            "}";
+
+        document.documentElement.appendChild(
+            style
+        );
+
+        document.onselectstart =
+            null;
+
+        document.oncontextmenu =
+            null;
+
+        document.body.onselectstart =
+            null;
+
+        document.body.oncontextmenu =
+            null;
+
+        console.log(
+            "GEL_TEXT_SELECTION_ENABLED"
+        );
+
+    } catch(e) {}
+
+})();
+
+            """.trimIndent(),
+            null
+        )
+
+    } catch (_: Throwable) {}
+}
 
 // =====================================
 // HANDLE INTERCEPTED MEDIA URL
@@ -7498,18 +7641,17 @@ if (streamUri != null) {
 // =====================================
 
 private fun testStream(
-url: String
+    url: String
 ) {
 
-val cleanedUrl =  
-    url  
-        .replace("\\u0026", "&")  
-        .replace("\\/", "/")  
-        .trim()  
+    val cleanedUrl =
+        url
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .trim()
 
-binding.contentMain.result.append(  
-
-    """
+    binding.contentMain.result.append(
+        """
 
 🧪 TESTING STREAM
 
@@ -7518,7 +7660,39 @@ $cleanedUrl
 ────────────────────
 
 """.trimIndent()
-)
+    )
+
+    try {
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+
+                data =
+                    Uri.parse(cleanedUrl)
+
+                addCategory(
+                    Intent.CATEGORY_BROWSABLE
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open Stream With"
+            )
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Cannot open stream",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
 
 // =====================================  
 // REQUEST  
@@ -8974,6 +9148,100 @@ val cleanedUrl =
         .replace("\\u0026", "&")
         .replace("\\/", "/")
         .trim()
+        
+// =====================================
+// EARLY YOUTUBE WATCH URL EXTRACT
+// =====================================
+
+try {
+
+    val earlyLower =
+        cleanedUrl.lowercase()
+
+    val earlyUri =
+        Uri.parse(cleanedUrl)
+
+    var videoId =
+        ""
+
+    when {
+
+        earlyLower.contains("youtube.com/watch") -> {
+
+            videoId =
+                earlyUri.getQueryParameter("v")
+                    .orEmpty()
+        }
+
+        earlyLower.contains("youtube.com/embed/") -> {
+
+            videoId =
+                earlyUri.path
+                    ?.substringAfterLast("/")
+                    ?.substringBefore("?")
+                    ?.substringBefore("&")
+                    ?.trim()
+                    .orEmpty()
+        }
+
+        earlyLower.contains("youtu.be/") -> {
+
+            videoId =
+                earlyUri.path
+                    ?.trimStart('/')
+                    ?.substringBefore("?")
+                    ?.substringBefore("&")
+                    ?.trim()
+                    .orEmpty()
+        }
+
+        earlyLower.contains("googlevideo.com/videoplayback") -> {
+
+            videoId =
+                earlyUri.getQueryParameter("id")
+                    ?.substringBefore(".")
+                    ?.trim()
+                    .orEmpty()
+        }
+    }
+
+    if (videoId.isNotBlank()) {
+
+        val watch =
+            "https://www.youtube.com/watch?v=$videoId"
+
+        youtubeWatchUrl =
+            watch
+
+        if (!detectedStreams.contains(watch)) {
+
+            detectedStreams.add(
+                watch
+            )
+
+            detectedVideos.add(
+                watch
+            )
+
+            streamScores[watch] =
+                9999
+
+            markStreamSource(
+                watch,
+                "YOUTUBE_WATCH"
+            )
+
+            streamValidation[watch] =
+                "YOUTUBE WATCH"
+
+            Log.e(
+                "YOUTUBE_WATCH_EARLY_SAVED",
+                watch
+            )
+        }
+    }
+
+} catch (_: Throwable) {}
 
 // =====================================
 // DISPLAY URL
@@ -10412,47 +10680,6 @@ val streamQuality =
             else ->
                 "AUTO"
         }
-
-// =====================================
-// SAVE YOUTUBE EMBED / WATCH URL
-// =====================================
-
-if (isEuronewsYoutubeEmbed) {
-
-    youtubeEmbedUrl =
-        cleanedUrl
-
-    youtubeWatchUrl =
-        try {
-
-            val uri =
-                Uri.parse(cleanedUrl)
-
-            val path =
-                uri.path
-                    ?: ""
-
-            val videoId =
-                path.substringAfterLast("/")
-                    .substringBefore("?")
-                    .trim()
-
-            if (videoId.isNotBlank()) {
-                "https://www.youtube.com/watch?v=$videoId"
-            } else {
-                ""
-            }
-
-        } catch (_: Throwable) {
-
-            ""
-        }
-
-    Log.e(
-        "YOUTUBE_EMBED",
-        youtubeWatchUrl.ifBlank { youtubeEmbedUrl }
-    )
-}
 
 // =====================================
 // SAVE YOUTUBE WATCH AS EXPORTABLE STREAM
