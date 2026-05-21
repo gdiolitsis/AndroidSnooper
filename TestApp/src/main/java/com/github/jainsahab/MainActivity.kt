@@ -1731,66 +1731,160 @@ browserIntent,
 
 binding.contentMain.openPlayer.setOnClickListener {
 
-if (detectedStreams.isEmpty()) {  
+    val sortedStreams =
+        mutableListOf<String>()
 
-    binding.contentMain.result.append(  
-        "\n\nNO STREAMS DETECTED\n"  
-    )  
+    // =====================================
+    // COLLECT ALL PLAYABLE CANDIDATES
+    // =====================================
 
-    return@setOnClickListener  
-}  
+    sortedStreams.addAll(
+        detectedStreams
+    )
 
-val sortedStreams =  
-    mutableListOf<String>()  
+    sortedStreams.addAll(
+        detectedVideos
+    )
 
-// =====================================  
-// VIDEOS  
-// =====================================  
+    sortedStreams.addAll(
+        detectedAudio
+    )
 
-sortedStreams.addAll(  
-    detectedVideos  
-)  
+    sortedStreams.addAll(
+        streamInfoSnapshots.keys
+    )
 
-// =====================================  
-// AUDIO  
-// =====================================  
+    sortedStreams.addAll(
+        streamSources.keys
+    )
 
-sortedStreams.addAll(  
-    detectedAudio  
-)  
+    sortedStreams.addAll(
+        streamValidation.keys
+    )
 
-// =====================================
-// IMAGES
-// =====================================
+    sortedStreams.addAll(
+        streamScores.keys
+    )
 
-sortedStreams.addAll(
-    detectedImages
-)
+    streamTokens.keys.forEach { key ->
 
-// =====================================
-// EXPORTABLE STREAM LIST
-// =====================================
+        sortedStreams.add(
+            key
+        )
+    }
 
-val streamList =
-    sortedStreams
-        .filter { url ->
+    if (bestStreamUrl.isNotBlank()) {
 
-            isExportableStream(
+        sortedStreams.add(
+            bestStreamUrl
+        )
+    }
+
+    if (bestLiveUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            bestLiveUrl
+        )
+    }
+
+    if (youtubeWatchUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            youtubeWatchUrl
+        )
+    }
+
+    if (youtubeDashVideoUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            youtubeDashVideoUrl
+        )
+    }
+
+    if (youtubeDashAudioUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            youtubeDashAudioUrl
+        )
+    }
+
+    // =====================================
+    // EXTRACT URLS FROM RESULT TEXT
+    // =====================================
+
+    try {
+
+        val resultText =
+            binding.contentMain.result
+                .text
+                ?.toString()
+                .orEmpty()
+
+        val regex =
+            "(https?://[^\\s\"'<>]+)"
+                .toRegex()
+
+        regex.findAll(resultText)
+            .forEach { match ->
+
+                val found =
+                    match.value
+                        .trim()
+                        .trimEnd(',')
+                        .trimEnd(';')
+                        .trimEnd(')')
+                        .trimEnd(']')
+                        .trimEnd('}')
+
+                if (found.isNotBlank()) {
+
+                    sortedStreams.add(
+                        found
+                    )
+                }
+            }
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // PLAYABLE STREAM LIST
+    // NO IMAGES
+    // =====================================
+
+    val streamList =
+        sortedStreams
+            .map { url ->
+
                 url
-            )
-        }
-        .distinct()
-        .toTypedArray()
+                    .replace("\\u0026", "&")
+                    .replace("\\/", "/")
+                    .replace("&amp;", "&")
+                    .trim()
+            }
+            .filter { url ->
 
-if (streamList.isEmpty()) {
+                url.isNotBlank() &&
+                    url.startsWith(
+                        "http",
+                        true
+                    ) &&
+                    isExportableStream(
+                        url
+                    )
+            }
+            .distinct()
+            .toTypedArray()
 
-    Toast.makeText(
-        this,
-        "No exportable streams found",
-        Toast.LENGTH_SHORT
-    ).show()
+    if (streamList.isEmpty()) {
 
-} else {
+        Toast.makeText(
+            this,
+            "No playable streams found",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return@setOnClickListener
+    }
 
     androidx.appcompat.app.AlertDialog.Builder(this)
         .setTitle("Select Stream")
@@ -1809,41 +1903,20 @@ if (streamList.isEmpty()) {
                     when {
 
                         // =========================
-                        // STREAMS / VIDEO
-                        // =========================
-
-                        lower.contains(".m3u8") ->
-                            "video/*"
-
-                        lower.contains(".mpd") ->
-                            "video/*"
-
-                        lower.contains(".mp4") ->
-                            "video/*"
-
-                        lower.contains(".mkv") ->
-                            "video/*"
-
-                        lower.contains(".webm") ->
-                            "video/*"
-
-                        lower.endsWith(".ts") ||
-                            lower.contains(".ts?") ->
-                            "video/*"
-
-                        lower.contains("youtube.com/watch") ||
-                            lower.contains("youtu.be/") ->
-                            "video/*"
-
-                        // =========================
                         // AUDIO
                         // =========================
 
                         lower.contains(".mp3") ->
                             "audio/mpeg"
 
+                        lower.contains(".m4a") ->
+                            "audio/mp4"
+
                         lower.contains(".aac") ->
                             "audio/aac"
+
+                        lower.contains(".opus") ->
+                            "audio/opus"
 
                         lower.contains(".wav") ->
                             "audio/wav"
@@ -1855,21 +1928,42 @@ if (streamList.isEmpty()) {
                             "audio/flac"
 
                         // =========================
-                        // IMAGES
+                        // VIDEO / LIVE STREAMS
                         // =========================
 
-                        lower.contains(".jpg") ||
-                            lower.contains(".jpeg") ->
-                            "image/jpeg"
+                        lower.contains(".m3u8") ->
+                            "video/*"
 
-                        lower.contains(".png") ->
-                            "image/png"
+                        lower.contains(".mpd") ->
+                            "video/*"
 
-                        lower.contains(".webp") ->
-                            "image/webp"
+                        lower.contains(".mp4") ->
+                            "video/*"
 
-                        lower.contains(".gif") ->
-                            "image/gif"
+                        lower.contains(".webm") ->
+                            "video/*"
+
+                        lower.contains(".mkv") ->
+                            "video/*"
+
+                        lower.contains(".mov") ->
+                            "video/*"
+
+                        lower.contains(".avi") ->
+                            "video/*"
+
+                        lower.contains(".3gp") ->
+                            "video/*"
+
+                        lower.endsWith(".ts") ||
+                            lower.contains(".ts?") ->
+                            "video/*"
+
+                        lower.contains("youtube.com/watch") ||
+                            lower.contains("youtu.be/") ||
+                            lower.contains("googlevideo.com") ||
+                            lower.contains("videoplayback") ->
+                            "video/*"
 
                         // =========================
                         // FALLBACK
@@ -1917,274 +2011,398 @@ if (streamList.isEmpty()) {
                     "failed",
                     t
                 )
+
+                Toast.makeText(
+                    this,
+                    "Cannot open stream",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
         .show()
-}
 
 } // END OPEN PLAYER
 
 binding.contentMain.shareStreams.setOnClickListener {
 
-val sortedStreams =
-    mutableListOf<String>()
+    val sortedStreams =
+        mutableListOf<String>()
 
-sortedStreams.addAll(
-    detectedVideos
-)
+    // =====================================
+    // COPY / SHARE — PLAYABLE ONLY
+    // Live streams + static videos + audio
+    // No images, no ads, no trackers
+    // =====================================
 
-sortedStreams.addAll(
-    detectedAudio
-)
-
-sortedStreams.addAll(
-    detectedImages
-)
-
-// =====================================
-// SHARE STREAMS DIALOG
-// =====================================
-
-val streamList =
-    sortedStreams
-        .filter { url ->
-
-            isExportableStream(
-                url
-            )
-        }
-        .distinct()
-        .toTypedArray()
-
-if (streamList.isEmpty()) {
-
-    Toast.makeText(
-        this,
-        "No exportable streams found",
-        Toast.LENGTH_SHORT
-    ).show()
-
-    return@setOnClickListener
-}
-
-val checkedItems =
-    BooleanArray(
-        streamList.size
+    sortedStreams.addAll(
+        detectedStreams
     )
 
-val selected =
-    mutableListOf<String>()
+    sortedStreams.addAll(
+        detectedVideos
+    )
 
-val dialog =
+    sortedStreams.addAll(
+        detectedAudio
+    )
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
+    sortedStreams.addAll(
+        streamInfoSnapshots.keys
+    )
 
-        .setTitle("Select Streams To Share")
+    sortedStreams.addAll(
+        streamSources.keys
+    )
 
-        .setMultiChoiceItems(
-            streamList,
-            checkedItems
-        ) { _, which, isChecked ->
+    sortedStreams.addAll(
+        streamValidation.keys
+    )
 
-            val url =
-                streamList[which]
+    sortedStreams.addAll(
+        streamScores.keys
+    )
 
-            if (isChecked) {
+    sortedStreams.addAll(
+        streamTokens.keys
+    )
 
-                if (!selected.contains(url)) {
-                    selected.add(url)
+    if (bestStreamUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            bestStreamUrl
+        )
+    }
+
+    if (bestLiveUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            bestLiveUrl
+        )
+    }
+
+    if (youtubeWatchUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            youtubeWatchUrl
+        )
+    }
+
+    if (youtubeDashVideoUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            youtubeDashVideoUrl
+        )
+    }
+
+    if (youtubeDashAudioUrl.isNotBlank()) {
+
+        sortedStreams.add(
+            youtubeDashAudioUrl
+        )
+    }
+
+    // =====================================
+    // EXTRACT URLS FROM RESULT TEXT
+    // =====================================
+
+    try {
+
+        val resultText =
+            binding.contentMain.result
+                .text
+                ?.toString()
+                .orEmpty()
+
+        val regex =
+            "(https?://[^\\s\"'<>]+)"
+                .toRegex()
+
+        regex.findAll(resultText)
+            .forEach { match ->
+
+                val found =
+                    match.value
+                        .trim()
+                        .trimEnd(',')
+                        .trimEnd(';')
+                        .trimEnd(')')
+                        .trimEnd(']')
+                        .trimEnd('}')
+
+                if (found.isNotBlank()) {
+
+                    sortedStreams.add(
+                        found
+                    )
                 }
-
-            } else {
-
-                selected.remove(url)
             }
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // FINAL COPY / SHARE LIST
+    // SAME PLAYABLE LOGIC AS OPEN PLAYER / EXPORT
+    // =====================================
+
+    val streamList =
+        sortedStreams
+            .map { url ->
+
+                url
+                    .replace("\\u0026", "&")
+                    .replace("\\/", "/")
+                    .replace("&amp;", "&")
+                    .trim()
+            }
+            .filter { url ->
+
+                url.isNotBlank() &&
+                    url.startsWith(
+                        "http",
+                        true
+                    ) &&
+                    isExportableStream(
+                        url
+                    )
+            }
+            .distinct()
+            .toTypedArray()
+
+    if (streamList.isEmpty()) {
+
+        Toast.makeText(
+            this,
+            "No playable streams found",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return@setOnClickListener
+    }
+
+    val checkedItems =
+        BooleanArray(
+            streamList.size
+        )
+
+    val selected =
+        mutableListOf<String>()
+
+    val dialog =
+        androidx.appcompat.app.AlertDialog.Builder(this)
+
+            .setTitle("Select Streams To Share")
+
+            .setMultiChoiceItems(
+                streamList,
+                checkedItems
+            ) { _, which, isChecked ->
+
+                val url =
+                    streamList[which]
+
+                if (isChecked) {
+
+                    if (!selected.contains(url)) {
+
+                        selected.add(
+                            url
+                        )
+                    }
+
+                } else {
+
+                    selected.remove(
+                        url
+                    )
+                }
+            }
+
+            // =====================================
+            // SELECT ALL
+            // =====================================
+
+            .setNeutralButton(
+                "SELECT ALL",
+                null
+            )
+
+            // =====================================
+            // COPY SELECTED
+            // =====================================
+
+            .setPositiveButton(
+                "COPY",
+                null
+            )
+
+            // =====================================
+            // SHARE SELECTED
+            // =====================================
+
+            .setNegativeButton(
+                "SHARE",
+                null
+            )
+
+            .show()
+
+    dialog.setCanceledOnTouchOutside(true)
+
+    dialog.setCancelable(true)
+
+    // =====================================
+    // SELECT ALL
+    // =====================================
+
+    dialog.getButton(
+        androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
+    ).setOnClickListener {
+
+        selected.clear()
+
+        for (i in streamList.indices) {
+
+            checkedItems[i] =
+                true
+
+            dialog.listView.setItemChecked(
+                i,
+                true
+            )
+
+            selected.add(
+                streamList[i]
+            )
         }
 
-        // =====================================
-        // SELECT ALL
-        // =====================================
-
-        .setNeutralButton(
-            "SELECT ALL",
-            null
-        )
-
-        // =====================================
-        // COPY SELECTED
-        // =====================================
-
-        .setPositiveButton(
-            "COPY",
-            null
-        )
-
-        // =====================================
-        // SHARE SELECTED
-        // =====================================
-
-        .setNegativeButton(
-            "SHARE",
-            null
-        )
-
-        .show()
-
-dialog.setCanceledOnTouchOutside(true)
-
-dialog.setCancelable(true)
-
-// =====================================
-// SELECT ALL
-// =====================================
-
-dialog.getButton(
-    androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
-).setOnClickListener {
-
-    selected.clear()
-
-    for (i in streamList.indices) {
-
-        checkedItems[i] = true
-
-        dialog.listView.setItemChecked(
-            i,
-            true
-        )
-
-        selected.add(
-            streamList[i]
-        )
-    }
-
-    Toast.makeText(
-        this,
-        "All selected",
-        Toast.LENGTH_SHORT
-    ).show()
-}
-
-// =====================================
-// COPY
-// =====================================
-
-dialog.getButton(
-    androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE
-).setOnClickListener {
-
-    if (selected.isEmpty()) {
-
         Toast.makeText(
             this,
-            "No streams selected",
-            Toast.LENGTH_SHORT
-        ).show()
-
-        return@setOnClickListener
-    }
-
-    try {
-
-        val text =
-            selected.joinToString(
-                "\n\n"
-            )
-
-        val clipboard =
-            getSystemService(
-                CLIPBOARD_SERVICE
-            ) as ClipboardManager
-
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(
-                "streams",
-                text
-            )
-        )
-
-        Toast.makeText(
-            this,
-            "Copied",
-            Toast.LENGTH_SHORT
-        ).show()
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "COPY_STREAMS",
-            "failed",
-            t
-        )
-
-        Toast.makeText(
-            this,
-            "Copy failed",
+            "All selected",
             Toast.LENGTH_SHORT
         ).show()
     }
-}
 
-// =====================================
-// SHARE
-// =====================================
+    // =====================================
+    // COPY
+    // =====================================
 
-dialog.getButton(
-    androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE
-).setOnClickListener {
+    dialog.getButton(
+        androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE
+    ).setOnClickListener {
 
-    if (selected.isEmpty()) {
+        if (selected.isEmpty()) {
 
-        Toast.makeText(
-            this,
-            "No streams selected",
-            Toast.LENGTH_SHORT
-        ).show()
+            Toast.makeText(
+                this,
+                "No streams selected",
+                Toast.LENGTH_SHORT
+            ).show()
 
-        return@setOnClickListener
-    }
+            return@setOnClickListener
+        }
 
-    try {
+        try {
 
-        val allUrls =
-            selected.joinToString(
-                "\n\n"
-            )
-
-        val shareIntent =
-            Intent(Intent.ACTION_SEND).apply {
-
-                type = "text/plain"
-
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    allUrls
+            val text =
+                selected.joinToString(
+                    "\n\n"
                 )
-            }
 
-        startActivity(
-            Intent.createChooser(
-                shareIntent,
-                "Share Streams With"
+            val clipboard =
+                getSystemService(
+                    CLIPBOARD_SERVICE
+                ) as ClipboardManager
+
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText(
+                    "streams",
+                    text
+                )
             )
-        )
 
-    } catch (t: Throwable) {
+            Toast.makeText(
+                this,
+                "Copied",
+                Toast.LENGTH_SHORT
+            ).show()
 
-        Log.e(
-            "SHARE_STREAM",
-            "failed",
-            t
-        )
+        } catch (t: Throwable) {
 
-        Toast.makeText(
-            this,
-            "Share failed",
-            Toast.LENGTH_SHORT
-        ).show()
+            Log.e(
+                "COPY_STREAMS",
+                "failed",
+                t
+            )
+
+            Toast.makeText(
+                this,
+                "Copy failed",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
-}
+
+    // =====================================
+    // SHARE
+    // =====================================
+
+    dialog.getButton(
+        androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE
+    ).setOnClickListener {
+
+        if (selected.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No streams selected",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return@setOnClickListener
+        }
+
+        try {
+
+            val allUrls =
+                selected.joinToString(
+                    "\n\n"
+                )
+
+            val shareIntent =
+                Intent(Intent.ACTION_SEND).apply {
+
+                    type =
+                        "text/plain"
+
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        allUrls
+                    )
+                }
+
+            startActivity(
+                Intent.createChooser(
+                    shareIntent,
+                    "Share Streams With"
+                )
+            )
+
+        } catch (t: Throwable) {
+
+            Log.e(
+                "SHARE_STREAM",
+                "failed",
+                t
+            )
+
+            Toast.makeText(
+                this,
+                "Share failed",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 }
 
 // =====================================
@@ -2193,67 +2411,164 @@ dialog.getButton(
 
 binding.contentMain.exportM3u.setOnClickListener {
 
-    if (detectedStreams.isEmpty()) {
+    try {
 
-        binding.contentMain.result.append(
-            "\n\nNO STREAMS DETECTED\n"
+        val exportUrls =
+            mutableListOf<String>()
+
+        // =====================================
+        // COLLECT VIDEO / LIVE / AUDIO
+        // =====================================
+
+        exportUrls.addAll(
+            detectedStreams
         )
 
-        return@setOnClickListener
-    }
+        exportUrls.addAll(
+            detectedVideos
+        )
 
-    try {
+        exportUrls.addAll(
+            detectedAudio
+        )
+
+        if (bestStreamUrl.isNotBlank()) {
+
+            exportUrls.add(
+                bestStreamUrl
+            )
+        }
+
+        if (bestLiveUrl.isNotBlank()) {
+
+            exportUrls.add(
+                bestLiveUrl
+            )
+        }
+
+        if (youtubeWatchUrl.isNotBlank()) {
+
+            exportUrls.add(
+                youtubeWatchUrl
+            )
+        }
+
+        if (youtubeDashVideoUrl.isNotBlank()) {
+
+            exportUrls.add(
+                youtubeDashVideoUrl
+            )
+        }
+
+        if (youtubeDashAudioUrl.isNotBlank()) {
+
+            exportUrls.add(
+                youtubeDashAudioUrl
+            )
+        }
+
+        // =====================================
+        // CLEAN + FILTER EXPORTABLE ONLY
+        // NO IMAGES
+        // =====================================
+
+        val streamList =
+            exportUrls
+                .map { url ->
+
+                    url
+                        .replace("\\u0026", "&")
+                        .replace("\\/", "/")
+                        .replace("&amp;", "&")
+                        .trim()
+                }
+                .filter { url ->
+
+                    url.isNotBlank() &&
+                        isExportableStream(
+                            url
+                        )
+                }
+                .distinct()
+
+        if (streamList.isEmpty()) {
+
+            binding.contentMain.result.append(
+                "\n\nNO EXPORTABLE STREAMS FOUND\n"
+            )
+
+            Toast.makeText(
+                this,
+                "No exportable streams found",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return@setOnClickListener
+        }
 
         val sb =
             StringBuilder()
 
         sb.append("#EXTM3U\n\n")
 
-        detectedStreams
-            .toList()
-            .forEachIndexed { index, url ->
+        streamList
+            .forEach { url ->
 
-                if (!isExportableStream(url)) {
-                    return@forEachIndexed
-                }
-
-                val label =
-                    buildMediaLabel(url)
-                        .replace("🟢", "")
-                        .replace("🟡", "")
-                        .replace("🔒", "")
-                        .replace("❌", "")
-                        .replace("⚠", "")
-                        .trim()
-
-                val streamType =
-                    buildStreamType(url)
+                val lower =
+                    url.lowercase()
 
                 val channelName =
-                    buildChannelName(url)
-
-                val name =
-                     channelName
-
-                val groupTitle =
-                    "Live Streams"
+                    buildChannelName(
+                        url
+                    )
 
                 val logoUrl =
-                    buildLogoUrl(url)
+                    buildLogoUrl(
+                        url
+                    )
+
+                val groupTitle =
+                    when {
+
+                        lower.contains(".mp3") ||
+                            lower.contains(".m4a") ||
+                            lower.contains(".aac") ||
+                            lower.contains(".opus") ||
+                            lower.contains(".wav") ||
+                            lower.contains(".ogg") ||
+                            lower.contains(".flac") ->
+                            "Audio"
+
+                        lower.contains(".mp4") ||
+                            lower.contains(".webm") ||
+                            lower.contains(".mkv") ||
+                            lower.contains(".mov") ||
+                            lower.contains(".avi") ||
+                            lower.contains(".3gp") ->
+                            "Static Videos"
+
+                        else ->
+                            "Live Streams"
+                    }
 
                 sb.append(
-                   "#EXTINF:-1 tvg-id=\"$channelName\" tvg-name=\"$channelName\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$channelName\n"
+                    "#EXTINF:-1 tvg-id=\"$channelName\" tvg-name=\"$channelName\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$channelName\n"
                 )
 
-                sb.append(url)
+                sb.append(
+                    url
+                )
 
-                sb.append("\n\n")
+                sb.append(
+                    "\n\n"
+                )
             }
 
         val shareIntent =
             Intent(Intent.ACTION_SEND).apply {
 
-                type = "text/plain"
+                type =
+                    "text/plain"
 
                 putExtra(
                     Intent.EXTRA_TEXT,
@@ -2275,6 +2590,12 @@ binding.contentMain.exportM3u.setOnClickListener {
             "failed",
             t
         )
+
+        Toast.makeText(
+            this,
+            "Export failed",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 }
 
@@ -9063,35 +9384,92 @@ private fun detectAndSaveUrl(
     url: String
 ) {
 
-    // =====================================
-    // URL FILTER
-    // =====================================
+// =====================================
+// URL FILTER — KEEP ALL PLAYABLE MEDIA
+// =====================================
 
-    val filterLower =
+val filterLower =
     url.lowercase()
 
-    if (
+// =====================================
+// PLAYABLE MEDIA CANDIDATES
+// Do NOT cut these, even if low quality
+// =====================================
 
-        filterLower.contains("doubleclick") ||
-        filterLower.contains("googleads") ||
-        filterLower.contains("analytics") ||
-        filterLower.contains("/stats/") ||
-        filterLower.contains("ptracking") ||
-        filterLower.contains("api/stats") ||
-        filterLower.contains("pagead") ||
-        filterLower.contains("collect?") ||
-        filterLower.contains(".jpg") ||
+val isPlayableMediaCandidate =
+    filterLower.contains(".m3u8") ||
+        filterLower.contains(".mpd") ||
+        filterLower.contains(".mp4") ||
+        filterLower.contains(".webm") ||
+        filterLower.contains(".mkv") ||
+        filterLower.contains(".ts") ||
+        filterLower.contains(".m4s") ||
+        filterLower.contains(".mp3") ||
+        filterLower.contains(".m4a") ||
+        filterLower.contains(".aac") ||
+        filterLower.contains(".opus") ||
+        filterLower.contains(".wav") ||
+        filterLower.contains(".ogg") ||
+        filterLower.contains(".flac") ||
+        filterLower.contains("manifest/hls") ||
+        filterLower.contains("hls_playlist") ||
+        filterLower.contains("hlsmanifesturl") ||
+        filterLower.contains("playlist") ||
+        filterLower.contains("chunklist") ||
+        filterLower.contains("live.m3u8") ||
+        filterLower.contains("master.m3u8") ||
+        filterLower.contains("videoplayback") ||
+        filterLower.contains("googlevideo.com") ||
+        filterLower.contains("youtube.com/watch") ||
+        filterLower.contains("youtu.be/")
+
+// =====================================
+// IMAGE CANDIDATES — NOT NEEDED
+// =====================================
+
+val isImageCandidate =
+    filterLower.contains(".jpg") ||
+        filterLower.contains(".jpeg") ||
         filterLower.contains(".png") ||
-        filterLower.contains(".svg") ||
+        filterLower.contains(".webp") ||
         filterLower.contains(".gif") ||
-        filterLower.contains("html-load.com") ||
-        filterLower.contains("ad-delivery") ||
-        filterLower.contains("moat") ||
-        filterLower.contains("feed/iu1")
+        filterLower.contains(".svg") ||
+        filterLower.contains(".ico")
 
-    ) {
-        return
-    }
+if (
+    isImageCandidate &&
+    !isPlayableMediaCandidate
+) {
+    return
+}
+
+// =====================================
+// GARBAGE / ADS / TRACKING
+// Only cut if NOT playable media
+// =====================================
+
+if (
+    !isPlayableMediaCandidate &&
+    (
+        filterLower.contains("doubleclick") ||
+            filterLower.contains("googleads") ||
+            filterLower.contains("analytics") ||
+            filterLower.contains("/stats/") ||
+            filterLower.contains("ptracking") ||
+            filterLower.contains("api/stats") ||
+            filterLower.contains("pagead") ||
+            filterLower.contains("collect?") ||
+            filterLower.contains("html-load.com") ||
+            filterLower.contains("ad-delivery") ||
+            filterLower.contains("moat") ||
+            filterLower.contains("feed/iu1") ||
+            filterLower.contains("favicon") ||
+            filterLower.contains("logo") ||
+            filterLower.contains("banner")
+    )
+) {
+    return
+}
 
 Log.e(
     "MEDIA_DETECT",
@@ -10252,7 +10630,15 @@ val streamPriority =
             1
     }
 
-if (streamPriority < 20) {
+// =====================================
+// LOW PRIORITY FILTER
+// Do NOT cut playable audio/video/live streams
+// =====================================
+
+if (
+    streamPriority < 20 &&
+    !isPlayableMediaCandidate
+) {
     return
 }
 
@@ -10383,16 +10769,25 @@ val isGarbage =
     
 // =====================================
 // SEGMENT FILES
+// Keep possible playable TS/M4S, ignore only obvious tiny chunks
 // =====================================
 
-if (isSegmentTs) {
+if (
+    isSegmentTs &&
+    !lower.contains(".m3u8") &&
+    !lower.contains(".mpd") &&
+    !lower.contains("playlist") &&
+    !lower.contains("manifest") &&
+    !lower.contains("live")
+) {
 
     Log.e(
-        "SEGMENT_IGNORED",
+        "SEGMENT_LOW_PRIORITY",
         cleanedUrl
     )
 
-    return
+    // Do not return.
+    // We keep it as evidence/playable candidate.
 }
 
 // =====================================
@@ -11182,9 +11577,50 @@ val badge =
             "🎬 VIDEO"
     }
 
-val validation =
+// =====================================
+// VALIDATION DISPLAY
+// Hide ERROR for playable URLs so user can test them
+// =====================================
+
+val rawValidation =
     streamValidation[url]
         ?: ""
+
+val isPlayableForUserTest =
+    lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains(".mp4") ||
+        lower.contains(".webm") ||
+        lower.contains(".mkv") ||
+        lower.contains(".mov") ||
+        lower.contains(".avi") ||
+        lower.contains(".3gp") ||
+        lower.contains(".ts") ||
+        lower.contains(".mp3") ||
+        lower.contains(".m4a") ||
+        lower.contains(".aac") ||
+        lower.contains(".opus") ||
+        lower.contains(".wav") ||
+        lower.contains(".ogg") ||
+        lower.contains(".flac") ||
+        lower.contains("manifest/hls") ||
+        lower.contains("hls_playlist") ||
+        lower.contains("hlsmanifesturl") ||
+        lower.contains("youtube.com/watch") ||
+        lower.contains("youtu.be/") ||
+        lower.contains("googlevideo.com") ||
+        lower.contains("videoplayback")
+
+val validation =
+    when {
+
+        rawValidation.contains("ERROR") &&
+            isPlayableForUserTest ->
+            "TRY IN PLAYER"
+
+        else ->
+            rawValidation
+    }
 
 // =====================================
 // FORENSIC SOURCE
@@ -11664,12 +12100,49 @@ private fun isExportableStream(
     url: String
 ): Boolean {
 
-    val lower =
-        url.lowercase()
+val lower =
+    url.lowercase()
 
-    val validation =
-        streamValidation[url]
-            ?: ""
+val validation =
+    streamValidation[url]
+        ?: ""
+
+// =====================================
+// VALIDATION ERROR FILTER
+// Keep real playable media even if validator failed
+// =====================================
+
+val isDirectPlayableUrl =
+    lower.contains(".m3u8") ||
+        lower.contains(".mpd") ||
+        lower.contains(".mp4") ||
+        lower.contains(".webm") ||
+        lower.contains(".mkv") ||
+        lower.contains(".mov") ||
+        lower.contains(".avi") ||
+        lower.contains(".3gp") ||
+        lower.contains(".ts") ||
+        lower.contains(".mp3") ||
+        lower.contains(".m4a") ||
+        lower.contains(".aac") ||
+        lower.contains(".opus") ||
+        lower.contains(".wav") ||
+        lower.contains(".ogg") ||
+        lower.contains(".flac") ||
+        lower.contains("manifest/hls") ||
+        lower.contains("hls_playlist") ||
+        lower.contains("hlsmanifesturl") ||
+        lower.contains("youtube.com/watch") ||
+        lower.contains("youtu.be/") ||
+        lower.contains("googlevideo.com") ||
+        lower.contains("videoplayback")
+
+if (
+    validation.contains("ERROR") &&
+    !isDirectPlayableUrl
+) {
+    return false
+}
 
     // =====================================
     // DEAD
@@ -11682,100 +12155,142 @@ private fun isExportableStream(
     }
 
     // =====================================
-    // SEGMENTS
+    // IMAGES — NOT NEEDED
     // =====================================
 
     if (
-
-        lower.endsWith(".ts") ||
-        lower.endsWith(".m4s")
-
-    ) {
-        return false
-    }
-
-    // =====================================
-    // STATIC / VOD PLACEHOLDERS
-    // =====================================
-
-    if (
-
-        lower.contains("original.mp4") ||
-        lower.contains("/vod/")
-
-    ) {
-        return false
-    }
-
-    // =====================================
-    // IMAGES
-    // =====================================
-
-    if (
-
         lower.contains(".jpg") ||
         lower.contains(".jpeg") ||
         lower.contains(".png") ||
         lower.contains(".webp") ||
-        lower.contains(".gif")
-
+        lower.contains(".gif") ||
+        lower.contains(".bmp") ||
+        lower.contains(".svg") ||
+        lower.contains(".ico")
     ) {
         return false
     }
-    
- // =====================================
-// YOUTUBE TEMP MEDIA ENDPOINTS
-// =====================================
 
-if (
-    lower.contains("googlevideo.com/videoplayback")
-) {
-    return false
-}
+    // =====================================
+    // ADS / TRACKERS — NOT PLAYABLE MEDIA
+    // =====================================
 
-// =====================================
-// TEMP / SEGMENT FILES
-// =====================================
+    if (
+        lower.contains("doubleclick") ||
+        lower.contains("googleads") ||
+        lower.contains("analytics") ||
+        lower.contains("/stats/") ||
+        lower.contains("ptracking") ||
+        lower.contains("api/stats") ||
+        lower.contains("pagead") ||
+        lower.contains("collect?") ||
+        lower.contains("html-load.com") ||
+        lower.contains("ad-delivery") ||
+        lower.contains("moat") ||
+        lower.contains("feed/iu1") ||
+        lower.contains("favicon") ||
+        lower.contains("logo") ||
+        lower.contains("banner")
+    ) {
+        return false
+    }
 
-if (
-    lower.endsWith(".m4s") ||
-    lower.contains(".m4s?") ||
-    (
+    // =====================================
+    // OBVIOUS FRAGMENTS / NON-STANDALONE CHUNKS
+    // =====================================
+
+    if (
+        (
+            lower.endsWith(".m4s") ||
+            lower.contains(".m4s?")
+        ) &&
+        !lower.contains("googlevideo.com")
+    ) {
+        return false
+    }
+
+    if (
         (
             lower.endsWith(".ts") ||
-                lower.contains(".ts?")
+            lower.contains(".ts?")
         ) &&
-            (
-                lower.contains("segment") ||
-                    lower.contains("segments") ||
-                    lower.contains("chunk") ||
-                    lower.contains("chunks") ||
-                    lower.contains("frag") ||
-                    lower.contains("fragments") ||
-                    lower.contains("sq=") ||
-                    lower.contains("range=")
-            )
-    )
-) {
-    return false
-}
+        (
+            lower.contains("segment") ||
+            lower.contains("segments") ||
+            lower.contains("frag") ||
+            lower.contains("fragments") ||
+            lower.contains("sq=") ||
+            lower.contains("range=")
+        )
+    ) {
+        return false
+    }
 
-// =====================================
-// GOOD STREAMS
-// =====================================
+    // =====================================
+    // LIVE STREAMS
+    // =====================================
 
-return (
-
-    lower.contains(".m3u8") ||
+    if (
+        lower.contains(".m3u8") ||
         lower.contains(".mpd") ||
+        lower.contains("manifest/hls") ||
+        lower.contains("hls_playlist") ||
+        lower.contains("hlsmanifesturl") ||
+        lower.contains("master.m3u8") ||
+        lower.contains("live.m3u8") ||
+        lower.contains("playlist.m3u8") ||
+        lower.contains("chunklist.m3u8")
+    ) {
+        return true
+    }
+
+    // =====================================
+    // STATIC VIDEOS
+    // =====================================
+
+    if (
         lower.contains(".mp4") ||
         lower.contains(".webm") ||
+        lower.contains(".mkv") ||
+        lower.contains(".mov") ||
+        lower.contains(".avi") ||
+        lower.contains(".3gp") ||
         lower.endsWith(".ts") ||
-        lower.contains(".ts?") ||
-        lower.contains("youtube.com/watch") ||
-        lower.contains("youtu.be/")
+        lower.contains(".ts?")
+    ) {
+        return true
+    }
 
-)
+    // =====================================
+    // AUDIO / SONGS
+    // =====================================
+
+    if (
+        lower.contains(".mp3") ||
+        lower.contains(".m4a") ||
+        lower.contains(".aac") ||
+        lower.contains(".opus") ||
+        lower.contains(".wav") ||
+        lower.contains(".ogg") ||
+        lower.contains(".flac")
+    ) {
+        return true
+    }
+
+    // =====================================
+    // YOUTUBE / GOOGLEVIDEO PLAYABLE EVIDENCE
+    // =====================================
+
+    if (
+        lower.contains("youtube.com/watch") ||
+        lower.contains("youtu.be/") ||
+        lower.contains("googlevideo.com") ||
+        lower.contains("videoplayback")
+    ) {
+        return true
+    }
+
+    return false
 }
 
 // =====================================
@@ -12190,7 +12705,7 @@ val sorted =
                     20
 
                 lower.contains("original.mp4") ->
-                    10
+                     300
 
                 else ->
                     baseScore
