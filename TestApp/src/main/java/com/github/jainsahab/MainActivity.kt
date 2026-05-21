@@ -10271,7 +10271,6 @@ streamScores[savedUrl] =
 // =====================================
 
 if (
-
     (
         lower.contains(".m3u8") ||
         lower.contains(".mpd")
@@ -10283,9 +10282,8 @@ if (
 
 ) {
 
-    autoValidateStream(
-        cleanedUrl
-    )
+    streamValidation[cleanedUrl] =
+        "FOUND"
 }
 
 // =====================================
