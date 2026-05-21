@@ -2117,21 +2117,113 @@ binding.contentMain.exportM3u.setOnClickListener {
         showAudio()  
     }  
 
+// =====================================
+// CLEAR RESULTS + RESET DETECTION STATE
+// =====================================
+
 binding.contentMain.btnClear.setOnClickListener {
 
+    // =====================================
+    // CLEAR KOTLIN DETECTION LISTS
+    // =====================================
+
     detectedStreams.clear()
-
     detectedVideos.clear()
-
     detectedImages.clear()
-
     detectedAudio.clear()
+    detectedMasterStreams.clear()
+    detectedChannels.clear()
 
     streamScores.clear()
-
     streamValidation.clear()
+    streamHeaders.clear()
+    streamTokens.clear()
+    streamResolution.clear()
+    streamInfoSnapshots.clear()
+    streamHitCounter.clear()
+    blobRelations.clear()
+
+    // =====================================
+    // CLEAR BEST / YOUTUBE / DASH STATE
+    // =====================================
+
+    bestStreamUrl = ""
+    bestStreamScore = 0
+
+    bestLiveUrl = ""
+    bestLiveScore = 0
+
+    youtubeWatchUrl = ""
+    youtubeEmbedUrl = ""
+
+    youtubeDashVideoUrl = ""
+    youtubeDashAudioUrl = ""
+    youtubeDashVideoItag = ""
+    youtubeDashAudioItag = ""
+
+    bestVideoItag = 0
+    bestAudioItag = 0
+
+    dashVideoMap.clear()
+    dashAudioMap.clear()
+
+    liveLocked = false
+    lockedStreamId = ""
+
+    liveHeartbeatMap.clear()
+
+    lastSelectedUrl = ""
+
+    // =====================================
+    // CLEAR UI
+    // =====================================
 
     binding.contentMain.result.text = ""
+
+    // =====================================
+    // RESET WEBVIEW JS DETECTION MEMORY
+    // =====================================
+
+    try {
+
+        binding.contentMain.webview.evaluateJavascript(
+            """
+
+(function() {
+
+    try {
+
+        window.__gelMediaResults =
+            [];
+
+        window.__gelLastResults =
+            [];
+
+        window.__gelDetectedUrls =
+            {};
+
+        window.__gelScanCounter =
+            0;
+
+        console.log(
+            "GEL_DETECTION_STATE_CLEARED"
+        );
+
+    } catch(e) {}
+
+})();
+
+            """.trimIndent(),
+            null
+        )
+
+    } catch (_: Throwable) {}
+
+    Toast.makeText(
+        this,
+        "Cleared",
+        Toast.LENGTH_SHORT
+    ).show()
 }
 
 // =====================================
