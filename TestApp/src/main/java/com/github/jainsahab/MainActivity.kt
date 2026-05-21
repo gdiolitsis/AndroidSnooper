@@ -2659,6 +2659,112 @@ else -> false
 } // END onCreate()
 
 // =====================================
+// SAVE YOUTUBE WATCH FROM ANY URL
+// =====================================
+
+private fun saveYouTubeWatchFromUrl(
+    rawUrl: String
+) {
+
+    try {
+
+        val cleaned =
+            rawUrl
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .replace("&amp;", "&")
+                .trim()
+
+        val lower =
+            cleaned.lowercase()
+
+        val uri =
+            Uri.parse(cleaned)
+
+        var videoId =
+            ""
+
+        when {
+
+            lower.contains("youtube.com/watch") -> {
+
+                videoId =
+                    uri.getQueryParameter("v")
+                        .orEmpty()
+            }
+
+            lower.contains("youtube.com/embed/") -> {
+
+                videoId =
+                    uri.path
+                        ?.substringAfterLast("/")
+                        ?.substringBefore("?")
+                        ?.substringBefore("&")
+                        ?.trim()
+                        .orEmpty()
+            }
+
+            lower.contains("youtu.be/") -> {
+
+                videoId =
+                    uri.path
+                        ?.trimStart('/')
+                        ?.substringBefore("?")
+                        ?.substringBefore("&")
+                        ?.trim()
+                        .orEmpty()
+            }
+
+            else -> {
+                videoId = ""
+            }
+        }
+
+        if (videoId.isBlank()) {
+            return
+        }
+
+        val watchUrl =
+            "https://www.youtube.com/watch?v=$videoId"
+
+        youtubeWatchUrl =
+            watchUrl
+
+        if (
+            !detectedStreams.contains(
+                watchUrl
+            )
+        ) {
+
+            detectedStreams.add(
+                watchUrl
+            )
+
+            detectedVideos.add(
+                watchUrl
+            )
+
+            streamScores[watchUrl] =
+                9999
+
+            markStreamSource(
+                watchUrl,
+                "YOUTUBE_WATCH"
+            )
+
+            streamValidation[watchUrl] =
+                "YOUTUBE WATCH"
+
+            Log.e(
+                "YOUTUBE_WATCH_SAVED",
+                watchUrl
+            )
+        }
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
 // ENABLE PAGE TEXT SELECTION
 // =====================================
 
@@ -2729,6 +2835,14 @@ private fun handleInterceptedMediaUrl(
 
         val lower =
             url.lowercase()
+            
+// =====================================
+// EARLY YOUTUBE WATCH SAVE
+// =====================================
+
+saveYouTubeWatchFromUrl(
+    url
+)
 
         // =====================================
         // NETWORK MEDIA DETECTION
@@ -8801,6 +8915,14 @@ val cleanedUrl =
         .replace("\\u0026", "&")
         .replace("\\/", "/")
         .trim()
+        
+// =====================================
+// EARLY YOUTUBE WATCH SAVE
+// =====================================
+
+saveYouTubeWatchFromUrl(
+    cleanedUrl
+)
         
 // =====================================
 // EARLY YOUTUBE WATCH URL EXTRACT
