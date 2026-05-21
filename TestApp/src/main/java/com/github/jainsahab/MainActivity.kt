@@ -2662,6 +2662,10 @@ else -> false
 // SAVE YOUTUBE WATCH FROM ANY URL
 // =====================================
 
+// =====================================
+// SAVE YOUTUBE WATCH FROM ANY URL
+// =====================================
+
 private fun saveYouTubeWatchFromUrl(
     rawUrl: String
 ) {
@@ -2675,11 +2679,22 @@ private fun saveYouTubeWatchFromUrl(
                 .replace("&amp;", "&")
                 .trim()
 
+        if (cleaned.isBlank()) {
+            return
+        }
+
+        val decoded =
+            try {
+                Uri.decode(cleaned)
+            } catch (_: Throwable) {
+                cleaned
+            }
+
         val lower =
-            cleaned.lowercase()
+            decoded.lowercase()
 
         val uri =
-            Uri.parse(cleaned)
+            Uri.parse(decoded)
 
         var videoId =
             ""
@@ -2704,11 +2719,36 @@ private fun saveYouTubeWatchFromUrl(
                         .orEmpty()
             }
 
+            lower.contains("youtube.com/live/") -> {
+
+                videoId =
+                    uri.path
+                        ?.substringAfter("/live/")
+                        ?.substringBefore("/")
+                        ?.substringBefore("?")
+                        ?.substringBefore("&")
+                        ?.trim()
+                        .orEmpty()
+            }
+
+            lower.contains("youtube.com/shorts/") -> {
+
+                videoId =
+                    uri.path
+                        ?.substringAfter("/shorts/")
+                        ?.substringBefore("/")
+                        ?.substringBefore("?")
+                        ?.substringBefore("&")
+                        ?.trim()
+                        .orEmpty()
+            }
+
             lower.contains("youtu.be/") -> {
 
                 videoId =
                     uri.path
                         ?.trimStart('/')
+                        ?.substringBefore("/")
                         ?.substringBefore("?")
                         ?.substringBefore("&")
                         ?.trim()
@@ -2716,11 +2756,24 @@ private fun saveYouTubeWatchFromUrl(
             }
 
             else -> {
-                videoId = ""
+
+                videoId =
+                    uri.getQueryParameter("video_id")
+                        ?: uri.getQueryParameter("docid")
+                        ?: ""
             }
         }
 
-        if (videoId.isBlank()) {
+        // =====================================
+        // STRICT YOUTUBE VIDEO ID CHECK
+        // =====================================
+
+        val isValidYouTubeId =
+            videoId.matches(
+                Regex("^[A-Za-z0-9_-]{11}$")
+            )
+
+        if (!isValidYouTubeId) {
             return
         }
 
@@ -7384,16 +7437,20 @@ return JSON.stringify(results);
                 for (i in 0 until jsonArray.length()) {
 
     val foundUrl =
-        jsonArray.getString(i)
+    jsonArray.getString(i)
 
-    markStreamSource(
-        foundUrl,
-        "JS"
-    )
+saveYouTubeWatchFromUrl(
+    foundUrl
+)
 
-    detectAndSaveUrl(
-        foundUrl
-    )
+markStreamSource(
+    foundUrl,
+    "JS"
+)
+
+detectAndSaveUrl(
+    foundUrl
+)
 }
 
             } catch (t: Throwable) {
