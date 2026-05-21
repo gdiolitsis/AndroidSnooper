@@ -1469,15 +1469,11 @@ binding.contentMain.result.text =
 
 try {
 
-    binding.contentMain.webview.clearCache(
-        true
-    )
+    try {
 
-    binding.contentMain.webview.clearHistory()
+    binding.contentMain.webview.stopLoading()
 
-    android.webkit.WebStorage
-        .getInstance()
-        .deleteAllData()
+    binding.contentMain.webview.clearMatches()
 
     CookieManager
         .getInstance()
@@ -1631,15 +1627,14 @@ try {
 
 binding.contentMain.urlInput.clearFocus()  
 
-// =====================================  
-// LOAD PAGE  
-// =====================================  
+// =====================================
+// LOAD PAGE
+// =====================================
 
 binding.contentMain.webview.loadUrl(
     finalUrl,
     mapOf(
-        "Cache-Control" to "no-cache",
-        "Pragma" to "no-cache"
+        "Cache-Control" to "no-cache"
     )
 )
 
@@ -3366,6 +3361,22 @@ private fun runDeepMediaScan(
 
     try {
 
+        if (view == null) {
+            return
+        }
+
+        val now =
+            System.currentTimeMillis()
+
+        if (
+            now - lastDeepScanTime < 3500L
+        ) {
+            return
+        }
+
+        lastDeepScanTime =
+            now
+
         val js =
             """
 
@@ -3386,14 +3397,18 @@ function gelPush(url) {
         }
 
         url =
-            String(url);
+            String(url)
+                .trim();
+
+        if (!url) {
+            return;
+        }
 
         results.push(url);
         window.__gelMediaResults.push(url);
 
     } catch(e) {}
 }
-
 
 // =====================================
 // VIDEO / AUDIO / SOURCE / IMG / IFRAME
