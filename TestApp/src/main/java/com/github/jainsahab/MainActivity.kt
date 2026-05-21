@@ -1225,6 +1225,11 @@ override fun onPageFinished(
                 view
             )
 
+        }
+
+    } catch (_: Throwable) {}
+}
+            
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
 // =====================================
@@ -6022,17 +6027,26 @@ try {
 
         window.__gelFetchResponseHook = true;
 
-        const originalFetch =
+        const gelPreviousFetch =
             window.fetch;
 
         window.fetch =
             async function() {
 
-                const response =
-                    await originalFetch.apply(
-                        this,
-                        arguments
-                    );
+                let response;
+
+                try {
+
+                    response =
+                        await gelPreviousFetch.apply(
+                            this,
+                            arguments
+                        );
+
+                } catch(e) {
+
+                    throw e;
+                }
 
                 try {
 
@@ -7711,11 +7725,18 @@ private fun autoValidateStream(
     url: String
 ) {
 
-    if (
-        streamValidation.containsKey(url)
-    ) {
-        return
-    }
+val existingValidation =
+    streamValidation[url]
+        .orEmpty()
+
+if (
+    existingValidation.isNotBlank() &&
+    !existingValidation.contains("FOUND") &&
+    !existingValidation.contains("AUTO TEST") &&
+    !existingValidation.contains("ERROR")
+) {
+    return
+}
 
 // =====================================
 // SILENT PREFETCH
@@ -7917,8 +7938,16 @@ fetch($safeUrl)
                         e: IOException
                     ) {
 
-                        streamValidation[url] =
-                            "❌ DEAD"
+streamValidation[url] =
+    "❌ DEAD"
+
+streamValidation[
+    url
+        .replace("\\u0026", "&")
+        .replace("\\/", "/")
+        .trim()
+] =
+    "❌ DEAD"
 
                         uiHandler.removeCallbacks(
                             refreshRunnable
@@ -8280,8 +8309,11 @@ val result =
             "⚠ UNKNOWN"
     }
 
-                            streamValidation[url] =
-                                result
+streamValidation[url] =
+    result
+
+streamValidation[cleanedUrl] =
+    result
 
                             uiHandler.removeCallbacks(
                                 refreshRunnable
@@ -8294,8 +8326,16 @@ val result =
 
                         } catch (_: Throwable) {
 
-                            streamValidation[url] =
-                                "⚠ ERROR"
+streamValidation[url] =
+    "⚠ ERROR"
+
+streamValidation[
+    url
+        .replace("\\u0026", "&")
+        .replace("\\/", "/")
+        .trim()
+] =
+    "⚠ ERROR"
 
                             uiHandler.removeCallbacks(
                                 refreshRunnable
@@ -9736,8 +9776,11 @@ try {
 
     if (tokenParts.isNotEmpty()) {
 
-        streamTokens[cleanedUrl] =
-            tokenParts
+        streamTokens[savedUrl] =
+    tokenParts
+
+streamTokens[cleanedUrl] =
+    tokenParts
 
         Log.e(
             "TOKEN_FORENSICS",
@@ -10158,7 +10201,6 @@ detectedStreams.add(savedUrl)
 try {
 
     val source =
-
         when {
 
             lower.contains(".m3u8") ->
@@ -10168,7 +10210,7 @@ try {
                 "DASH"
 
             lower.contains(".ts") ||
-            lower.contains(".m4s") ->
+                lower.contains(".m4s") ->
                 "SEGMENT"
 
             lower.contains("blob:") ->
@@ -10191,6 +10233,11 @@ try {
         }
 
     markStreamSource(
+        savedUrl,
+        source
+    )
+
+    markStreamSource(
         cleanedUrl,
         source
     )
@@ -10204,25 +10251,8 @@ try {
 streamScores[savedUrl] =
     streamPriority
 
-// =====================================
-// AUTO VALIDATE STREAM
-// =====================================
-
-if (
-    (
-        lower.contains(".m3u8") ||
-        lower.contains(".mpd")
-    ) &&
-
-    !streamValidation.containsKey(
-        cleanedUrl
-    )
-
-) {
-
-    streamValidation[cleanedUrl] =
-        "FOUND"
-}
+streamScores[cleanedUrl] =
+    streamPriority
 
 // =====================================
 // MEDIA TYPES
@@ -10245,54 +10275,70 @@ if (isMasterStream) {
 }
 
 // =====================================
-// AUTO TEST HIGH PRIORITY STREAMS
+// AUTO VALIDATE STREAM
 // =====================================
 
 try {
 
     if (
-
         lower.contains(".m3u8") ||
         lower.contains(".mpd")
-
     ) {
 
+        val currentValidation =
+            streamValidation[cleanedUrl]
+                .orEmpty()
+
+        if (
+            currentValidation.isBlank()
+        ) {
+
+            streamValidation[savedUrl] =
+                "FOUND"
+
+            streamValidation[cleanedUrl] =
+                "FOUND"
+        }
+
         val score =
-    streamScores[savedUrl]
-        ?: 0
+            streamScores[savedUrl]
+                ?: 0
 
-        if (score >= 900) {
+        if (
+            score >= 900 &&
+            (
+                currentValidation.isBlank() ||
+                    currentValidation.contains("FOUND") ||
+                    currentValidation.contains("AUTO TEST") ||
+                    currentValidation.contains("ERROR")
+            )
+        ) {
 
-            if (
-                !streamValidation.containsKey(
-                    cleanedUrl
-                )
-            ) {
+            streamValidation[savedUrl] =
+                "⏳ AUTO TEST"
 
-                streamValidation[cleanedUrl] =
-                    "⏳ AUTO TEST"
+            streamValidation[cleanedUrl] =
+                "⏳ AUTO TEST"
 
-                autoValidateStream(
-                    cleanedUrl
-                )
-            }
+            autoValidateStream(
+                cleanedUrl
+            )
         }
     }
 
 } catch (_: Throwable) {}
 
-// =====================================  
-// QUALITY  
-// =====================================  
+// =====================================
+// QUALITY
+// =====================================
 
 val streamQuality =
-
     streamResolution[cleanedUrl]
-
+        ?: streamResolution[savedUrl]
         ?: when {
 
             lower.contains("2160p") ||
-            lower.contains("4k") ->
+                lower.contains("4k") ->
                 "4K"
 
             lower.contains("1440p") ->
@@ -10323,7 +10369,7 @@ val streamQuality =
                 "144p"
 
             lower.contains("hevc") ||
-            lower.contains("h265") ->
+                lower.contains("h265") ->
                 "HEVC"
 
             lower.contains("av1") ->
@@ -10434,12 +10480,12 @@ if (isYoutubeDashAudioOnly) {
     )
 }
 
+// =====================================
+// BADGE
+// =====================================
+
 val streamBadge =
     when {
-
-        // =====================================
-        // EURONEWS SOURCES
-        // =====================================
 
         isEuronewsLiveApi ->
             "🟡 EURONEWS LIVE API"
@@ -10452,10 +10498,6 @@ val streamBadge =
 
         isEuronewsLivePage ->
             "🟡 EURONEWS LIVE PAGE"
-
-        // =====================================
-        // YOUTUBE LIVE / DASH
-        // =====================================
 
         lower.contains("googlevideo.com") &&
             lower.contains("source=yt_live_broadcast") &&
@@ -10470,11 +10512,11 @@ val streamBadge =
             "🔴 YOUTUBE LIVE AUDIO"
 
         lower.contains("googlevideo.com") &&
-    lower.contains("source=yt_live_broadcast") &&
-    lower.contains("live=1") &&
-    !lower.contains("mime=video") &&
-    !lower.contains("mime=audio") ->
-    "🔴 YOUTUBE LIVE ENDPOINT"
+            lower.contains("source=yt_live_broadcast") &&
+            lower.contains("live=1") &&
+            !lower.contains("mime=video") &&
+            !lower.contains("mime=audio") ->
+            "🔴 YOUTUBE LIVE ENDPOINT"
 
         isYoutubeDashVideoOnly ->
             "🟠 YOUTUBE DASH VIDEO ONLY"
@@ -10486,10 +10528,6 @@ val streamBadge =
             lower.contains("youtu.be/") ->
             "🔴 YOUTUBE WATCH"
 
-        // =====================================
-        // JWPLAYER / HOSTED VOD
-        // =====================================
-
         lower.contains("jwpsrv.com") ||
             lower.contains("jwplayer") ||
             (
@@ -10498,26 +10536,22 @@ val streamBadge =
             ) ->
             "🎬 JWPLAYER VOD"
 
-        // =====================================
-        // MEDIA TYPES
-        // =====================================
-
         lower.contains(".m3u8") &&
-    (
-        lower.contains("token") ||
-            lower.contains("auth") ||
-            lower.contains("signature") ||
-            lower.contains("sig=") ||
-            lower.contains("expires") ||
-            lower.contains("expire=") ||
-            lower.contains("key=") ||
-            lower.contains("x-plex-token") ||
-            lower.contains("session")
-    ) ->
-    "📺 TOKENIZED HLS"
+            (
+                lower.contains("token") ||
+                    lower.contains("auth") ||
+                    lower.contains("signature") ||
+                    lower.contains("sig=") ||
+                    lower.contains("expires") ||
+                    lower.contains("expire=") ||
+                    lower.contains("key=") ||
+                    lower.contains("x-plex-token") ||
+                    lower.contains("session")
+            ) ->
+            "📺 TOKENIZED HLS"
 
-lower.contains(".m3u8") ->
-    "📺 HLS"
+        lower.contains(".m3u8") ->
+            "📺 HLS"
 
         lower.contains(".mpd") ->
             "📡 DASH"
@@ -10601,7 +10635,7 @@ val cdnType =
         else ->
             "Generic CDN"
     }
-    
+
 // =====================================
 // EXTRA PLAYABLE LINKS
 // =====================================
@@ -10657,7 +10691,7 @@ lastSelectedUrl =
 
 val hasYoutubeDashPair =
     youtubeDashVideoUrl.isNotBlank() &&
-    youtubeDashAudioUrl.isNotBlank()
+        youtubeDashAudioUrl.isNotBlank()
 
 val dashPairNote =
     if (hasYoutubeDashPair) {
@@ -10671,7 +10705,7 @@ val dashPairNote =
 
 val forensicNote =
     when {
-    
+
         isYoutubeLiveDash &&
             !isYoutubeHlsManifest ->
             "\nℹ️ YouTube live detected — direct HLS .m3u8 not exposed. Use Watch URL / DASH evidence."
@@ -10701,7 +10735,7 @@ val forensicNote =
 
 try {
 
-    streamInfoSnapshots[cleanedUrl] =
+    val snapshot =
         StreamInfoSnapshot(
             url = cleanedUrl,
             badge = streamBadge,
@@ -10718,6 +10752,12 @@ try {
             bestStream = bestStreamUrl,
             bestLive = bestLiveUrl
         )
+
+    streamInfoSnapshots[savedUrl] =
+        snapshot
+
+    streamInfoSnapshots[cleanedUrl] =
+        snapshot
 
 } catch (_: Throwable) {}
 
