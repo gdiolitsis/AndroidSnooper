@@ -1224,13 +1224,42 @@ override fun onPageFinished(
                 view
             )
 
-            // =====================================
-            // DEEP MEDIA SCAN
-            // =====================================
+// =====================================
+// DEEP MEDIA SCAN
+// =====================================
 
-            runDeepMediaScan(
-                view
-            )
+runDeepMediaScan(
+    view
+)
+
+// =====================================
+// DELAYED LIGHT RESCAN FOR JS PLAYERS
+// =====================================
+
+binding.contentMain.webview.postDelayed(
+    {
+
+        try {
+
+            if (
+                view != null &&
+                !isFinishing &&
+                !isDestroyed
+            ) {
+
+                lastDeepScanTime =
+                    0L
+
+                runDeepMediaScan(
+                    view
+                )
+            }
+
+        } catch (_: Throwable) {}
+
+    },
+    2500
+)
             
 binding.contentMain.webview.postDelayed(
     {
