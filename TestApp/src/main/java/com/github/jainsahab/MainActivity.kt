@@ -212,11 +212,18 @@ private var youtubeWatchUrl =
 private val streamValidation =
     linkedMapOf<String, String>()
   
-private var monitorRunning =  
-false  
-  
-private var autoRefreshEnabled =  
-false  
+private var monitorRunning =
+    false
+
+private var autoRefreshEnabled =
+    false
+
+// =====================================
+// DEEP SCAN TIMER
+// =====================================
+
+private var lastDeepScanTime =
+    0L
 
 private var lastTouchX = 0f
 private var lastTouchY = 0f
