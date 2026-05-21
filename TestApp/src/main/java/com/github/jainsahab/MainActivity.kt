@@ -7694,54 +7694,6 @@ $cleanedUrl
     }
 }
 
-// =====================================  
-// REQUEST  
-// =====================================  
-
-val builder =  
-    Request.Builder()  
-        .url(cleanedUrl)  
-        .get()  
-
-streamHeaders[cleanedUrl]
-    ?.toMap()
-    ?.forEach { (k, v) ->
-
-        builder.header(k, v)  
-    }  
-
-builder.header(  
-    "User-Agent",  
-    binding.contentMain.webview  
-        .settings  
-        .userAgentString  
-)  
-
-builder.header(  
-    "Referer",  
-    binding.contentMain.webview.url  
-        ?: cleanedUrl  
-)  
-
-builder.header(  
-    "Origin",  
-    binding.contentMain.webview.url  
-        ?: cleanedUrl  
-)  
-
-builder.header(  
-    "Accept",  
-    "*/*"  
-)  
-
-builder.header(  
-    "Connection",  
-    "keep-alive"  
-)  
-
-val request =  
-    builder.build()  
-
 // =====================================
 // EXECUTE
 // =====================================
@@ -8045,64 +7997,7 @@ private fun autoValidateStream(
     ) {
         return
     }
-    
-// =====================================
-// MANIFEST EXPANSION
-// =====================================
 
-try {
-
-    if (
-        url.contains(".m3u8")
-    ) {
-
-        val base =
-            url.substringBeforeLast("/")
-
-        listOf(
-
-            "master.m3u8",
-            "index.m3u8",
-            "live.m3u8",
-            "playlist.m3u8",
-            "chunklist.m3u8",
-            "index_1.m3u8",
-            "index_2.m3u8",
-            "index-a1.m3u8",
-            "index-v1.m3u8"
-
-        ).forEach { candidate ->
-
-            try {
-
-                val finalUrl =
-                    "$base/$candidate"
-
-                if (
-                    !detectedStreams.contains(finalUrl)
-                ) {
-
-                    detectedStreams.add(finalUrl)
-
-                    detectedVideos.add(finalUrl)
-
-                    streamScores[finalUrl] =
-                        920
-
-                    detectAndSaveUrl(
-                        finalUrl
-                    )
-                }
-
-            } catch (_: Throwable) {}
-        }
-    }
-
-} catch (_: Throwable) {}
-
-    streamValidation[url] =
-        "⏳ TESTING"
-        
 // =====================================
 // SILENT PREFETCH
 // =====================================
@@ -8158,91 +8053,139 @@ fetch($safeUrl)
 
     try {
 
+        val cleanedUrl =
+            url
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .trim()
+
+        // =====================================
+        // REQUEST
+        // =====================================
+
+        val pageUrl =
+            binding.contentMain.webview.url
+                ?: cleanedUrl
+
+        val originUrl =
+            try {
+
+                val pageUri =
+                    Uri.parse(pageUrl)
+
+                val scheme =
+                    pageUri.scheme
+                        ?: "https"
+
+                val host =
+                    pageUri.host
+                        ?: ""
+
+                if (host.isNotBlank()) {
+                    "$scheme://$host"
+                } else {
+                    pageUrl
+                }
+
+            } catch (_: Throwable) {
+
+                pageUrl
+            }
+
         val builder =
-    Request.Builder()
-        .url(url)
-        .get()
+            Request.Builder()
+                .url(cleanedUrl)
+                .get()
 
-// =====================================
-// REPLAY HEADERS
-// =====================================
+        // =====================================
+        // REPLAY HEADERS
+        // =====================================
 
-streamHeaders[url]
-    ?.forEach { (k, v) ->
+        streamHeaders[cleanedUrl]
+            ?.toMap()
+            ?.forEach { (k, v) ->
+
+                try {
+
+                    if (
+                        k.isNotBlank() &&
+                        v.isNotBlank() &&
+                        !k.equals(
+                            "Accept-Encoding",
+                            true
+                        )
+                    ) {
+
+                        builder.header(
+                            k,
+                            v
+                        )
+                    }
+
+                } catch (_: Throwable) {}
+            }
+
+        // =====================================
+        // FALLBACK HEADERS
+        // =====================================
+
+        builder.header(
+            "User-Agent",
+            binding.contentMain.webview
+                .settings
+                .userAgentString
+        )
+
+        builder.header(
+            "Referer",
+            pageUrl
+        )
+
+        builder.header(
+            "Origin",
+            originUrl
+        )
+
+        builder.header(
+            "Accept",
+            "*/*"
+        )
+
+        builder.header(
+            "Connection",
+            "keep-alive"
+        )
+
+        // =====================================
+        // COOKIE REPLAY
+        // =====================================
 
         try {
 
+            val cookies =
+                CookieManager
+                    .getInstance()
+                    .getCookie(cleanedUrl)
+
             if (
-
-                !k.equals(
-                    "Accept-Encoding",
-                    true
-                )
-
+                !cookies.isNullOrBlank()
             ) {
 
-                builder.header(k, v)
+                builder.header(
+                    "Cookie",
+                    cookies
+                )
+
+                Log.e(
+                    "COOKIE_REPLAY",
+                    cookies
+                )
             }
 
         } catch (_: Throwable) {}
-    }
 
-// =====================================
-// FALLBACK HEADERS
-// =====================================
-
-builder.header(
-    "User-Agent",
-    binding.contentMain.webview
-        .settings
-        .userAgentString
-)
-
-builder.header(
-    "Referer",
-    binding.contentMain.webview.url
-        ?: url
-)
-
-builder.header(
-    "Origin",
-    binding.contentMain.webview.url
-        ?: url
-)
-
-// =====================================
-// COOKIE REPLAY
-// =====================================
-
-try {
-
-    val cookies =
-
-        CookieManager
-            .getInstance()
-            .getCookie(url)
-
-    if (
-
-        !cookies.isNullOrBlank()
-
-    ) {
-
-        builder.header(
-            "Cookie",
-            cookies
-        )
-
-        Log.e(
-            "COOKIE_REPLAY",
-            cookies
-        )
-    }
-
-} catch (_: Throwable) {}
-
-val request =
-    builder.build()
+        val request =
+            builder.build()
 
         okHttpClient
             .newCall(request)
