@@ -1229,7 +1229,9 @@ override fun onPageFinished(
 
     } catch (_: Throwable) {}
 }
-            
+
+} // END WebViewClient
+
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
 // =====================================
