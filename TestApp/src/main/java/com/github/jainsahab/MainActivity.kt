@@ -1231,6 +1231,32 @@ override fun onPageFinished(
             runDeepMediaScan(
                 view
             )
+            
+binding.contentMain.webview.postDelayed(
+    {
+        try {
+
+            runDeepMediaScan(
+                view
+            )
+
+        } catch (_: Throwable) {}
+    },
+    2500
+)
+
+binding.contentMain.webview.postDelayed(
+    {
+        try {
+
+            runDeepMediaScan(
+                view
+            )
+
+        } catch (_: Throwable) {}
+    },
+    6000
+)
 
         }
 
@@ -1345,19 +1371,187 @@ binding.contentMain.webview.webChromeClient =
 
 binding.contentMain.openBrowser.setOnClickListener {
 
-detectedStreams.clear()  
+detectedStreams.clear()
 
-detectedVideos.clear()  
+detectedVideos.clear()
 
-detectedImages.clear()  
+detectedImages.clear()
 
-detectedAudio.clear()  
+detectedAudio.clear()
 
-detectedMasterStreams.clear()  
+detectedMasterStreams.clear()
 
-detectedChannels.clear()  
+detectedChannels.clear()
 
-binding.contentMain.result.text = ""  
+streamScores.clear()
+
+streamValidation.clear()
+
+streamSources.clear()
+
+streamHeaders.clear()
+
+streamTokens.clear()
+
+streamResolution.clear()
+
+streamBandwidth.clear()
+
+streamCodec.clear()
+
+streamInfoSnapshots.clear()
+
+streamHitCounter.clear()
+
+blobRelations.clear()
+
+manifestRelations.clear()
+
+liveHeartbeatMap.clear()
+
+bestStreamUrl =
+    ""
+
+bestStreamScore =
+    0
+
+bestLiveUrl =
+    ""
+
+bestLiveScore =
+    0
+
+youtubeEmbedUrl =
+    ""
+
+youtubeWatchUrl =
+    ""
+
+youtubeDashVideoUrl =
+    ""
+
+youtubeDashAudioUrl =
+    ""
+
+youtubeDashVideoItag =
+    ""
+
+youtubeDashAudioItag =
+    ""
+
+bestVideoItag =
+    0
+
+bestAudioItag =
+    0
+
+liveLocked =
+    false
+
+lockedStreamId =
+    ""
+
+lastSelectedUrl =
+    ""
+
+lastDeepScanTime =
+    0L
+
+monitorRunning =
+    false
+
+binding.contentMain.result.text =
+    ""
+
+// =====================================
+// RESET WEBVIEW CACHE / JS MEMORY
+// =====================================
+
+try {
+
+    binding.contentMain.webview.clearCache(
+        true
+    )
+
+    binding.contentMain.webview.clearHistory()
+
+    android.webkit.WebStorage
+        .getInstance()
+        .deleteAllData()
+
+    CookieManager
+        .getInstance()
+        .flush()
+
+} catch (_: Throwable) {}
+
+try {
+
+    binding.contentMain.webview.evaluateJavascript(
+        """
+
+(function() {
+
+    try {
+
+        window.__gelMediaResults =
+            [];
+
+        window.__gelLastResults =
+            [];
+
+        window.__gelDetectedUrls =
+            {};
+
+        window.__gelScanCounter =
+            0;
+
+        window.__gelFetchHooked =
+            false;
+
+        window.__gelFetchResponseHook =
+            false;
+
+        window.__gelXHRResponseHook =
+            false;
+
+        window.__gelPerformanceObserverHooked =
+            false;
+
+        window.__gelMutationMediaHooked =
+            false;
+
+        window.__gelMediaAttributeHooked =
+            false;
+
+        window.__gelBlobHooked =
+            false;
+
+        window.__gelMSEHooked =
+            false;
+
+        window.__gelSourceBufferHooked =
+            false;
+
+        window.__gelWorkerHooked =
+            false;
+
+        window.__gelWebSocketHooked =
+            false;
+
+        console.log(
+            "GEL_FULL_DETECTION_RESET"
+        );
+
+    } catch(e) {}
+
+})();
+
+        """.trimIndent(),
+        null
+    )
+
+} catch (_: Throwable) {}
 
 val enteredText =  
     binding.contentMain.urlInput  
@@ -1441,8 +1635,12 @@ binding.contentMain.urlInput.clearFocus()
 // LOAD PAGE  
 // =====================================  
 
-binding.contentMain.webview.loadUrl(  
-    finalUrl  
+binding.contentMain.webview.loadUrl(
+    finalUrl,
+    mapOf(
+        "Cache-Control" to "no-cache",
+        "Pragma" to "no-cache"
+    )
 )
 
 }
@@ -9574,6 +9772,39 @@ if (currentHits >= 3) {
 if (
     detectedStreams.contains(savedUrl)
 ) {
+
+    streamHitCounter[savedUrl] =
+        (streamHitCounter[savedUrl] ?: 0) + 1
+
+    lastSelectedUrl =
+        cleanedUrl
+
+    if (
+        cleanedUrl.contains(".m3u8", true) ||
+        cleanedUrl.contains(".mpd", true) ||
+        cleanedUrl.contains("youtube.com/watch", true) ||
+        cleanedUrl.contains("youtu.be/", true)
+    ) {
+
+        markStreamSource(
+            savedUrl,
+            "REVISIT"
+        )
+
+        markStreamSource(
+            cleanedUrl,
+            "REVISIT"
+        )
+
+        streamValidation[savedUrl] =
+            streamValidation[savedUrl]
+                ?: "REVISIT"
+
+        streamValidation[cleanedUrl] =
+            streamValidation[cleanedUrl]
+                ?: "REVISIT"
+    }
+
     return
 }
 
