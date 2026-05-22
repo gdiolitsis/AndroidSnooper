@@ -113,6 +113,232 @@ private var liveLocked = false
 private var lockedStreamId = ""
 
 // =====================================
+// SAVED CHANNELS / FAVORITES
+// =====================================
+
+data class SavedChannel(
+    val name: String,
+    val url: String,
+    val logo: String,
+    val group: String
+)
+
+private val savedChannels =
+    mutableListOf<SavedChannel>()
+
+private val savedChannelsPrefsName =
+    "gel_saved_channels"
+
+private val savedChannelsKey =
+    "channels_json"
+
+// =====================================
+// LOAD SAVED CHANNELS
+// =====================================
+
+private fun loadSavedChannels() {
+
+    try {
+
+        savedChannels.clear()
+
+        val prefs =
+            getSharedPreferences(
+                savedChannelsPrefsName,
+                MODE_PRIVATE
+            )
+
+        val raw =
+            prefs.getString(
+                savedChannelsKey,
+                "[]"
+            ) ?: "[]"
+
+        val array =
+            org.json.JSONArray(raw)
+
+        for (i in 0 until array.length()) {
+
+            try {
+
+                val obj =
+                    array.getJSONObject(i)
+
+                val channel =
+                    SavedChannel(
+                        name = obj.optString("name"),
+                        url = obj.optString("url"),
+                        logo = obj.optString("logo"),
+                        group = obj.optString("group")
+                    )
+
+                if (
+                    channel.url.isNotBlank() &&
+                    isExportableStream(channel.url)
+                ) {
+
+                    savedChannels.add(
+                        channel
+                    )
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
+// SAVE SAVED CHANNELS
+// =====================================
+
+private fun persistSavedChannels() {
+
+    try {
+
+        val array =
+            org.json.JSONArray()
+
+        savedChannels.forEach { channel ->
+
+            try {
+
+                val obj =
+                    org.json.JSONObject()
+
+                obj.put(
+                    "name",
+                    channel.name
+                )
+
+                obj.put(
+                    "url",
+                    channel.url
+                )
+
+                obj.put(
+                    "logo",
+                    channel.logo
+                )
+
+                obj.put(
+                    "group",
+                    channel.group
+                )
+
+                array.put(
+                    obj
+                )
+
+            } catch (_: Throwable) {}
+        }
+
+        getSharedPreferences(
+            savedChannelsPrefsName,
+            MODE_PRIVATE
+        )
+            .edit()
+            .putString(
+                savedChannelsKey,
+                array.toString()
+            )
+            .apply()
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
+// ADD SAVED CHANNEL
+// =====================================
+
+private fun addSavedChannel(
+    url: String
+) {
+
+    try {
+
+        val cleanUrl =
+            url
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .replace("&amp;", "&")
+                .trim()
+
+        if (
+            cleanUrl.isBlank() ||
+            !isExportableStream(cleanUrl)
+        ) {
+            return
+        }
+
+        val exists =
+            savedChannels.any { channel ->
+
+                channel.url == cleanUrl
+            }
+
+        if (exists) {
+            return
+        }
+
+        val channelName =
+            buildChannelName(
+                cleanUrl
+            )
+
+        val logoUrl =
+            buildLogoUrl(
+                cleanUrl
+            )
+
+        val lower =
+            cleanUrl.lowercase()
+
+        val group =
+            when {
+
+                lower.contains(".mp3") ||
+                    lower.contains(".m4a") ||
+                    lower.contains(".aac") ||
+                    lower.contains(".opus") ||
+                    lower.contains(".wav") ||
+                    lower.contains(".ogg") ||
+                    lower.contains(".flac") ->
+                    "Audio"
+
+                lower.contains(".mp4") ||
+                    lower.contains(".webm") ||
+                    lower.contains(".mkv") ||
+                    lower.contains(".mov") ||
+                    lower.contains(".avi") ||
+                    lower.contains(".3gp") ->
+                    "Static Videos"
+
+                else ->
+                    "Live Streams"
+            }
+
+        savedChannels.add(
+            SavedChannel(
+                name = channelName,
+                url = cleanUrl,
+                logo = logoUrl,
+                group = group
+            )
+        )
+
+        persistSavedChannels()
+
+        Toast.makeText(
+            this,
+            "Channel saved",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
 // STREAM INFO SNAPSHOTS
 // =====================================
 
@@ -426,6 +652,8 @@ override fun onCreate(
 binding.root
 
 )
+
+loadSavedChannels()
 
 window.setSoftInputMode(
     android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
@@ -2622,6 +2850,28 @@ binding.contentMain.exportM3u.setOnClickListener {
                 youtubeDashAudioUrl
             )
         }
+        
+// =====================================
+// ADD SAVED CHANNELS / FAVORITES
+// =====================================
+
+try {
+
+    loadSavedChannels()
+
+    savedChannels.forEach { channel ->
+
+        if (
+            channel.url.isNotBlank()
+        ) {
+
+            exportUrls.add(
+                channel.url
+            )
+        }
+    }
+
+} catch (_: Throwable) {}
 
         // =====================================
         // CLEAN + FILTER EXPORTABLE ONLY
@@ -2739,42 +2989,64 @@ binding.contentMain.exportM3u.setOnClickListener {
         streamList
             .forEach { url ->
 
-                val lower =
-                    url.lowercase()
+val lower =
+    url.lowercase()
 
-                val channelName =
-                    buildChannelName(
-                        url
-                    )
+val savedChannel =
+    try {
 
-                val logoUrl =
-                    buildLogoUrl(
-                        url
-                    )
+        savedChannels.firstOrNull { channel ->
 
-                val groupTitle =
-                    when {
+            channel.url == url
+        }
 
-                        lower.contains(".mp3") ||
-                            lower.contains(".m4a") ||
-                            lower.contains(".aac") ||
-                            lower.contains(".opus") ||
-                            lower.contains(".wav") ||
-                            lower.contains(".ogg") ||
-                            lower.contains(".flac") ->
-                            "Audio"
+    } catch (_: Throwable) {
 
-                        lower.contains(".mp4") ||
-                            lower.contains(".webm") ||
-                            lower.contains(".mkv") ||
-                            lower.contains(".mov") ||
-                            lower.contains(".avi") ||
-                            lower.contains(".3gp") ->
-                            "Static Videos"
+        null
+    }
 
-                        else ->
-                            "Live Streams"
-                    }
+val channelName =
+    savedChannel
+        ?.name
+        ?.takeIf { it.isNotBlank() }
+        ?: buildChannelName(
+            url
+        )
+
+val logoUrl =
+    savedChannel
+        ?.logo
+        ?.takeIf { it.isNotBlank() }
+        ?: buildLogoUrl(
+            url
+        )
+
+val groupTitle =
+    savedChannel
+        ?.group
+        ?.takeIf { it.isNotBlank() }
+        ?: when {
+
+            lower.contains(".mp3") ||
+                lower.contains(".m4a") ||
+                lower.contains(".aac") ||
+                lower.contains(".opus") ||
+                lower.contains(".wav") ||
+                lower.contains(".ogg") ||
+                lower.contains(".flac") ->
+                "Audio"
+
+            lower.contains(".mp4") ||
+                lower.contains(".webm") ||
+                lower.contains(".mkv") ||
+                lower.contains(".mov") ||
+                lower.contains(".avi") ||
+                lower.contains(".3gp") ->
+                "Static Videos"
+
+            else ->
+                "Live Streams"
+        }
 
                 sb.append(
                     "#EXTINF:-1 tvg-id=\"$channelName\" tvg-name=\"$channelName\" tvg-logo=\"$logoUrl\" group-title=\"$groupTitle\",$channelName\n"
@@ -3132,6 +3404,7 @@ binding.contentMain.result.setOnLongClickListener { v ->
 popup.menu.add("OPEN PLAYER")
 popup.menu.add("SHARE URL")
 popup.menu.add("COPY URL")
+popup.menu.add("SAVE CHANNEL")
 
 if (bestStreamUrl.isNotBlank()) {
 
@@ -3253,6 +3526,30 @@ popup.setOnMenuItemClickListener { item ->
         ).show()
 
     } catch (_: Throwable) {}
+
+    true
+}
+
+// =====================================
+// SAVE CHANNEL
+// =====================================
+
+"SAVE CHANNEL" -> {
+
+    try {
+
+        addSavedChannel(
+            finalUrl
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Save failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 
     true
 }
@@ -8687,6 +8984,135 @@ $cleanedUrl
         ).show()
     }
 }
+
+// =====================================
+// FETCH HTML FALLBACK BODY
+// YouTube / HLS raw body retry extractor
+// =====================================
+
+private fun fetchHtmlFallbackBody(
+    targetUrl: String,
+    userAgent: String,
+    acceptHeader: String
+): String {
+
+    return try {
+
+        val pageUrl =
+            binding.contentMain.webview.url
+                ?: targetUrl
+
+        val originUrl =
+            try {
+
+                val pageUri =
+                    Uri.parse(pageUrl)
+
+                val scheme =
+                    pageUri.scheme
+                        ?: "https"
+
+                val host =
+                    pageUri.host
+                        ?: ""
+
+                if (host.isNotBlank()) {
+                    "$scheme://$host"
+                } else {
+                    pageUrl
+                }
+
+            } catch (_: Throwable) {
+
+                pageUrl
+            }
+
+        val builder =
+            Request.Builder()
+                .url(targetUrl)
+                .get()
+
+        builder.header(
+            "User-Agent",
+            userAgent
+        )
+
+        builder.header(
+            "Accept",
+            acceptHeader
+        )
+
+        builder.header(
+            "Accept-Language",
+            "en-US,en;q=0.9"
+        )
+
+        builder.header(
+            "Referer",
+            pageUrl
+        )
+
+        builder.header(
+            "Origin",
+            originUrl
+        )
+
+        builder.header(
+            "Cache-Control",
+            "no-cache"
+        )
+
+        builder.header(
+            "Pragma",
+            "no-cache"
+        )
+
+        builder.header(
+            "Connection",
+            "keep-alive"
+        )
+
+        try {
+
+            val cookies =
+                CookieManager
+                    .getInstance()
+                    .getCookie(targetUrl)
+
+            if (!cookies.isNullOrBlank()) {
+
+                builder.header(
+                    "Cookie",
+                    cookies
+                )
+            }
+
+        } catch (_: Throwable) {}
+
+        val request =
+            builder.build()
+
+        okHttpClient
+            .newCall(request)
+            .execute()
+            .use { response ->
+
+                response.body
+                    ?.string()
+                    .orEmpty()
+            }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "HTML_FALLBACK_BODY",
+            "failed",
+            t
+        )
+
+        ""
+    }
+}
     
 // =====================================
 // AUTO VALIDATE STREAM
@@ -9013,6 +9439,110 @@ try {
                                 response.body
                                     ?.string()
                                     .orEmpty()
+                                    
+// =====================================
+// HTML FALLBACK RETRY
+// Android equivalent of curl fallback
+// =====================================
+
+try {
+
+    val hasHlsInBody =
+        body.contains(
+            ".m3u8",
+            true
+        ) ||
+            body.contains(
+                "hls_playlist",
+                true
+            ) ||
+            body.contains(
+                "manifest/hls",
+                true
+            ) ||
+            body.contains(
+                "/api/manifest/hls",
+                true
+            )
+
+    if (
+        isYoutubeWatchValidation &&
+        !hasHlsInBody
+    ) {
+
+        val fallbackBodies =
+            mutableListOf<String>()
+
+        // =====================================
+        // FALLBACK 1 — iPhone Safari
+        // =====================================
+
+        fallbackBodies.add(
+            fetchHtmlFallbackBody(
+                cleanedUrl,
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) " +
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
+                    "Version/17.0 Mobile/15E148 Safari/604.1",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,application/vnd.apple.mpegurl,*/*;q=0.8"
+            )
+        )
+
+        // =====================================
+        // FALLBACK 2 — Android Chrome
+        // =====================================
+
+        fallbackBodies.add(
+            fetchHtmlFallbackBody(
+                cleanedUrl,
+                "Mozilla/5.0 (Linux; Android 13; Mobile) " +
+                    "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                    "Chrome/120.0.0.0 Mobile Safari/537.36",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            )
+        )
+
+        fallbackBodies.forEach { fallbackBody ->
+
+            try {
+
+                if (fallbackBody.isBlank()) {
+                    return@forEach
+                }
+
+                val brutalUrls =
+                    extractBrutalHlsUrlsFromText(
+                        fallbackBody
+                    )
+
+                brutalUrls.forEach { found ->
+
+                    try {
+
+                        markStreamSource(
+                            found,
+                            "HTML_FALLBACK_HLS"
+                        )
+
+                        detectAndSaveUrl(
+                            found
+                        )
+
+                        streamValidation[found] =
+                            "📺 HLS FALLBACK"
+
+                        Log.e(
+                            "HTML_FALLBACK_HLS",
+                            found
+                        )
+
+                    } catch (_: Throwable) {}
+                }
+
+            } catch (_: Throwable) {}
+        }
+    }
+
+} catch (_: Throwable) {}                                   
                                     
 // =====================================
 // CONTENT-BASED MANIFEST DETECTION
