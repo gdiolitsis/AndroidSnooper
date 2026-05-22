@@ -4213,17 +4213,7 @@ private fun saveYouTubeWatchFromUrl(
                         ?.trim()
                         .orEmpty()
             }
-
-            lower.contains("googlevideo.com") ||
-                lower.contains("videoplayback") -> {
-
-                videoId =
-                    uri.getQueryParameter("id")
-                        ?.substringBefore(".")
-                        ?.trim()
-                        .orEmpty()
-            }
-
+            
             else -> {
 
                 videoId =
@@ -4368,11 +4358,21 @@ private fun handleInterceptedMediaUrl(
             
 // =====================================
 // EARLY YOUTUBE WATCH SAVE
+// Do NOT convert googlevideo URLs to YouTube watch
 // =====================================
 
-saveYouTubeWatchFromUrl(
-    url
-)
+if (
+    lower.contains("youtube.com/watch") ||
+    lower.contains("youtube.com/embed/") ||
+    lower.contains("youtube.com/live/") ||
+    lower.contains("youtube.com/shorts/") ||
+    lower.contains("youtu.be/")
+) {
+
+    saveYouTubeWatchFromUrl(
+        url
+    )
+}
 
         // =====================================
         // NETWORK MEDIA DETECTION
