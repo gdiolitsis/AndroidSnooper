@@ -133,6 +133,15 @@
                 android:text="AUDIO" />
 
             <Button
+                android:id="@+id/btnSavedChannels"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:text="SAVED" />
+
+            <Button
                 android:id="@+id/btnClear"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
