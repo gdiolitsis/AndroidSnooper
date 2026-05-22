@@ -4494,51 +4494,71 @@ private fun saveYouTubeWatchFromUrl(
         }
 
         val watchUrl =
-            "https://www.youtube.com/watch?v=$videoId"
+    "https://www.youtube.com/watch?v=$videoId"
 
-        youtubeWatchUrl =
-            watchUrl
+youtubeWatchUrl =
+    watchUrl
 
-        if (
-            !detectedStreams.contains(
-                watchUrl
-            )
-        ) {
+if (
+    !detectedStreams.contains(
+        watchUrl
+    )
+) {
 
-            detectedStreams.add(
-                watchUrl
-            )
-
-            detectedVideos.add(
-                watchUrl
-            )
-
-            streamScores[watchUrl] =
-                9999
-
-            markStreamSource(
-                watchUrl,
-                "YOUTUBE_WATCH"
-            )
-
-            streamValidation[watchUrl] =
-    "YOUTUBE WATCH"
-
-try {
-
-    autoValidateStream(
+    detectedStreams.add(
         watchUrl
     )
 
-} catch (_: Throwable) {}
+    detectedVideos.add(
+        watchUrl
+    )
 
-Log.e(
-    "YOUTUBE_WATCH_SAVED",
-    watchUrl
-)
+    streamScores[watchUrl] =
+        9999
+
+    markStreamSource(
+        watchUrl,
+        "YOUTUBE_WATCH"
+    )
+
+    streamValidation[watchUrl] =
+        "YOUTUBE WATCH"
+
+    try {
+
+        autoValidateStream(
+            watchUrl
+        )
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // TRY YOUTUBE HLS FALLBACK
+    // Only for real 11-char YouTube IDs
+    // =====================================
+
+    try {
+
+        if (
+            videoId.matches(
+                Regex("^[A-Za-z0-9_-]{11}$")
+            )
+        ) {
+
+            tryYouTubeGetVideoInfoFallback(
+                videoId
+            )
         }
 
     } catch (_: Throwable) {}
+
+    Log.e(
+        "YOUTUBE_WATCH_SAVED",
+        watchUrl
+    )
+}
+
+} catch (_: Throwable) {}
 }
 
 // =====================================
@@ -9728,6 +9748,193 @@ private fun fetchHtmlFallbackBody(
 
         ""
     }
+}
+
+// =====================================
+// YOUTUBE GET_VIDEO_INFO HLS FALLBACK
+// Tries to extract hlsvp / hls_playlist / m3u8
+// =====================================
+
+private fun tryYouTubeGetVideoInfoFallback(
+    videoId: String
+) {
+
+    try {
+
+        if (
+            !videoId.matches(
+                Regex("^[A-Za-z0-9_-]{11}$")
+            )
+        ) {
+            return
+        }
+
+        val infoUrls =
+            listOf(
+                "https://www.youtube.com/get_video_info?video_id=$videoId&el=detailpage",
+                "https://www.youtube.com/get_video_info?video_id=$videoId&el=embedded",
+                "https://www.youtube.com/get_video_info?video_id=$videoId&el=player"
+            )
+
+        infoUrls.forEach { infoUrl ->
+
+            try {
+
+                val request =
+                    Request.Builder()
+                        .url(infoUrl)
+                        .get()
+                        .header(
+                            "User-Agent",
+                            binding.contentMain.webview.settings.userAgentString
+                                ?: "Mozilla/5.0"
+                        )
+                        .header(
+                            "Accept",
+                            "*/*"
+                        )
+                        .header(
+                            "Referer",
+                            "https://www.youtube.com/watch?v=$videoId"
+                        )
+                        .header(
+                            "Connection",
+                            "keep-alive"
+                        )
+                        .build()
+
+                okHttpClient
+                    .newCall(request)
+                    .enqueue(
+
+                        object : Callback {
+
+                            override fun onFailure(
+                                call: Call,
+                                e: IOException
+                            ) {
+
+                                Log.e(
+                                    "YT_HLS_FALLBACK",
+                                    "failed",
+                                    e
+                                )
+                            }
+
+                            override fun onResponse(
+                                call: Call,
+                                response: Response
+                            ) {
+
+                                try {
+
+                                    val body =
+                                        response.body
+                                            ?.string()
+                                            .orEmpty()
+
+                                    val decodedBody =
+                                        try {
+                                            Uri.decode(body)
+                                        } catch (_: Throwable) {
+                                            body
+                                        }
+
+                                    // =====================================
+                                    // hlsvp direct parameter
+                                    // =====================================
+
+                                    try {
+
+                                        val hlsvp =
+                                            decodedBody
+                                                .substringAfter(
+                                                    "hlsvp=",
+                                                    ""
+                                                )
+                                                .substringBefore("&")
+                                                .trim()
+
+                                        if (
+                                            hlsvp.isNotBlank() &&
+                                            (
+                                                hlsvp.contains(".m3u8", true) ||
+                                                    hlsvp.contains("hls_playlist", true) ||
+                                                    hlsvp.contains("manifest/hls", true)
+                                            )
+                                        ) {
+
+                                            val cleanHls =
+                                                Uri.decode(hlsvp)
+                                                    .replace("\\u0026", "&")
+                                                    .replace("\\/", "/")
+                                                    .replace("&amp;", "&")
+                                                    .trim()
+
+                                            markStreamSource(
+                                                cleanHls,
+                                                "YOUTUBE_HLSVP"
+                                            )
+
+                                            detectAndSaveUrl(
+                                                cleanHls
+                                            )
+
+                                            streamValidation[cleanHls] =
+                                                "📺 YOUTUBE HLSVP"
+
+                                            Log.e(
+                                                "YOUTUBE_HLSVP_FOUND",
+                                                cleanHls
+                                            )
+                                        }
+
+                                    } catch (_: Throwable) {}
+
+                                    // =====================================
+                                    // Strong m3u8 / hls playlist extraction
+                                    // =====================================
+
+                                    try {
+
+                                        extractBrutalHlsUrlsFromText(
+                                            decodedBody
+                                        ).forEach { found ->
+
+                                            markStreamSource(
+                                                found,
+                                                "YOUTUBE_GET_VIDEO_INFO_HLS"
+                                            )
+
+                                            detectAndSaveUrl(
+                                                found
+                                            )
+
+                                            streamValidation[found] =
+                                                "📺 YOUTUBE HLS FALLBACK"
+
+                                            Log.e(
+                                                "YOUTUBE_HLS_FALLBACK_FOUND",
+                                                found
+                                            )
+                                        }
+
+                                    } catch (_: Throwable) {}
+
+                                } catch (_: Throwable) {
+
+                                } finally {
+
+                                    response.close()
+                                }
+                            }
+                        }
+                    )
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (_: Throwable) {}
 }
     
 // =====================================
