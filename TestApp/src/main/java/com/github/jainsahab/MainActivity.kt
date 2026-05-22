@@ -2906,11 +2906,10 @@ val listView =
             )
 
         layoutParams =
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
+    android.widget.LinearLayout.LayoutParams(
+        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+        (resources.displayMetrics.heightPixels * 0.70f).toInt()
+    )
     }
 
 root.addView(
@@ -3024,6 +3023,15 @@ val dialog =
         .setTitle("Select Streams To Share")
         .setView(root)
         .show()
+        
+try {
+
+    dialog.window?.setLayout(
+    (resources.displayMetrics.widthPixels * 0.92f).toInt(),
+    (resources.displayMetrics.heightPixels * 0.90f).toInt()
+)
+
+} catch (_: Throwable) {}
 
 dialog.setCanceledOnTouchOutside(true)
 
@@ -3789,13 +3797,20 @@ binding.contentMain.result.setOnTouchListener { _, event ->
     false
 }
 
-binding.contentMain.result.setOnLongClickListener { v ->
+// =====================================
+// RESULT LONG PRESS MENU
+// AlertDialog version — never goes off-screen
+// =====================================
+
+binding.contentMain.result.setOnLongClickListener { _ ->
 
     val textView =
         binding.contentMain.result
 
     val text =
-        textView.text.toString()
+        textView.text
+            ?.toString()
+            .orEmpty()
 
     if (text.isBlank()) {
         return@setOnLongClickListener true
@@ -3820,7 +3835,9 @@ binding.contentMain.result.setOnLongClickListener { v ->
         ).toInt()
 
     val line =
-        layout.getLineForVertical(y)
+        layout.getLineForVertical(
+            y
+        )
 
     val offset =
         layout.getOffsetForHorizontal(
@@ -3832,19 +3849,27 @@ binding.contentMain.result.setOnLongClickListener { v ->
         "(https?://[^\\s\"'<>]+)"
             .toRegex()
 
-    var selectedUrl = ""
+    var selectedUrl =
+        ""
 
-    regex.findAll(text).forEach { match ->
+    regex.findAll(text)
+        .forEach { match ->
 
-        if (
-            offset >= match.range.first &&
-            offset <= match.range.last
-        ) {
+            if (
+                offset >= match.range.first &&
+                offset <= match.range.last
+            ) {
 
-            selectedUrl =
-                match.value
+                selectedUrl =
+                    match.value
+                        .trim()
+                        .trimEnd(',')
+                        .trimEnd(';')
+                        .trimEnd(')')
+                        .trimEnd(']')
+                        .trimEnd('}')
+            }
         }
-    }
 
     if (selectedUrl.isBlank()) {
 
@@ -3852,6 +3877,11 @@ binding.contentMain.result.setOnLongClickListener { v ->
             regex.find(text)
                 ?.value
                 ?.trim()
+                ?.trimEnd(',')
+                ?.trimEnd(';')
+                ?.trimEnd(')')
+                ?.trimEnd(']')
+                ?.trimEnd('}')
                 ?: ""
     }
 
@@ -3862,288 +3892,318 @@ binding.contentMain.result.setOnLongClickListener { v ->
     lastSelectedUrl =
         selectedUrl
 
-    val popup =
-        PopupMenu(this, v)
+    val actions =
+        mutableListOf<String>()
 
-popup.menu.add("OPEN PLAYER")
-popup.menu.add("SHARE URL")
-popup.menu.add("COPY URL")
-popup.menu.add("SAVE CHANNEL")
+    actions.add(
+        "OPEN PLAYER"
+    )
 
-if (bestStreamUrl.isNotBlank()) {
+    actions.add(
+        "SHARE URL"
+    )
 
-    popup.menu.add("OPEN BEST STREAM")
-    popup.menu.add("COPY BEST STREAM")
-}
+    actions.add(
+        "COPY URL"
+    )
 
-if (youtubeWatchUrl.isNotBlank()) {
+    actions.add(
+        "SAVE CHANNEL"
+    )
 
-    popup.menu.add("OPEN YOUTUBE WATCH")
-    popup.menu.add("COPY YOUTUBE WATCH")
-}
+    if (bestStreamUrl.isNotBlank()) {
 
-if (
-    youtubeDashVideoUrl.isNotBlank() &&
-    youtubeDashAudioUrl.isNotBlank()
-) {
+        actions.add(
+            "OPEN BEST STREAM"
+        )
 
-    popup.menu.add("COPY DASH PAIR")
-    popup.menu.add("SHARE DASH PAIR")
-}
-
-popup.setOnMenuItemClickListener { item ->
-
-    val finalUrl =
-        lastSelectedUrl
-            .trim()
-
-    if (finalUrl.isBlank()) {
-        return@setOnMenuItemClickListener true
+        actions.add(
+            "COPY BEST STREAM"
+        )
     }
 
-    when (item.title.toString()) {
+    if (youtubeWatchUrl.isNotBlank()) {
 
-"OPEN PLAYER" -> {
+        actions.add(
+            "OPEN YOUTUBE WATCH"
+        )
 
-    try {
+        actions.add(
+            "COPY YOUTUBE WATCH"
+        )
+    }
 
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
+    if (
+        youtubeDashVideoUrl.isNotBlank() &&
+        youtubeDashAudioUrl.isNotBlank()
+    ) {
 
-                setDataAndType(
-                    Uri.parse(finalUrl),
-                    "video/*"
-                )
+        actions.add(
+            "COPY DASH PAIR"
+        )
+
+        actions.add(
+            "SHARE DASH PAIR"
+        )
+    }
+
+    androidx.appcompat.app.AlertDialog.Builder(this)
+
+        .setTitle(
+            "Stream Actions"
+        )
+
+        .setItems(
+            actions.toTypedArray()
+        ) { dialogInterface, which ->
+
+            val finalUrl =
+                lastSelectedUrl
+                    .trim()
+
+            if (finalUrl.isBlank()) {
+                return@setItems
             }
 
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Open With"
-            )
-        )
+            when (
+                actions[which]
+            ) {
 
-    } catch (_: Throwable) {
+                "OPEN PLAYER" -> {
 
-        Toast.makeText(
-            this,
-            "No compatible player",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+                    try {
 
-    true
-}
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW
+                            ).apply {
 
-"SHARE URL" -> {
+                                setDataAndType(
+                                    Uri.parse(finalUrl),
+                                    "video/*"
+                                )
 
-    try {
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+                            }
 
-        val shareIntent =
-            Intent(
-                Intent.ACTION_SEND
-            ).apply {
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open With"
+                            )
+                        )
 
-                type =
-                    "text/plain"
+                    } catch (_: Throwable) {
 
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    finalUrl
-                )
-            }
+                        Toast.makeText(
+                            this,
+                            "No compatible player",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
 
-        startActivity(
-            Intent.createChooser(
-                shareIntent,
-                "Share Stream"
-            )
-        )
+                "SHARE URL" -> {
 
-    } catch (_: Throwable) {}
+                    try {
 
-    true
-}
+                        val shareIntent =
+                            Intent(
+                                Intent.ACTION_SEND
+                            ).apply {
 
-"COPY URL" -> {
+                                type =
+                                    "text/plain"
 
-    try {
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    finalUrl
+                                )
+                            }
 
-        val clipboard =
-            getSystemService(
-                CLIPBOARD_SERVICE
-            ) as ClipboardManager
+                        startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share Stream"
+                            )
+                        )
 
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(
-                "stream",
-                finalUrl
-            )
-        )
+                    } catch (_: Throwable) {}
+                }
 
-        Toast.makeText(
-            this,
-            "URL copied",
-            Toast.LENGTH_SHORT
-        ).show()
+                "COPY URL" -> {
 
-    } catch (_: Throwable) {}
+                    try {
 
-    true
-}
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
 
-// =====================================
-// SAVE CHANNEL
-// =====================================
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "stream",
+                                finalUrl
+                            )
+                        )
 
-"SAVE CHANNEL" -> {
+                        Toast.makeText(
+                            this,
+                            "URL copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
-    try {
+                    } catch (_: Throwable) {}
+                }
 
-        addSavedChannel(
-            finalUrl
-        )
+                "SAVE CHANNEL" -> {
 
-    } catch (_: Throwable) {
+                    try {
 
-        Toast.makeText(
-            this,
-            "Save failed",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+                        addSavedChannel(
+                            finalUrl
+                        )
 
-    true
-}
+                    } catch (_: Throwable) {
 
-"OPEN BEST STREAM" -> {
+                        Toast.makeText(
+                            this,
+                            "Save failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
 
-    try {
+                "OPEN BEST STREAM" -> {
 
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
+                    try {
 
-                setDataAndType(
-                    Uri.parse(bestStreamUrl),
-                    "video/*"
-                )
-            }
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW
+                            ).apply {
 
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Open Best Stream"
-            )
-        )
+                                setDataAndType(
+                                    Uri.parse(bestStreamUrl),
+                                    "video/*"
+                                )
 
-    } catch (_: Throwable) {
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+                            }
 
-        Toast.makeText(
-            this,
-            "Cannot open best stream",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open Best Stream"
+                            )
+                        )
 
-    true
-}
+                    } catch (_: Throwable) {
 
-"COPY BEST STREAM" -> {
+                        Toast.makeText(
+                            this,
+                            "Cannot open best stream",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
 
-    try {
+                "COPY BEST STREAM" -> {
 
-        val clipboard =
-            getSystemService(
-                CLIPBOARD_SERVICE
-            ) as ClipboardManager
+                    try {
 
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(
-                "best_stream",
-                bestStreamUrl
-            )
-        )
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
 
-        Toast.makeText(
-            this,
-            "Best stream copied",
-            Toast.LENGTH_SHORT
-        ).show()
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "best_stream",
+                                bestStreamUrl
+                            )
+                        )
 
-    } catch (_: Throwable) {}
+                        Toast.makeText(
+                            this,
+                            "Best stream copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
-    true
-}
+                    } catch (_: Throwable) {}
+                }
 
-"OPEN YOUTUBE WATCH" -> {
+                "OPEN YOUTUBE WATCH" -> {
 
-    try {
+                    try {
 
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW
+                            ).apply {
 
-                data =
-                    Uri.parse(youtubeWatchUrl)
-            }
+                                data =
+                                    Uri.parse(
+                                        youtubeWatchUrl
+                                    )
 
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Open YouTube Live"
-            )
-        )
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+                            }
 
-    } catch (_: Throwable) {
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open YouTube Live"
+                            )
+                        )
 
-        Toast.makeText(
-            this,
-            "Cannot open YouTube link",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+                    } catch (_: Throwable) {
 
-    true
-}
+                        Toast.makeText(
+                            this,
+                            "Cannot open YouTube link",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
 
-"COPY YOUTUBE WATCH" -> {
+                "COPY YOUTUBE WATCH" -> {
 
-    try {
+                    try {
 
-        val clipboard =
-            getSystemService(
-                CLIPBOARD_SERVICE
-            ) as ClipboardManager
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
 
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(
-                "youtube_watch",
-                youtubeWatchUrl
-            )
-        )
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "youtube_watch",
+                                youtubeWatchUrl
+                            )
+                        )
 
-        Toast.makeText(
-            this,
-            "YouTube link copied",
-            Toast.LENGTH_SHORT
-        ).show()
+                        Toast.makeText(
+                            this,
+                            "YouTube link copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
-    } catch (_: Throwable) {}
+                    } catch (_: Throwable) {}
+                }
 
-    true
-}
+                "COPY DASH PAIR" -> {
 
-"COPY DASH PAIR" -> {
+                    try {
 
-    try {
-
-        val dashPairText =
-            """
+                        val dashPairText =
+                            """
 YOUTUBE DASH PAIR
 
 VIDEO ITAG:
@@ -4157,37 +4217,35 @@ $youtubeDashAudioItag
 
 AUDIO URL:
 $youtubeDashAudioUrl
-""".trimIndent()
+                            """.trimIndent()
 
-        val clipboard =
-            getSystemService(
-                CLIPBOARD_SERVICE
-            ) as ClipboardManager
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
 
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(
-                "youtube_dash_pair",
-                dashPairText
-            )
-        )
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "youtube_dash_pair",
+                                dashPairText
+                            )
+                        )
 
-        Toast.makeText(
-            this,
-            "DASH pair copied",
-            Toast.LENGTH_SHORT
-        ).show()
+                        Toast.makeText(
+                            this,
+                            "DASH pair copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
-    } catch (_: Throwable) {}
+                    } catch (_: Throwable) {}
+                }
 
-    true
-}
+                "SHARE DASH PAIR" -> {
 
-"SHARE DASH PAIR" -> {
+                    try {
 
-    try {
-
-        val dashPairText =
-            """
+                        val dashPairText =
+                            """
 YOUTUBE DASH PAIR
 
 VIDEO ITAG:
@@ -4201,39 +4259,42 @@ $youtubeDashAudioItag
 
 AUDIO URL:
 $youtubeDashAudioUrl
-""".trimIndent()
+                            """.trimIndent()
 
-        val shareIntent =
-            Intent(
-                Intent.ACTION_SEND
-            ).apply {
+                        val shareIntent =
+                            Intent(
+                                Intent.ACTION_SEND
+                            ).apply {
 
-                type =
-                    "text/plain"
+                                type =
+                                    "text/plain"
 
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    dashPairText
-                )
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    dashPairText
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share DASH Pair"
+                            )
+                        )
+
+                    } catch (_: Throwable) {}
+                }
             }
 
-        startActivity(
-            Intent.createChooser(
-                shareIntent,
-                "Share DASH Pair"
-            )
-        )
-
-    } catch (_: Throwable) {}
-
-    true
-}
-
-else -> false
+            dialogInterface.dismiss()
         }
-    }
 
-    popup.show()
+        .setNegativeButton(
+            "CLOSE",
+            null
+        )
+
+        .show()
 
     true
 }
