@@ -16,6 +16,9 @@ import android.webkit.CookieManager
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.Toast
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
