@@ -2875,11 +2875,11 @@ binding.contentMain.shareStreams.setOnClickListener {
 
  // =====================================
 // CUSTOM SHARE / COPY / SAVE DIALOG
-// Keeps bottom buttons horizontal
+// ScrollView version — stable buttons, scrollable list
 // =====================================
 
 val dialogHeight =
-    (resources.displayMetrics.heightPixels * 0.82f).toInt()
+    (resources.displayMetrics.heightPixels * 0.90f).toInt()
 
 val root =
     android.widget.LinearLayout(this).apply {
@@ -2898,18 +2898,17 @@ val root =
             dialogHeight
     }
 
-val listView =
-    android.widget.ListView(this).apply {
+val scrollView =
+    android.widget.ScrollView(this).apply {
 
-        choiceMode =
-            android.widget.ListView.CHOICE_MODE_MULTIPLE
+        isFillViewport =
+            false
 
-        adapter =
-            android.widget.ArrayAdapter(
-                this@MainActivity,
-                android.R.layout.simple_list_item_multiple_choice,
-                streamList
-            )
+        isVerticalScrollBarEnabled =
+            true
+
+        overScrollMode =
+            android.view.View.OVER_SCROLL_ALWAYS
 
         layoutParams =
             android.widget.LinearLayout.LayoutParams(
@@ -2917,20 +2916,98 @@ val listView =
                 0,
                 1f
             )
-
-        isVerticalScrollBarEnabled =
-            true
-
-        isScrollContainer =
-            true
-
-        overScrollMode =
-            android.view.View.OVER_SCROLL_ALWAYS
     }
 
-root.addView(
-    listView
+val listContainer =
+    android.widget.LinearLayout(this).apply {
+
+        orientation =
+            android.widget.LinearLayout.VERTICAL
+    }
+
+scrollView.addView(
+    listContainer,
+    android.widget.ScrollView.LayoutParams(
+        android.widget.ScrollView.LayoutParams.MATCH_PARENT,
+        android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+    )
 )
+
+val checkBoxes =
+    mutableListOf<android.widget.CheckBox>()
+
+streamList.forEach { url ->
+
+    val checkBox =
+        android.widget.CheckBox(this).apply {
+
+            text =
+                url
+
+            textSize =
+                13f
+
+            setPadding(
+                0,
+                8,
+                0,
+                8
+            )
+
+            setOnCheckedChangeListener { _, isChecked ->
+
+                if (isChecked) {
+
+                    if (!selected.contains(url)) {
+
+                        selected.add(
+                            url
+                        )
+                    }
+
+                } else {
+
+                    selected.remove(
+                        url
+                    )
+                }
+            }
+        }
+
+    checkBoxes.add(
+        checkBox
+    )
+
+    listContainer.addView(
+        checkBox
+    )
+
+    val line =
+        android.view.View(this).apply {
+
+            setBackgroundColor(
+                0xFFE0E0E0.toInt()
+            )
+
+            layoutParams =
+                android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    1
+                )
+        }
+
+    listContainer.addView(
+        line
+    )
+}
+
+root.addView(
+    scrollView
+)
+
+// =====================================
+// FIXED BUTTON ROW
+// =====================================
 
 val buttonRow =
     android.widget.LinearLayout(this).apply {
@@ -2940,20 +3017,26 @@ val buttonRow =
 
         setPadding(
             0,
-            12,
+            10,
             0,
             0
         )
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
     }
 
 val selectAllButton =
     android.widget.Button(this).apply {
 
         text =
-            "SELECT ALL"
+            "SELECT\nALL"
 
         textSize =
-            12f
+            11f
 
         layoutParams =
             android.widget.LinearLayout.LayoutParams(
@@ -3039,69 +3122,19 @@ val dialog =
         .setTitle("Select Streams To Share")
         .setView(root)
         .show()
-        
+
 try {
 
     dialog.window?.setLayout(
         (resources.displayMetrics.widthPixels * 0.92f).toInt(),
-        (resources.displayMetrics.heightPixels * 0.90f).toInt()
+        dialogHeight
     )
-
-    root.post {
-
-    try {
-
-        root.minimumHeight =
-            dialogHeight
-
-        listView.layoutParams =
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-
-        root.requestLayout()
-        listView.requestLayout()
-
-    } catch (_: Throwable) {}
-}
 
 } catch (_: Throwable) {}
 
 dialog.setCanceledOnTouchOutside(true)
 
 dialog.setCancelable(true)
-
-// =====================================
-// LIST SELECTION
-// =====================================
-
-listView.setOnItemClickListener { _, _, position, _ ->
-
-    val url =
-        streamList[position]
-
-    if (
-        listView.isItemChecked(
-            position
-        )
-    ) {
-
-        if (!selected.contains(url)) {
-
-            selected.add(
-                url
-            )
-        }
-
-    } else {
-
-        selected.remove(
-            url
-        )
-    }
-}
 
 // =====================================
 // SELECT ALL
@@ -3111,16 +3144,20 @@ selectAllButton.setOnClickListener {
 
     selected.clear()
 
-    for (i in streamList.indices) {
+    checkBoxes.forEachIndexed { index, checkBox ->
 
-        listView.setItemChecked(
-            i,
+        checkBox.isChecked =
             true
-        )
 
-        selected.add(
-            streamList[i]
-        )
+        val url =
+            streamList[index]
+
+        if (!selected.contains(url)) {
+
+            selected.add(
+                url
+            )
+        }
     }
 
     Toast.makeText(
@@ -3285,7 +3322,6 @@ shareButton.setOnClickListener {
             Toast.LENGTH_SHORT
         ).show()
     }
-}
 }
 
 // =====================================
