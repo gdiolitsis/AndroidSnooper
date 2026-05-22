@@ -930,28 +930,46 @@ override fun shouldInterceptRequest(
                     .orEmpty()
                     
 // =====================================
-// STRONG M3U8 EXTRACTION
+// STRONG / BRUTAL HLS EXTRACTION
+// YouTube / Euronews / escaped HTML-JSON
 // =====================================
 
 try {
 
-    extractM3u8UrlsFromText(
-        body
-    ).forEach { found ->
+    val foundUrls =
+        linkedSetOf<String>()
 
-        markStreamSource(
-            found,
-            "M3U8_BODY_STRONG"
+    foundUrls.addAll(
+        extractM3u8UrlsFromText(
+            body
         )
+    )
 
-        detectAndSaveUrl(
-            found
+    foundUrls.addAll(
+        extractBrutalHlsUrlsFromText(
+            body
         )
+    )
 
-        Log.e(
-            "M3U8_BODY_STRONG",
-            found
-        )
+    foundUrls.forEach { found ->
+
+        try {
+
+            markStreamSource(
+                found,
+                "BRUTAL_HLS_BODY"
+            )
+
+            detectAndSaveUrl(
+                found
+            )
+
+            Log.e(
+                "BRUTAL_HLS_BODY",
+                found
+            )
+
+        } catch (_: Throwable) {}
     }
 
 } catch (_: Throwable) {}
@@ -3619,12 +3637,20 @@ private fun saveYouTubeWatchFromUrl(
             )
 
             streamValidation[watchUrl] =
-                "YOUTUBE WATCH"
+    "YOUTUBE WATCH"
 
-            Log.e(
-                "YOUTUBE_WATCH_SAVED",
-                watchUrl
-            )
+try {
+
+    autoValidateStream(
+        watchUrl
+    )
+
+} catch (_: Throwable) {}
+
+Log.e(
+    "YOUTUBE_WATCH_SAVED",
+    watchUrl
+)
         }
 
     } catch (_: Throwable) {}
@@ -8186,6 +8212,152 @@ private fun cleanMediaUrl(
 }
 
 // =====================================
+// BRUTAL HLS EXTRACTOR
+// YouTube / Euronews / escaped HTML-JSON finder
+// =====================================
+
+private fun extractBrutalHlsUrlsFromText(
+    text: String
+): List<String> {
+
+    val results =
+        linkedSetOf<String>()
+
+    try {
+
+        if (text.isBlank()) {
+            return emptyList()
+        }
+
+        val normalized =
+            text
+                .replace("\\u0026", "&")
+                .replace("\\u003d", "=")
+                .replace("\\u003f", "?")
+                .replace("\\u002f", "/")
+                .replace("\\/", "/")
+                .replace("\\\\/", "/")
+                .replace("&amp;", "&")
+
+        val targets =
+            listOf(
+                ".m3u8",
+                "hls_playlist",
+                "manifest/hls",
+                "/api/manifest/hls"
+            )
+
+        targets.forEach { target ->
+
+            try {
+
+                var searchIndex =
+                    0
+
+                while (true) {
+
+                    val hit =
+                        normalized.indexOf(
+                            target,
+                            searchIndex,
+                            ignoreCase = true
+                        )
+
+                    if (hit < 0) {
+                        break
+                    }
+
+                    val start =
+                        normalized.lastIndexOf(
+                            "https://",
+                            hit
+                        )
+
+                    if (start >= 0) {
+
+                        var end =
+                            hit + target.length
+
+                        while (
+                            end < normalized.length &&
+                            !normalized[end].isWhitespace() &&
+                            normalized[end] != '"' &&
+                            normalized[end] != '\'' &&
+                            normalized[end] != '<' &&
+                            normalized[end] != '>' &&
+                            normalized[end] != '\\'
+                        ) {
+
+                            end++
+                        }
+
+                        val raw =
+                            normalized
+                                .substring(
+                                    start,
+                                    end
+                                )
+                                .trim()
+                                .trimEnd(',')
+                                .trimEnd(';')
+                                .trimEnd(')')
+                                .trimEnd(']')
+                                .trimEnd('}')
+
+                        val clean =
+                            try {
+
+                                Uri.decode(raw)
+
+                            } catch (_: Throwable) {
+
+                                raw
+                            }
+
+                        if (
+                            clean.startsWith(
+                                "http",
+                                true
+                            ) &&
+                            (
+                                clean.contains(
+                                    ".m3u8",
+                                    true
+                                ) ||
+                                    clean.contains(
+                                        "hls_playlist",
+                                        true
+                                    ) ||
+                                    clean.contains(
+                                        "manifest/hls",
+                                        true
+                                    ) ||
+                                    clean.contains(
+                                        "/api/manifest/hls",
+                                        true
+                                    )
+                            )
+                        ) {
+
+                            results.add(
+                                clean
+                            )
+                        }
+                    }
+
+                    searchIndex =
+                        hit + target.length
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (_: Throwable) {}
+
+    return results.toList()
+}
+
+// =====================================
 // EXTRACT M3U8 URLS FROM TEXT
 // =====================================
 
@@ -8524,7 +8696,8 @@ if (
     existingValidation.isNotBlank() &&
     !existingValidation.contains("FOUND") &&
     !existingValidation.contains("AUTO TEST") &&
-    !existingValidation.contains("ERROR")
+    !existingValidation.contains("ERROR") &&
+    !existingValidation.contains("YOUTUBE WATCH")
 ) {
     return
 }
@@ -8589,6 +8762,21 @@ fetch($safeUrl)
                 .replace("\\u0026", "&")
                 .replace("\\/", "/")
                 .trim()
+                
+// =====================================
+// FORCE YOUTUBE WATCH HEADERS
+// Needed for YouTube HTML / HLS discovery
+// =====================================
+
+val isYoutubeWatchValidation =
+    cleanedUrl.contains(
+        "youtube.com/watch",
+        true
+    ) ||
+        cleanedUrl.contains(
+            "youtu.be/",
+            true
+        )
 
         // =====================================
         // REQUEST
@@ -8678,9 +8866,26 @@ fetch($safeUrl)
         )
 
         builder.header(
-            "Accept",
-            "*/*"
-        )
+    "Accept",
+    if (isYoutubeWatchValidation) {
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    } else {
+        "*/*"
+    }
+)
+
+if (isYoutubeWatchValidation) {
+
+    builder.header(
+        "Accept-Language",
+        "en-US,en;q=0.9"
+    )
+
+    builder.header(
+        "Upgrade-Insecure-Requests",
+        "1"
+    )
+}
 
         builder.header(
             "Connection",
@@ -8866,64 +9071,117 @@ try {
                                     
 // =====================================
 // MANIFEST BODY MINING
+// BRUTAL HLS + DASH BODY DISCOVERY
 // =====================================
 
 try {
 
-    val regex =
-        Regex(
-            "(https?:\\\\/\\\\/[^\\\"'\\s]+?\\.(m3u8|mpd)(\\?[^\\\"'\\s]*)?)",
-            RegexOption.IGNORE_CASE
+    val foundUrls =
+        linkedSetOf<String>()
+
+    // =====================================
+    // OLD REGEX LAYER
+    // =====================================
+
+    try {
+
+        val regex =
+            Regex(
+                "(https?:\\\\/\\\\/[^\\\"'\\s]+?\\.(m3u8|mpd)(\\?[^\\\"'\\s]*)?)",
+                RegexOption.IGNORE_CASE
+            )
+
+        regex.findAll(body)
+            .forEach { match ->
+
+                try {
+
+                    val found =
+                        match.value
+                            .replace("\\/", "/")
+                            .replace("\\\\/", "/")
+                            .trim()
+
+                    if (found.isNotBlank()) {
+
+                        foundUrls.add(
+                            found
+                        )
+                    }
+
+                } catch (_: Throwable) {}
+            }
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // NEW BRUTAL HLS LAYER
+    // YouTube / Euronews / escaped JSON
+    // =====================================
+
+    try {
+
+        foundUrls.addAll(
+            extractBrutalHlsUrlsFromText(
+                body
+            )
         )
 
-    regex.findAll(body)
-        .forEach { match ->
+    } catch (_: Throwable) {}
 
-            try {
+    // =====================================
+    // SAVE + RECURSIVE VALIDATION
+    // =====================================
 
-                val found =
-                    match.value
-                        .replace("\\/", "/")
+    foundUrls.forEach { found ->
 
-                markStreamSource(
-                    found,
-                    "BODY"
+        try {
+
+            markStreamSource(
+                found,
+                "BRUTAL_BODY"
+            )
+
+            detectAndSaveUrl(
+                found
+            )
+
+            if (
+                found != url &&
+                (
+                    found.contains(
+                        ".m3u8",
+                        true
+                    ) ||
+                        found.contains(
+                            ".mpd",
+                            true
+                        ) ||
+                        found.contains(
+                            "manifest/hls",
+                            true
+                        ) ||
+                        found.contains(
+                            "hls_playlist",
+                            true
+                        )
                 )
+            ) {
 
-                detectAndSaveUrl(
+                autoValidateStream(
                     found
                 )
-                
-// =====================================
-// RECURSIVE VALIDATION
-// =====================================
+            }
 
-try {
+            Log.e(
+                "BRUTAL_BODY_MANIFEST",
+                found
+            )
 
-    if (
+        } catch (_: Throwable) {}
+    }
 
-    found != url &&
-    (
-        found.contains(".m3u8") ||
-        found.contains(".mpd")
-    )
-
-) {
-
-    autoValidateStream(found)
-}
-
-} catch (_: Throwable) {}               
-
-                Log.e(
-                    "BODY_MANIFEST",
-                    found
-                )
-
-            } catch (_: Throwable) {}
-        }
-
-} catch (_: Throwable) {}                                    
+} catch (_: Throwable) {}                          
                                     
 // =====================================
 // MASTER PLAYLIST DETECTION
