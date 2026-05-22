@@ -2899,6 +2899,68 @@ binding.contentMain.shareStreams.setOnClickListener {
     dialog.setCanceledOnTouchOutside(true)
 
     dialog.setCancelable(true)
+    
+// =====================================
+// SAVE SELECTED CHANNELS BUTTON
+// Extra button next to SELECT ALL
+// =====================================
+
+try {
+
+    val buttonPanel =
+        dialog.getButton(
+            androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
+        ).parent as? LinearLayout
+
+    val saveButton =
+        Button(this).apply {
+
+            text =
+                "SAVE"
+
+            setOnClickListener {
+
+                if (selected.isEmpty()) {
+
+                    Toast.makeText(
+                        this@MainActivity,
+                        "No streams selected",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    return@setOnClickListener
+                }
+
+                var savedCount =
+                    0
+
+                selected.forEach { url ->
+
+                    try {
+
+                        addSavedChannel(
+                            url
+                        )
+
+                        savedCount++
+
+                    } catch (_: Throwable) {}
+                }
+
+                Toast.makeText(
+                    this@MainActivity,
+                    "Saved $savedCount channel(s)",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+    buttonPanel?.addView(
+        saveButton,
+        1
+    )
+
+} catch (_: Throwable) {}
 
     // =====================================
     // SELECT ALL
@@ -4471,32 +4533,49 @@ if (
     return
 }
 
-            // =====================================
-            // FINAL WATCH URL
-            // =====================================
+// =====================================
+// FINAL WATCH URL
+// Only real YouTube video IDs are allowed
+// =====================================
 
-            if (videoId.isNotBlank()) {
+val isRealYouTubeId =
+    videoId.matches(
+        Regex("^[A-Za-z0-9_-]{11}$")
+    )
 
-                youtubeWatchUrl =
-                    "https://www.youtube.com/watch?v=$videoId"
+if (
+    videoId.isNotBlank() &&
+    isRealYouTubeId
+) {
 
-                Log.e(
-                    "YOUTUBE_LIVE_ID",
-                    videoId
-                )
+    youtubeWatchUrl =
+        "https://www.youtube.com/watch?v=$videoId"
 
-                Log.e(
-                    "YOUTUBE_LIVE_URL",
-                    youtubeWatchUrl
-                )
+    Log.e(
+        "YOUTUBE_LIVE_ID",
+        videoId
+    )
 
-                bestLiveUrl =
-                    youtubeWatchUrl
+    Log.e(
+        "YOUTUBE_LIVE_URL",
+        youtubeWatchUrl
+    )
 
-                bestLiveScore =
-                    9999
-            }
-        }
+    bestLiveUrl =
+        youtubeWatchUrl
+
+    bestLiveScore =
+        9999
+
+} else if (
+    videoId.isNotBlank()
+) {
+
+    Log.e(
+        "YOUTUBE_FAKE_ID_IGNORED",
+        videoId
+    )
+}
 
         // =====================================
         // SAVE REQUEST HEADERS
