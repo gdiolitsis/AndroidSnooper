@@ -3049,26 +3049,23 @@ try {
 
     root.post {
 
-        try {
+    try {
 
-            root.layoutParams =
-                android.view.ViewGroup.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    dialogHeight
-                )
+        root.minimumHeight =
+            dialogHeight
 
-            listView.layoutParams =
-                android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f
-                )
+        listView.layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
 
-            root.requestLayout()
-            listView.requestLayout()
+        root.requestLayout()
+        listView.requestLayout()
 
-        } catch (_: Throwable) {}
-    }
+    } catch (_: Throwable) {}
+}
 
 } catch (_: Throwable) {}
 
