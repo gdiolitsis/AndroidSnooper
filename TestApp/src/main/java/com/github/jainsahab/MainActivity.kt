@@ -2890,6 +2890,12 @@ val root =
             20,
             10
         )
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                (resources.displayMetrics.heightPixels * 0.78f).toInt()
+            )
     }
 
 val listView =
@@ -2906,10 +2912,14 @@ val listView =
             )
 
         layoutParams =
-    android.widget.LinearLayout.LayoutParams(
-        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-        (resources.displayMetrics.heightPixels * 0.70f).toInt()
-    )
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+
+        isVerticalScrollBarEnabled =
+            true
     }
 
 root.addView(
@@ -3028,7 +3038,7 @@ try {
 
     dialog.window?.setLayout(
     (resources.displayMetrics.widthPixels * 0.92f).toInt(),
-    (resources.displayMetrics.heightPixels * 0.90f).toInt()
+    android.view.WindowManager.LayoutParams.WRAP_CONTENT
 )
 
 } catch (_: Throwable) {}
