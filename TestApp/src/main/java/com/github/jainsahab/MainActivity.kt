@@ -3873,24 +3873,32 @@ saveYouTubeWatchFromUrl(
                 } catch (_: Throwable) {}
             }
 
-            // =====================================
-            // GOOGLEVIDEO FALLBACK
-            // =====================================
+// =====================================
+// GOOGLEVIDEO IS DASH EVIDENCE
+// Do NOT convert googlevideo id to YouTube watch URL
+// =====================================
 
-            if (videoId.isBlank()) {
+if (
+    videoId.isBlank() &&
+    lower.contains("googlevideo.com")
+) {
 
-                try {
+    try {
 
-                    val uri =
-                        Uri.parse(url)
+        markStreamSource(
+            url,
+            "GOOGLEVIDEO_DASH"
+        )
 
-                    videoId =
-                        uri.getQueryParameter("id")
-                            ?.substringBefore(".")
-                            .orEmpty()
+        Log.e(
+            "GOOGLEVIDEO_DASH_EVIDENCE",
+            url
+        )
 
-                } catch (_: Throwable) {}
-            }
+    } catch (_: Throwable) {}
+
+    return
+}
 
             // =====================================
             // FINAL WATCH URL
@@ -12757,19 +12765,34 @@ if (
     ) {
         return true
     }
+    
+// =====================================
+// GOOGLEVIDEO PING / TRACKING — NOT PLAYABLE
+// =====================================
+
+if (
+    lower.contains("generate_204") ||
+    lower.contains("/ptracking") ||
+    lower.contains("/api/stats") ||
+    lower.contains("playback/stats")
+) {
+    return false
+}
 
     // =====================================
     // YOUTUBE / GOOGLEVIDEO PLAYABLE EVIDENCE
     // =====================================
 
-    if (
-        lower.contains("youtube.com/watch") ||
-        lower.contains("youtu.be/") ||
-        lower.contains("googlevideo.com") ||
+  if (
+    lower.contains("youtube.com/watch") ||
+    lower.contains("youtu.be/") ||
+    (
+        lower.contains("googlevideo.com") &&
         lower.contains("videoplayback")
-    ) {
-        return true
-    }
+    )
+) {
+    return true
+}
 
     return false
 }
