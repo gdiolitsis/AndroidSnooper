@@ -2907,58 +2907,63 @@ binding.contentMain.shareStreams.setOnClickListener {
 
 try {
 
-    val buttonPanel =
+    val neutralButton =
         dialog.getButton(
             androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
-        ).parent as? LinearLayout
+        )
 
-    val saveButton =
-        Button(this).apply {
+    val buttonPanel =
+        neutralButton.parent as? android.widget.LinearLayout
 
-            text =
-                "SAVE"
+    if (buttonPanel != null) {
 
-            setOnClickListener {
+        val saveButton =
+            android.widget.Button(this)
 
-                if (selected.isEmpty()) {
+        saveButton.text =
+            "SAVE"
 
-                    Toast.makeText(
-                        this@MainActivity,
-                        "No streams selected",
-                        Toast.LENGTH_SHORT
-                    ).show()
+        saveButton.setOnClickListener {
 
-                    return@setOnClickListener
-                }
-
-                var savedCount =
-                    0
-
-                selected.forEach { url ->
-
-                    try {
-
-                        addSavedChannel(
-                            url
-                        )
-
-                        savedCount++
-
-                    } catch (_: Throwable) {}
-                }
+            if (selected.isEmpty()) {
 
                 Toast.makeText(
-                    this@MainActivity,
-                    "Saved $savedCount channel(s)",
+                    this,
+                    "No streams selected",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                return@setOnClickListener
             }
+
+            var savedCount =
+                0
+
+            selected.forEach { url ->
+
+                try {
+
+                    addSavedChannel(
+                        url
+                    )
+
+                    savedCount++
+
+                } catch (_: Throwable) {}
+            }
+
+            Toast.makeText(
+                this,
+                "Saved $savedCount channel(s)",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
-    buttonPanel?.addView(
-        saveButton,
-        1
-    )
+        buttonPanel.addView(
+            saveButton,
+            1
+        )
+    }
 
 } catch (_: Throwable) {}
 
