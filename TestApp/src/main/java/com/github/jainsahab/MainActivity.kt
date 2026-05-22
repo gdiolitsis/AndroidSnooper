@@ -438,17 +438,17 @@ private fun showSavedChannelsDialog() {
             .toList()
             .forEach { channel ->
 
-                val row =
+                val itemBox =
                     LinearLayout(this).apply {
 
                         orientation =
-                            LinearLayout.HORIZONTAL
+                            LinearLayout.VERTICAL
 
                         setPadding(
                             0,
-                            8,
+                            10,
                             0,
-                            8
+                            16
                         )
                     }
 
@@ -463,21 +463,25 @@ ${channel.url}
                             """.trimIndent()
 
                         textSize =
-                            12f
+                            13f
+
+                        setTextIsSelectable(
+                            true
+                        )
 
                         setPadding(
                             0,
                             0,
-                            12,
-                            0
+                            0,
+                            10
                         )
+                    }
 
-                        layoutParams =
-                            LinearLayout.LayoutParams(
-                                0,
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                1f
-                            )
+                val buttonRow =
+                    LinearLayout(this).apply {
+
+                        orientation =
+                            LinearLayout.HORIZONTAL
                     }
 
                 val openButton =
@@ -485,6 +489,21 @@ ${channel.url}
 
                         text =
                             "OPEN"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    0,
+                                    0,
+                                    6,
+                                    0
+                                )
+                            }
 
                         setOnClickListener {
 
@@ -529,6 +548,21 @@ ${channel.url}
                         text =
                             "DELETE"
 
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    6,
+                                    0,
+                                    0,
+                                    0
+                                )
+                            }
+
                         setOnClickListener {
 
                             try {
@@ -559,17 +593,19 @@ ${channel.url}
                         }
                     }
 
-                row.addView(info)
-                row.addView(openButton)
-                row.addView(deleteButton)
+                buttonRow.addView(openButton)
+                buttonRow.addView(deleteButton)
 
-                container.addView(row)
+                itemBox.addView(info)
+                itemBox.addView(buttonRow)
+
+                container.addView(itemBox)
 
                 val line =
                     TextView(this).apply {
 
                         text =
-                            "────────────────────"
+                            "────────────────────────"
 
                         textSize =
                             12f
@@ -2837,288 +2873,375 @@ binding.contentMain.shareStreams.setOnClickListener {
     val selected =
         mutableListOf<String>()
 
-    val dialog =
-        androidx.appcompat.app.AlertDialog.Builder(this)
-
-            .setTitle("Select Streams To Share")
-
-            .setMultiChoiceItems(
-                streamList,
-                checkedItems
-            ) { _, which, isChecked ->
-
-                val url =
-                    streamList[which]
-
-                if (isChecked) {
-
-                    if (!selected.contains(url)) {
-
-                        selected.add(
-                            url
-                        )
-                    }
-
-                } else {
-
-                    selected.remove(
-                        url
-                    )
-                }
-            }
-
-            // =====================================
-            // SELECT ALL
-            // =====================================
-
-            .setNeutralButton(
-                "SELECT ALL",
-                null
-            )
-
-            // =====================================
-            // COPY SELECTED
-            // =====================================
-
-            .setPositiveButton(
-                "COPY",
-                null
-            )
-
-            // =====================================
-            // SHARE SELECTED
-            // =====================================
-
-            .setNegativeButton(
-                "SHARE",
-                null
-            )
-
-            .show()
-
-    dialog.setCanceledOnTouchOutside(true)
-
-    dialog.setCancelable(true)
-    
-// =====================================
-// SAVE SELECTED CHANNELS BUTTON
-// Extra button next to SELECT ALL
+ // =====================================
+// CUSTOM SHARE / COPY / SAVE DIALOG
+// Keeps bottom buttons horizontal
 // =====================================
 
-try {
+val root =
+    android.widget.LinearLayout(this).apply {
 
-    val neutralButton =
-        dialog.getButton(
-            androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
-        )
+        orientation =
+            android.widget.LinearLayout.VERTICAL
 
-    val buttonPanel =
-        neutralButton.parent as? android.widget.LinearLayout
-
-    if (buttonPanel != null) {
-
-        val saveButton =
-            android.widget.Button(this)
-
-        saveButton.text =
-            "SAVE"
-
-        saveButton.setOnClickListener {
-
-            if (selected.isEmpty()) {
-
-                Toast.makeText(
-                    this,
-                    "No streams selected",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                return@setOnClickListener
-            }
-
-            var savedCount =
-                0
-
-            selected.forEach { url ->
-
-                try {
-
-                    addSavedChannel(
-                        url
-                    )
-
-                    savedCount++
-
-                } catch (_: Throwable) {}
-            }
-
-            Toast.makeText(
-                this,
-                "Saved $savedCount channel(s)",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        buttonPanel.addView(
-            saveButton,
-            1
+        setPadding(
+            20,
+            10,
+            20,
+            10
         )
     }
 
-} catch (_: Throwable) {}
+val listView =
+    android.widget.ListView(this).apply {
 
-    // =====================================
-    // SELECT ALL
-    // =====================================
+        choiceMode =
+            android.widget.ListView.CHOICE_MODE_MULTIPLE
 
-    dialog.getButton(
-        androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
-    ).setOnClickListener {
-
-        selected.clear()
-
-        for (i in streamList.indices) {
-
-            checkedItems[i] =
-                true
-
-            dialog.listView.setItemChecked(
-                i,
-                true
+        adapter =
+            android.widget.ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_list_item_multiple_choice,
+                streamList
             )
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+    }
+
+root.addView(
+    listView
+)
+
+val buttonRow =
+    android.widget.LinearLayout(this).apply {
+
+        orientation =
+            android.widget.LinearLayout.HORIZONTAL
+
+        setPadding(
+            0,
+            12,
+            0,
+            0
+        )
+    }
+
+val selectAllButton =
+    android.widget.Button(this).apply {
+
+        text =
+            "SELECT ALL"
+
+        textSize =
+            12f
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                0,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+    }
+
+val saveButton =
+    android.widget.Button(this).apply {
+
+        text =
+            "SAVE"
+
+        textSize =
+            12f
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                0,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+    }
+
+val shareButton =
+    android.widget.Button(this).apply {
+
+        text =
+            "SHARE"
+
+        textSize =
+            12f
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                0,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+    }
+
+val copyButton =
+    android.widget.Button(this).apply {
+
+        text =
+            "COPY"
+
+        textSize =
+            12f
+
+        layoutParams =
+            android.widget.LinearLayout.LayoutParams(
+                0,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+    }
+
+buttonRow.addView(
+    selectAllButton
+)
+
+buttonRow.addView(
+    saveButton
+)
+
+buttonRow.addView(
+    shareButton
+)
+
+buttonRow.addView(
+    copyButton
+)
+
+root.addView(
+    buttonRow
+)
+
+val dialog =
+    androidx.appcompat.app.AlertDialog.Builder(this)
+        .setTitle("Select Streams To Share")
+        .setView(root)
+        .show()
+
+dialog.setCanceledOnTouchOutside(true)
+
+dialog.setCancelable(true)
+
+// =====================================
+// LIST SELECTION
+// =====================================
+
+listView.setOnItemClickListener { _, _, position, _ ->
+
+    val url =
+        streamList[position]
+
+    if (
+        listView.isItemChecked(
+            position
+        )
+    ) {
+
+        if (!selected.contains(url)) {
 
             selected.add(
-                streamList[i]
+                url
             )
         }
+
+    } else {
+
+        selected.remove(
+            url
+        )
+    }
+}
+
+// =====================================
+// SELECT ALL
+// =====================================
+
+selectAllButton.setOnClickListener {
+
+    selected.clear()
+
+    for (i in streamList.indices) {
+
+        listView.setItemChecked(
+            i,
+            true
+        )
+
+        selected.add(
+            streamList[i]
+        )
+    }
+
+    Toast.makeText(
+        this,
+        "All selected",
+        Toast.LENGTH_SHORT
+    ).show()
+}
+
+// =====================================
+// SAVE
+// =====================================
+
+saveButton.setOnClickListener {
+
+    if (selected.isEmpty()) {
 
         Toast.makeText(
             this,
-            "All selected",
+            "No streams selected",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return@setOnClickListener
+    }
+
+    var savedCount =
+        0
+
+    selected.forEach { url ->
+
+        try {
+
+            addSavedChannel(
+                url
+            )
+
+            savedCount++
+
+        } catch (_: Throwable) {}
+    }
+
+    Toast.makeText(
+        this,
+        "Saved $savedCount channel(s)",
+        Toast.LENGTH_SHORT
+    ).show()
+}
+
+// =====================================
+// COPY
+// =====================================
+
+copyButton.setOnClickListener {
+
+    if (selected.isEmpty()) {
+
+        Toast.makeText(
+            this,
+            "No streams selected",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return@setOnClickListener
+    }
+
+    try {
+
+        val text =
+            selected.joinToString(
+                "\n\n"
+            )
+
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "streams",
+                text
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "Copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "COPY_STREAMS",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Copy failed",
             Toast.LENGTH_SHORT
         ).show()
     }
+}
 
-    // =====================================
-    // COPY
-    // =====================================
+// =====================================
+// SHARE
+// =====================================
 
-    dialog.getButton(
-        androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE
-    ).setOnClickListener {
+shareButton.setOnClickListener {
 
-        if (selected.isEmpty()) {
+    if (selected.isEmpty()) {
 
-            Toast.makeText(
-                this,
-                "No streams selected",
-                Toast.LENGTH_SHORT
-            ).show()
+        Toast.makeText(
+            this,
+            "No streams selected",
+            Toast.LENGTH_SHORT
+        ).show()
 
-            return@setOnClickListener
-        }
-
-        try {
-
-            val text =
-                selected.joinToString(
-                    "\n\n"
-                )
-
-            val clipboard =
-                getSystemService(
-                    CLIPBOARD_SERVICE
-                ) as ClipboardManager
-
-            clipboard.setPrimaryClip(
-                ClipData.newPlainText(
-                    "streams",
-                    text
-                )
-            )
-
-            Toast.makeText(
-                this,
-                "Copied",
-                Toast.LENGTH_SHORT
-            ).show()
-
-        } catch (t: Throwable) {
-
-            Log.e(
-                "COPY_STREAMS",
-                "failed",
-                t
-            )
-
-            Toast.makeText(
-                this,
-                "Copy failed",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        return@setOnClickListener
     }
 
-    // =====================================
-    // SHARE
-    // =====================================
+    try {
 
-    dialog.getButton(
-        androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE
-    ).setOnClickListener {
-
-        if (selected.isEmpty()) {
-
-            Toast.makeText(
-                this,
-                "No streams selected",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return@setOnClickListener
-        }
-
-        try {
-
-            val allUrls =
-                selected.joinToString(
-                    "\n\n"
-                )
-
-            val shareIntent =
-                Intent(Intent.ACTION_SEND).apply {
-
-                    type =
-                        "text/plain"
-
-                    putExtra(
-                        Intent.EXTRA_TEXT,
-                        allUrls
-                    )
-                }
-
-            startActivity(
-                Intent.createChooser(
-                    shareIntent,
-                    "Share Streams With"
-                )
+        val allUrls =
+            selected.joinToString(
+                "\n\n"
             )
 
-        } catch (t: Throwable) {
+        val shareIntent =
+            Intent(Intent.ACTION_SEND).apply {
 
-            Log.e(
-                "SHARE_STREAM",
-                "failed",
-                t
+                type =
+                    "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    allUrls
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Share Streams With"
             )
+        )
 
-            Toast.makeText(
-                this,
-                "Share failed",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SHARE_STREAM",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Share failed",
+            Toast.LENGTH_SHORT
+        ).show()
     }
+}
 }
 
 // =====================================
@@ -13471,6 +13594,55 @@ private fun buildStreamType(
 }
 
 // =====================================
+// REAL YOUTUBE WATCH URL CHECK
+// =====================================
+
+private fun isRealYouTubeWatchUrl(
+    url: String
+): Boolean {
+
+    return try {
+
+        val lower =
+            url.lowercase()
+
+        if (
+            !lower.contains("youtube.com/watch") &&
+            !lower.contains("youtu.be/")
+        ) {
+            return false
+        }
+
+        val videoId =
+            if (lower.contains("youtube.com/watch")) {
+
+                Uri.parse(url)
+                    .getQueryParameter("v")
+                    .orEmpty()
+
+            } else {
+
+                Uri.parse(url)
+                    .path
+                    ?.trimStart('/')
+                    ?.substringBefore("/")
+                    ?.substringBefore("?")
+                    ?.substringBefore("&")
+                    ?.trim()
+                    .orEmpty()
+            }
+
+        videoId.matches(
+            Regex("^[A-Za-z0-9_-]{11}$")
+        )
+
+    } catch (_: Throwable) {
+
+        false
+    }
+}
+
+// =====================================
 // IS EXPORTABLE STREAM
 // =====================================
 
@@ -13480,6 +13652,21 @@ private fun isExportableStream(
 
 val lower =
     url.lowercase()
+    
+// =====================================
+// FAKE YOUTUBE WATCH URL FILTER
+// Blocks googlevideo temporary IDs converted to watch?v=...
+// =====================================
+
+if (
+    (
+        lower.contains("youtube.com/watch") ||
+            lower.contains("youtu.be/")
+    ) &&
+    !isRealYouTubeWatchUrl(url)
+) {
+    return false
+}
 
 val validation =
     streamValidation[url]
