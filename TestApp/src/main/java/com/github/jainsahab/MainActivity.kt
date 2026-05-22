@@ -2878,6 +2878,9 @@ binding.contentMain.shareStreams.setOnClickListener {
 // Keeps bottom buttons horizontal
 // =====================================
 
+val dialogHeight =
+    (resources.displayMetrics.heightPixels * 0.82f).toInt()
+
 val root =
     android.widget.LinearLayout(this).apply {
 
@@ -2891,11 +2894,8 @@ val root =
             10
         )
 
-        layoutParams =
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                (resources.displayMetrics.heightPixels * 0.78f).toInt()
-            )
+        minimumHeight =
+            dialogHeight
     }
 
 val listView =
@@ -2920,6 +2920,12 @@ val listView =
 
         isVerticalScrollBarEnabled =
             true
+
+        isScrollContainer =
+            true
+
+        overScrollMode =
+            android.view.View.OVER_SCROLL_ALWAYS
     }
 
 root.addView(
@@ -3037,9 +3043,32 @@ val dialog =
 try {
 
     dialog.window?.setLayout(
-    (resources.displayMetrics.widthPixels * 0.92f).toInt(),
-    android.view.WindowManager.LayoutParams.WRAP_CONTENT
-)
+        (resources.displayMetrics.widthPixels * 0.92f).toInt(),
+        (resources.displayMetrics.heightPixels * 0.90f).toInt()
+    )
+
+    root.post {
+
+        try {
+
+            root.layoutParams =
+                android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    dialogHeight
+                )
+
+            listView.layoutParams =
+                android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
+                )
+
+            root.requestLayout()
+            listView.requestLayout()
+
+        } catch (_: Throwable) {}
+    }
 
 } catch (_: Throwable) {}
 
