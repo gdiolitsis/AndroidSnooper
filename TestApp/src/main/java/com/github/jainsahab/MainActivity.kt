@@ -248,6 +248,61 @@ private fun persistSavedChannels() {
 }
 
 // =====================================
+// NORMALIZE SAVED CHANNEL URL
+// Never save temporary googlevideo URLs
+// =====================================
+
+private fun normalizeSavedChannelUrl(
+    rawUrl: String
+): String {
+
+    return try {
+
+        val cleanUrl =
+            rawUrl
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .replace("&amp;", "&")
+                .trim()
+
+        val lower =
+            cleanUrl.lowercase()
+
+        if (
+            lower.contains("googlevideo.com") ||
+            lower.contains("videoplayback")
+        ) {
+
+            val uri =
+                Uri.parse(cleanUrl)
+
+            val id =
+                uri.getQueryParameter("id")
+                    ?.substringBefore(".")
+                    ?.trim()
+                    .orEmpty()
+
+            if (
+                id.matches(
+                    Regex("^[A-Za-z0-9_-]{11}$")
+                )
+            ) {
+
+                return "https://www.youtube.com/watch?v=$id"
+            }
+
+            return ""
+        }
+
+        cleanUrl
+
+    } catch (_: Throwable) {
+
+        rawUrl.trim()
+    }
+}
+
+// =====================================
 // ADD SAVED CHANNEL
 // =====================================
 
@@ -258,11 +313,9 @@ private fun addSavedChannel(
     try {
 
         val cleanUrl =
-            url
-                .replace("\\u0026", "&")
-                .replace("\\/", "/")
-                .replace("&amp;", "&")
-                .trim()
+    normalizeSavedChannelUrl(
+        url
+    )
 
         if (
             cleanUrl.isBlank() ||
@@ -336,6 +389,215 @@ private fun addSavedChannel(
         ).show()
 
     } catch (_: Throwable) {}
+}
+
+// =====================================
+// SHOW SAVED CHANNELS DIALOG
+// =====================================
+
+private fun showSavedChannelsDialog() {
+
+    try {
+
+        loadSavedChannels()
+
+        if (savedChannels.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No saved channels",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val scrollView =
+            android.widget.ScrollView(this)
+
+        val container =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.VERTICAL
+
+                setPadding(
+                    20,
+                    20,
+                    20,
+                    20
+                )
+            }
+
+        scrollView.addView(container)
+
+        savedChannels
+            .toList()
+            .forEach { channel ->
+
+                val row =
+                    LinearLayout(this).apply {
+
+                        orientation =
+                            LinearLayout.HORIZONTAL
+
+                        setPadding(
+                            0,
+                            8,
+                            0,
+                            8
+                        )
+                    }
+
+                val info =
+                    TextView(this).apply {
+
+                        text =
+                            """
+${channel.name}
+
+${channel.url}
+                            """.trimIndent()
+
+                        textSize =
+                            12f
+
+                        setPadding(
+                            0,
+                            0,
+                            12,
+                            0
+                        )
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            )
+                    }
+
+                val openButton =
+                    Button(this).apply {
+
+                        text =
+                            "OPEN"
+
+                        setOnClickListener {
+
+                            try {
+
+                                val intent =
+                                    Intent(
+                                        Intent.ACTION_VIEW
+                                    ).apply {
+
+                                        data =
+                                            Uri.parse(
+                                                channel.url
+                                            )
+
+                                        addCategory(
+                                            Intent.CATEGORY_BROWSABLE
+                                        )
+                                    }
+
+                                startActivity(
+                                    Intent.createChooser(
+                                        intent,
+                                        "Open Channel"
+                                    )
+                                )
+
+                            } catch (_: Throwable) {
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Cannot open channel",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+
+                val deleteButton =
+                    Button(this).apply {
+
+                        text =
+                            "DELETE"
+
+                        setOnClickListener {
+
+                            try {
+
+                                savedChannels.removeAll { saved ->
+
+                                    saved.url == channel.url
+                                }
+
+                                persistSavedChannels()
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Channel deleted",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                showSavedChannelsDialog()
+
+                            } catch (_: Throwable) {
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Delete failed",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+
+                row.addView(info)
+                row.addView(openButton)
+                row.addView(deleteButton)
+
+                container.addView(row)
+
+                val line =
+                    TextView(this).apply {
+
+                        text =
+                            "────────────────────"
+
+                        textSize =
+                            12f
+                    }
+
+                container.addView(line)
+            }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Saved Channels")
+            .setView(scrollView)
+            .setNegativeButton(
+                "CLOSE",
+                null
+            )
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SAVED_CHANNELS_DIALOG",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Saved channels failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 }
 
 // =====================================
@@ -3114,6 +3376,15 @@ val groupTitle =
 
         showAudio()  
     }  
+    
+// =====================================
+// SAVED CHANNELS
+// =====================================
+
+binding.contentMain.btnSavedChannels.setOnClickListener {
+
+    showSavedChannelsDialog()
+}
 
 // =====================================
 // CLEAR RESULTS + RESET DETECTION STATE
