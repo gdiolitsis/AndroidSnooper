@@ -2393,12 +2393,12 @@ binding.contentMain.openPlayer.setOnClickListener {
 
     } catch (_: Throwable) {}
 
-    // =====================================
-    // PLAYABLE STREAM LIST
-    // NO IMAGES
-    // =====================================
+// =====================================
+// PLAYABLE STREAM LIST
+// NO IMAGES
+// =====================================
 
-    val streamList =
+val streamList =
     sortedStreams
         .map { url ->
 
@@ -2455,7 +2455,10 @@ binding.contentMain.openPlayer.setOnClickListener {
                         "googlevideo://$id/$itag/$mime/$source"
 
                     } else if (
-                        lower.contains("youtube.com/watch")
+                        lower.contains("youtube.com/watch") ||
+                        lower.contains("youtu.be/") ||
+                        lower.contains("youtube.com/live") ||
+                        lower.contains("youtube.com/c/")
                     ) {
 
                         val uri =
@@ -2465,7 +2468,16 @@ binding.contentMain.openPlayer.setOnClickListener {
                             uri.getQueryParameter("v")
                                 .orEmpty()
 
-                        "youtube://watch/$v"
+                        if (v.isNotBlank()) {
+
+                            "youtube://watch/$v"
+
+                        } else {
+
+                            url
+                                .substringBefore("#")
+                                .trim()
+                        }
 
                     } else {
 
@@ -2491,152 +2503,259 @@ binding.contentMain.openPlayer.setOnClickListener {
         }
         .toTypedArray()
 
-    if (streamList.isEmpty()) {
+if (streamList.isEmpty()) {
 
-        Toast.makeText(
-            this,
-            "No playable streams found",
-            Toast.LENGTH_SHORT
-        ).show()
+    Toast.makeText(
+        this,
+        "No playable streams found",
+        Toast.LENGTH_SHORT
+    ).show()
 
-        return@setOnClickListener
-    }
+    return@setOnClickListener
+}
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
-        .setTitle("Select Stream")
+androidx.appcompat.app.AlertDialog.Builder(this)
+    .setTitle("Select Stream")
 
-        .setItems(streamList) { _, which ->
+    .setItems(streamList) { _, which ->
 
-            val url =
-                streamList[which]
+        val url =
+            streamList[which]
 
-            try {
+        try {
 
-                val lower =
-                    url.lowercase()
+            val urlToOpen =
+                url
+                    .trim()
+                    .replace("\n", "")
+                    .replace("\r", "")
+                    .replace(" ", "")
 
-                val mimeType =
-                    when {
+            // =====================================
+            // YOUTUBE -> RENDER -> FRESH M3U8
+            // =====================================
 
-                        // =========================
-                        // AUDIO
-                        // =========================
-
-                        lower.contains(".mp3") ->
-                            "audio/mpeg"
-
-                        lower.contains(".m4a") ->
-                            "audio/mp4"
-
-                        lower.contains(".aac") ->
-                            "audio/aac"
-
-                        lower.contains(".opus") ->
-                            "audio/opus"
-
-                        lower.contains(".wav") ->
-                            "audio/wav"
-
-                        lower.contains(".ogg") ->
-                            "audio/ogg"
-
-                        lower.contains(".flac") ->
-                            "audio/flac"
-
-                        // =========================
-                        // VIDEO / LIVE STREAMS
-                        // =========================
-
-                        lower.contains(".m3u8") ->
-                            "video/*"
-
-                        lower.contains(".mpd") ->
-                            "video/*"
-
-                        lower.contains(".mp4") ->
-                            "video/*"
-
-                        lower.contains(".webm") ->
-                            "video/*"
-
-                        lower.contains(".mkv") ->
-                            "video/*"
-
-                        lower.contains(".mov") ->
-                            "video/*"
-
-                        lower.contains(".avi") ->
-                            "video/*"
-
-                        lower.contains(".3gp") ->
-                            "video/*"
-
-                        lower.endsWith(".ts") ||
-                            lower.contains(".ts?") ->
-                            "video/*"
-
-                        lower.contains("youtube.com/watch") ||
-                            lower.contains("youtu.be/") ||
-                            lower.contains("googlevideo.com") ||
-                            lower.contains("videoplayback") ->
-                            "video/*"
-
-                        // =========================
-                        // FALLBACK
-                        // =========================
-
-                        else ->
-                            "*/*"
-                    }
-
-                val cleanUrl =
-                    url
-                        .trim()
-                        .replace("\n", "")
-                        .replace("\r", "")
-                        .replace(" ", "")
-
-                val intent =
-                    Intent(Intent.ACTION_VIEW).apply {
-
-                        setDataAndType(
-                            Uri.parse(cleanUrl),
-                            mimeType
-                        )
-
-                        addCategory(
-                            Intent.CATEGORY_BROWSABLE
-                        )
-
-                        addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                        )
-                    }
-
-                startActivity(
-                    Intent.createChooser(
-                        intent,
-                        "Open Stream With"
-                    )
+            if (
+                urlToOpen.contains(
+                    "youtube.com/watch",
+                    true
+                ) ||
+                urlToOpen.contains(
+                    "youtu.be/",
+                    true
+                ) ||
+                urlToOpen.contains(
+                    "youtube.com/live",
+                    true
+                ) ||
+                urlToOpen.contains(
+                    "youtube.com/c/",
+                    true
                 )
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "PLAYER_OPEN",
-                    "failed",
-                    t
-                )
+            ) {
 
                 Toast.makeText(
                     this,
-                    "Cannot open stream",
+                    "Resolving YouTube stream...",
                     Toast.LENGTH_SHORT
                 ).show()
-            }
-        }
 
-        .show()
+                resolveYouTubeWithRender(
+                    urlToOpen,
+                    onSuccess = { resolvedM3u8 ->
+
+                        try {
+
+                            lastSelectedUrl =
+                                resolvedM3u8
+
+                            detectAndSaveUrl(
+                                resolvedM3u8
+                            )
+
+                            val intent =
+                                Intent(
+                                    Intent.ACTION_VIEW
+                                ).apply {
+
+                                    setDataAndType(
+                                        Uri.parse(resolvedM3u8),
+                                        "application/vnd.apple.mpegurl"
+                                    )
+
+                                    addCategory(
+                                        Intent.CATEGORY_BROWSABLE
+                                    )
+
+                                    addFlags(
+                                        Intent.FLAG_ACTIVITY_NEW_TASK
+                                    )
+                                }
+
+                            startActivity(
+                                Intent.createChooser(
+                                    intent,
+                                    "Open YouTube HLS"
+                                )
+                            )
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "RENDER_OPEN_PLAYER",
+                                "open resolved failed",
+                                t
+                            )
+
+                            Toast.makeText(
+                                this,
+                                "Cannot open resolved stream",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
+                    onError = { error ->
+
+                        Toast.makeText(
+                            this,
+                            "YouTube resolve failed",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        Log.e(
+                            "RENDER_OPEN_PLAYER",
+                            error
+                        )
+                    }
+                )
+
+                return@setItems
+            }
+
+            val lower =
+                urlToOpen.lowercase()
+
+            val mimeType =
+                when {
+
+                    // =========================
+                    // AUDIO
+                    // =========================
+
+                    lower.contains(".mp3") ->
+                        "audio/mpeg"
+
+                    lower.contains(".m4a") ->
+                        "audio/mp4"
+
+                    lower.contains(".aac") ->
+                        "audio/aac"
+
+                    lower.contains(".opus") ->
+                        "audio/opus"
+
+                    lower.contains(".wav") ->
+                        "audio/wav"
+
+                    lower.contains(".ogg") ->
+                        "audio/ogg"
+
+                    lower.contains(".flac") ->
+                        "audio/flac"
+
+                    // =========================
+                    // HLS / DASH
+                    // =========================
+
+                    lower.contains(".m3u8") ||
+                        lower.contains("hls") ->
+                        "application/vnd.apple.mpegurl"
+
+                    lower.contains(".mpd") ||
+                        lower.contains("dash") ->
+                        "application/dash+xml"
+
+                    // =========================
+                    // VIDEO
+                    // =========================
+
+                    lower.contains(".mp4") ->
+                        "video/mp4"
+
+                    lower.contains(".webm") ->
+                        "video/webm"
+
+                    lower.contains(".mkv") ->
+                        "video/*"
+
+                    lower.contains(".mov") ->
+                        "video/*"
+
+                    lower.contains(".avi") ->
+                        "video/*"
+
+                    lower.contains(".3gp") ->
+                        "video/*"
+
+                    lower.endsWith(".ts") ||
+                        lower.contains(".ts?") ->
+                        "video/*"
+
+                    lower.contains("googlevideo.com") ||
+                        lower.contains("videoplayback") ->
+                        "video/*"
+
+                    // =========================
+                    // FALLBACK
+                    // =========================
+
+                    else ->
+                        "*/*"
+                }
+
+            val intent =
+                Intent(
+                    Intent.ACTION_VIEW
+                ).apply {
+
+                    setDataAndType(
+                        Uri.parse(urlToOpen),
+                        mimeType
+                    )
+
+                    addCategory(
+                        Intent.CATEGORY_BROWSABLE
+                    )
+
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK
+                    )
+                }
+
+            startActivity(
+                Intent.createChooser(
+                    intent,
+                    "Open Stream With"
+                )
+            )
+
+        } catch (t: Throwable) {
+
+            Log.e(
+                "PLAYER_OPEN",
+                "failed",
+                t
+            )
+
+            Toast.makeText(
+                this,
+                "Cannot open stream",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    .show()
 
 } // END OPEN PLAYER
 
@@ -4044,7 +4163,48 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                 "OPEN PLAYER" -> {
 
+    try {
+
+        val urlToOpen =
+            finalUrl.trim()
+
+        if (
+            urlToOpen.contains(
+                "youtube.com/watch",
+                true
+            ) ||
+            urlToOpen.contains(
+                "youtu.be/",
+                true
+            ) ||
+            urlToOpen.contains(
+                "youtube.com/live",
+                true
+            ) ||
+            urlToOpen.contains(
+                "youtube.com/c/",
+                true
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "Resolving YouTube stream...",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            resolveYouTubeWithRender(
+                urlToOpen,
+                onSuccess = { resolvedM3u8 ->
+
                     try {
+
+                        lastSelectedUrl =
+                            resolvedM3u8
+
+                        detectAndSaveUrl(
+                            resolvedM3u8
+                        )
 
                         val intent =
                             Intent(
@@ -4052,19 +4212,19 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                             ).apply {
 
                                 setDataAndType(
-                                    Uri.parse(finalUrl),
-                                    "video/*"
+                                    Uri.parse(resolvedM3u8),
+                                    "application/vnd.apple.mpegurl"
                                 )
 
-                                addCategory(
-                                    Intent.CATEGORY_BROWSABLE
+                                addFlags(
+                                    Intent.FLAG_ACTIVITY_NEW_TASK
                                 )
                             }
 
                         startActivity(
                             Intent.createChooser(
                                 intent,
-                                "Open With"
+                                "Open YouTube HLS"
                             )
                         )
 
@@ -4072,15 +4232,114 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                         Toast.makeText(
                             this,
-                            "No compatible player",
+                            "Cannot open resolved stream",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
-                }
+                },
+                onError = { error ->
 
-                "SHARE URL" -> {
+                    Toast.makeText(
+                        this,
+                        "YouTube resolve failed",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    Log.e(
+                        "RENDER_YOUTUBE_RESOLVE",
+                        error
+                    )
+                }
+            )
+
+            return@setOnMenuItemClickListener true
+        }
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+
+                setDataAndType(
+                    Uri.parse(urlToOpen),
+                    "video/*"
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open With"
+            )
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "No compatible player",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    true
+}
+
+          "SHARE URL" -> {
+
+    try {
+
+        val urlToShare =
+            finalUrl.trim()
+
+        if (urlToShare.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "No URL selected",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return@setOnMenuItemClickListener true
+        }
+
+        if (
+            urlToShare.contains(
+                "youtube.com/watch",
+                true
+            ) ||
+            urlToShare.contains(
+                "youtu.be/",
+                true
+            ) ||
+            urlToShare.contains(
+                "youtube.com/live",
+                true
+            ) ||
+            urlToShare.contains(
+                "youtube.com/c/",
+                true
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "Resolving YouTube stream...",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            resolveYouTubeWithRender(
+                urlToShare,
+                onSuccess = { resolvedM3u8 ->
 
                     try {
+
+                        lastSelectedUrl =
+                            resolvedM3u8
+
+                        detectAndSaveUrl(
+                            resolvedM3u8
+                        )
 
                         val shareIntent =
                             Intent(
@@ -4092,21 +4351,123 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    finalUrl
+                                    resolvedM3u8
                                 )
                             }
 
                         startActivity(
                             Intent.createChooser(
                                 shareIntent,
-                                "Share Stream"
+                                "Share YouTube HLS"
                             )
                         )
 
-                    } catch (_: Throwable) {}
-                }
+                    } catch (_: Throwable) {
 
-                "COPY URL" -> {
+                        Toast.makeText(
+                            this,
+                            "Share failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onError = { error ->
+
+                    Toast.makeText(
+                        this,
+                        "YouTube resolve failed",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    Log.e(
+                        "RENDER_YOUTUBE_SHARE",
+                        error
+                    )
+                }
+            )
+
+            return@setOnMenuItemClickListener true
+        }
+
+        val shareIntent =
+            Intent(
+                Intent.ACTION_SEND
+            ).apply {
+
+                type =
+                    "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    urlToShare
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Share Stream"
+            )
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Share failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    true
+}
+
+           "COPY URL" -> {
+
+    try {
+
+        val urlToCopy =
+            finalUrl.trim()
+
+        if (urlToCopy.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "No URL selected",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return@setOnMenuItemClickListener true
+        }
+
+        if (
+            urlToCopy.contains(
+                "youtube.com/watch",
+                true
+            ) ||
+            urlToCopy.contains(
+                "youtu.be/",
+                true
+            ) ||
+            urlToCopy.contains(
+                "youtube.com/live",
+                true
+            ) ||
+            urlToCopy.contains(
+                "youtube.com/c/",
+                true
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "Resolving YouTube stream...",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            resolveYouTubeWithRender(
+                urlToCopy,
+                onSuccess = { resolvedM3u8 ->
 
                     try {
 
@@ -4117,19 +4478,80 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                         clipboard.setPrimaryClip(
                             ClipData.newPlainText(
-                                "stream",
-                                finalUrl
+                                "youtube_hls_m3u8",
+                                resolvedM3u8
                             )
+                        )
+
+                        lastSelectedUrl =
+                            resolvedM3u8
+
+                        detectAndSaveUrl(
+                            resolvedM3u8
                         )
 
                         Toast.makeText(
                             this,
-                            "URL copied",
+                            "YouTube HLS copied",
                             Toast.LENGTH_SHORT
                         ).show()
 
-                    } catch (_: Throwable) {}
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Copy failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onError = { error ->
+
+                    Toast.makeText(
+                        this,
+                        "YouTube resolve failed",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    Log.e(
+                        "RENDER_YOUTUBE_COPY_URL",
+                        error
+                    )
                 }
+            )
+
+            return@setOnMenuItemClickListener true
+        }
+
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "stream",
+                urlToCopy
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "URL copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Copy failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    true
+}
 
                 "SAVE CHANNEL" -> {
 
@@ -4212,64 +4634,191 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                 "OPEN YOUTUBE WATCH" -> {
 
-                    try {
+    try {
 
-                        val intent =
-                            Intent(
-                                Intent.ACTION_VIEW
-                            ).apply {
+        val ytUrl =
+            youtubeWatchUrl
+                .trim()
 
-                                data =
-                                    Uri.parse(
-                                        youtubeWatchUrl
-                                    )
+        if (ytUrl.isBlank()) {
 
-                                addCategory(
-                                    Intent.CATEGORY_BROWSABLE
-                                )
-                            }
+            Toast.makeText(
+                this,
+                "No YouTube watch URL",
+                Toast.LENGTH_SHORT
+            ).show()
 
-                        startActivity(
-                            Intent.createChooser(
-                                intent,
-                                "Open YouTube Live"
+            return@setOnMenuItemClickListener true
+        }
+
+        Toast.makeText(
+            this,
+            "Resolving YouTube stream...",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        resolveYouTubeWithRender(
+            ytUrl,
+            onSuccess = { resolvedM3u8 ->
+
+                try {
+
+                    lastSelectedUrl =
+                        resolvedM3u8
+
+                    detectAndSaveUrl(
+                        resolvedM3u8
+                    )
+
+                    val intent =
+                        Intent(
+                            Intent.ACTION_VIEW
+                        ).apply {
+
+                            setDataAndType(
+                                Uri.parse(resolvedM3u8),
+                                "application/vnd.apple.mpegurl"
                             )
+
+                            addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
+                        }
+
+                    startActivity(
+                        Intent.createChooser(
+                            intent,
+                            "Open YouTube HLS"
                         )
+                    )
 
-                    } catch (_: Throwable) {
+                } catch (_: Throwable) {
 
-                        Toast.makeText(
-                            this,
-                            "Cannot open YouTube link",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    Toast.makeText(
+                        this,
+                        "Cannot open resolved stream",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+            },
+            onError = { error ->
+
+                Toast.makeText(
+                    this,
+                    "YouTube resolve failed",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                Log.e(
+                    "RENDER_YOUTUBE_WATCH",
+                    error
+                )
+            }
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Cannot resolve YouTube link",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    true
+}
 
                 "COPY YOUTUBE WATCH" -> {
 
-                    try {
+    try {
 
-                        val clipboard =
-                            getSystemService(
-                                CLIPBOARD_SERVICE
-                            ) as ClipboardManager
+        val ytUrl =
+            youtubeWatchUrl
+                .trim()
 
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText(
-                                "youtube_watch",
-                                youtubeWatchUrl
-                            )
+        if (ytUrl.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "No YouTube watch URL",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return@setOnMenuItemClickListener true
+        }
+
+        Toast.makeText(
+            this,
+            "Resolving YouTube stream...",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        resolveYouTubeWithRender(
+            ytUrl,
+            onSuccess = { resolvedM3u8 ->
+
+                try {
+
+                    val clipboard =
+                        getSystemService(
+                            CLIPBOARD_SERVICE
+                        ) as ClipboardManager
+
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            "youtube_hls_m3u8",
+                            resolvedM3u8
                         )
+                    )
 
-                        Toast.makeText(
-                            this,
-                            "YouTube link copied",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    lastSelectedUrl =
+                        resolvedM3u8
 
-                    } catch (_: Throwable) {}
+                    detectAndSaveUrl(
+                        resolvedM3u8
+                    )
+
+                    Toast.makeText(
+                        this,
+                        "YouTube HLS copied",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "Copy failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+            },
+            onError = { error ->
+
+                Toast.makeText(
+                    this,
+                    "YouTube resolve failed",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                Log.e(
+                    "RENDER_YOUTUBE_COPY",
+                    error
+                )
+            }
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Cannot copy YouTube stream",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    true
+}
 
                 "COPY DASH PAIR" -> {
 
@@ -4373,6 +4922,128 @@ $youtubeDashAudioUrl
 }
 
 } // END onCreate()
+
+// =====================================
+// RENDER YOUTUBE HLS RESOLVER
+// YouTube watch URL -> fresh m3u8
+// =====================================
+
+private fun resolveYouTubeWithRender(
+    sourceUrl: String,
+    onSuccess: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+
+    Thread {
+
+        try {
+
+            val encodedUrl =
+                java.net.URLEncoder.encode(
+                    sourceUrl,
+                    "UTF-8"
+                )
+
+            val endpoint =
+                "https://gel-youtube-hls-extractor.onrender.com/extract?url=$encodedUrl"
+
+            val connection =
+                java.net.URL(endpoint)
+                    .openConnection() as java.net.HttpURLConnection
+
+            connection.requestMethod =
+                "GET"
+
+            connection.connectTimeout =
+                60000
+
+            connection.readTimeout =
+                120000
+
+            val responseCode =
+                connection.responseCode
+
+            val stream =
+                if (responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+
+            val body =
+                stream
+                    ?.bufferedReader()
+                    ?.use { it.readText() }
+                    ?: ""
+
+            val json =
+                org.json.JSONObject(body)
+
+            val ok =
+                json.optBoolean(
+                    "ok",
+                    false
+                )
+
+            if (!ok) {
+
+                val error =
+                    json.optString(
+                        "error",
+                        "Render extraction failed"
+                    )
+
+                runOnUiThread {
+                    onError(error)
+                }
+
+                return@Thread
+            }
+
+            val result =
+                json.optJSONObject(
+                    "result"
+                )
+
+            val m3u8Url =
+                result
+                    ?.optString(
+                        "m3u8_url",
+                        ""
+                    )
+                    ?.takeIf { it.isNotBlank() }
+                    ?: result
+                        ?.optString(
+                            "url",
+                            ""
+                        )
+                        .orEmpty()
+
+            if (m3u8Url.isBlank()) {
+
+                runOnUiThread {
+                    onError("No m3u8 URL returned")
+                }
+
+                return@Thread
+            }
+
+            runOnUiThread {
+                onSuccess(m3u8Url)
+            }
+
+        } catch (t: Throwable) {
+
+            runOnUiThread {
+                onError(
+                    t.message
+                        ?: "Render resolver error"
+                )
+            }
+        }
+
+    }.start()
+}
 
 // =====================================
 // SAVE YOUTUBE WATCH FROM ANY URL
