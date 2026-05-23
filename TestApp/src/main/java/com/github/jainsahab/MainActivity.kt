@@ -4252,7 +4252,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 }
             )
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         val intent =
@@ -4300,7 +4300,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 Toast.LENGTH_SHORT
             ).show()
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         if (
@@ -4386,7 +4386,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 }
             )
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         val shareIntent =
@@ -4437,7 +4437,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 Toast.LENGTH_SHORT
             ).show()
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         if (
@@ -4520,7 +4520,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 }
             )
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         val clipboard =
@@ -4648,7 +4648,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 Toast.LENGTH_SHORT
             ).show()
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         Toast.makeText(
@@ -4744,7 +4744,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 Toast.LENGTH_SHORT
             ).show()
 
-            return@setOnMenuItemClickListener true
+            return@setItems
         }
 
         Toast.makeText(
