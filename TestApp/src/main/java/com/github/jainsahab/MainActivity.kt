@@ -2531,106 +2531,79 @@ androidx.appcompat.app.AlertDialog.Builder(this)
                     .replace("\r", "")
                     .replace(" ", "")
 
-            // =====================================
-            // YOUTUBE -> RENDER -> FRESH M3U8
-            // =====================================
+// =====================================
+// YOUTUBE WATCH URL
+// Render disabled for YouTube
+// Keep as reference only
+// =====================================
 
-            if (
-                urlToOpen.contains(
-                    "youtube.com/watch",
-                    true
-                ) ||
-                urlToOpen.contains(
-                    "youtu.be/",
-                    true
-                ) ||
-                urlToOpen.contains(
-                    "youtube.com/live",
-                    true
-                ) ||
-                urlToOpen.contains(
-                    "youtube.com/c/",
-                    true
-                )
-            ) {
+if (
+    urlToOpen.contains(
+        "youtube.com/watch",
+        true
+    ) ||
+    urlToOpen.contains(
+        "youtu.be/",
+        true
+    ) ||
+    urlToOpen.contains(
+        "youtube.com/live",
+        true
+    ) ||
+    urlToOpen.contains(
+        "youtube.com/c/",
+        true
+    )
+) {
 
-                Toast.makeText(
-                    this,
-                    "Resolving YouTube stream...",
-                    Toast.LENGTH_SHORT
-                ).show()
+    lastSelectedUrl =
+        urlToOpen
 
-                resolveYouTubeWithRender(
-                    urlToOpen,
-                    onSuccess = { resolvedM3u8 ->
+    Toast.makeText(
+        this,
+        "YouTube requires local resolver / Termux",
+        Toast.LENGTH_LONG
+    ).show()
 
-                        try {
+    val intent =
+        Intent(
+            Intent.ACTION_VIEW
+        ).apply {
 
-                            lastSelectedUrl =
-                                resolvedM3u8
-
-                            detectAndSaveUrl(
-                                resolvedM3u8
-                            )
-
-                            val intent =
-                                Intent(
-                                    Intent.ACTION_VIEW
-                                ).apply {
-
-                                    setDataAndType(
-                                        Uri.parse(resolvedM3u8),
-                                        "application/vnd.apple.mpegurl"
-                                    )
-
-                                    addCategory(
-                                        Intent.CATEGORY_BROWSABLE
-                                    )
-
-                                    addFlags(
-                                        Intent.FLAG_ACTIVITY_NEW_TASK
-                                    )
-                                }
-
-                            startActivity(
-                                Intent.createChooser(
-                                    intent,
-                                    "Open YouTube HLS"
-                                )
-                            )
-
-                        } catch (t: Throwable) {
-
-                            Log.e(
-                                "RENDER_OPEN_PLAYER",
-                                "open resolved failed",
-                                t
-                            )
-
-                            Toast.makeText(
-                                this,
-                                "Cannot open resolved stream",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    },
-                    onError = { error ->
-
-                        Toast.makeText(
-                            this,
-                            "YouTube resolve failed",
-                            Toast.LENGTH_LONG
-                        ).show()
-
-                        Log.e(
-                            "RENDER_OPEN_PLAYER",
-                            error
-                        )
-                    }
+            data =
+                Uri.parse(
+                    urlToOpen
                 )
 
-                return@setItems
-            }
+            addCategory(
+                Intent.CATEGORY_BROWSABLE
+            )
+
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+            )
+        }
+
+    try {
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open YouTube Link"
+            )
+        )
+
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Cannot open YouTube link",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    return@setItems
+}
 
             val lower =
                 urlToOpen.lowercase()
@@ -4139,81 +4112,72 @@ binding.contentMain.result.setOnLongClickListener { _ ->
         )
     }
 
-    androidx.appcompat.app.AlertDialog.Builder(this)
+androidx.appcompat.app.AlertDialog.Builder(this)
 
-        .setTitle(
-            "Stream Actions"
-        )
+    .setTitle(
+        "Stream Actions"
+    )
 
-        .setItems(
-            actions.toTypedArray()
-        ) { dialogInterface, which ->
+    .setItems(
+        actions.toTypedArray()
+    ) { dialogInterface, which ->
 
-            val finalUrl =
-                lastSelectedUrl
-                    .trim()
+        val finalUrl =
+            lastSelectedUrl
+                .trim()
 
-            if (finalUrl.isBlank()) {
-                return@setItems
-            }
+        if (finalUrl.isBlank()) {
+            return@setItems
+        }
 
-            when (
-                actions[which]
-            ) {
-
-                "OPEN PLAYER" -> {
-
-    try {
-
-        val urlToOpen =
-            finalUrl.trim()
-
-        if (
-            urlToOpen.contains(
-                "youtube.com/watch",
-                true
-            ) ||
-            urlToOpen.contains(
-                "youtu.be/",
-                true
-            ) ||
-            urlToOpen.contains(
-                "youtube.com/live",
-                true
-            ) ||
-            urlToOpen.contains(
-                "youtube.com/c/",
-                true
-            )
+        when (
+            actions[which]
         ) {
 
-            Toast.makeText(
-                this,
-                "Resolving YouTube stream...",
-                Toast.LENGTH_SHORT
-            ).show()
+            "OPEN PLAYER" -> {
 
-            resolveYouTubeWithRender(
-                urlToOpen,
-                onSuccess = { resolvedM3u8 ->
+                try {
 
-                    try {
+                    val urlToOpen =
+                        finalUrl.trim()
 
-                        lastSelectedUrl =
-                            resolvedM3u8
-
-                        detectAndSaveUrl(
-                            resolvedM3u8
+                    if (
+                        urlToOpen.contains(
+                            "youtube.com/watch",
+                            true
+                        ) ||
+                        urlToOpen.contains(
+                            "youtu.be/",
+                            true
+                        ) ||
+                        urlToOpen.contains(
+                            "youtube.com/live",
+                            true
+                        ) ||
+                        urlToOpen.contains(
+                            "youtube.com/c/",
+                            true
                         )
+                    ) {
+
+                        Toast.makeText(
+                            this,
+                            "YouTube requires local resolver / Termux",
+                            Toast.LENGTH_LONG
+                        ).show()
 
                         val intent =
                             Intent(
                                 Intent.ACTION_VIEW
                             ).apply {
 
-                                setDataAndType(
-                                    Uri.parse(resolvedM3u8),
-                                    "application/vnd.apple.mpegurl"
+                                data =
+                                    Uri.parse(
+                                        urlToOpen
+                                    )
+
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
                                 )
 
                                 addFlags(
@@ -4224,451 +4188,12 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                         startActivity(
                             Intent.createChooser(
                                 intent,
-                                "Open YouTube HLS"
+                                "Open YouTube Link"
                             )
                         )
 
-                    } catch (_: Throwable) {
-
-                        Toast.makeText(
-                            this,
-                            "Cannot open resolved stream",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        return@setItems
                     }
-                },
-                onError = { error ->
-
-                    Toast.makeText(
-                        this,
-                        "YouTube resolve failed",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    Log.e(
-                        "RENDER_YOUTUBE_RESOLVE",
-                        error
-                    )
-                }
-            )
-
-            return@setItems
-        }
-
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
-
-                setDataAndType(
-                    Uri.parse(urlToOpen),
-                    "video/*"
-                )
-            }
-
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Open With"
-            )
-        )
-
-    } catch (_: Throwable) {
-
-        Toast.makeText(
-            this,
-            "No compatible player",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    true
-}
-
-          "SHARE URL" -> {
-
-    try {
-
-        val urlToShare =
-            finalUrl.trim()
-
-        if (urlToShare.isBlank()) {
-
-            Toast.makeText(
-                this,
-                "No URL selected",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return@setItems
-        }
-
-        if (
-            urlToShare.contains(
-                "youtube.com/watch",
-                true
-            ) ||
-            urlToShare.contains(
-                "youtu.be/",
-                true
-            ) ||
-            urlToShare.contains(
-                "youtube.com/live",
-                true
-            ) ||
-            urlToShare.contains(
-                "youtube.com/c/",
-                true
-            )
-        ) {
-
-            Toast.makeText(
-                this,
-                "Resolving YouTube stream...",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            resolveYouTubeWithRender(
-                urlToShare,
-                onSuccess = { resolvedM3u8 ->
-
-                    try {
-
-                        lastSelectedUrl =
-                            resolvedM3u8
-
-                        detectAndSaveUrl(
-                            resolvedM3u8
-                        )
-
-                        val shareIntent =
-                            Intent(
-                                Intent.ACTION_SEND
-                            ).apply {
-
-                                type =
-                                    "text/plain"
-
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    resolvedM3u8
-                                )
-                            }
-
-                        startActivity(
-                            Intent.createChooser(
-                                shareIntent,
-                                "Share YouTube HLS"
-                            )
-                        )
-
-                    } catch (_: Throwable) {
-
-                        Toast.makeText(
-                            this,
-                            "Share failed",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                },
-                onError = { error ->
-
-                    Toast.makeText(
-                        this,
-                        "YouTube resolve failed",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    Log.e(
-                        "RENDER_YOUTUBE_SHARE",
-                        error
-                    )
-                }
-            )
-
-            return@setItems
-        }
-
-        val shareIntent =
-            Intent(
-                Intent.ACTION_SEND
-            ).apply {
-
-                type =
-                    "text/plain"
-
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    urlToShare
-                )
-            }
-
-        startActivity(
-            Intent.createChooser(
-                shareIntent,
-                "Share Stream"
-            )
-        )
-
-    } catch (_: Throwable) {
-
-        Toast.makeText(
-            this,
-            "Share failed",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    true
-}
-
-           "COPY URL" -> {
-
-    try {
-
-        val urlToCopy =
-            finalUrl.trim()
-
-        if (urlToCopy.isBlank()) {
-
-            Toast.makeText(
-                this,
-                "No URL selected",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return@setItems
-        }
-
-        if (
-            urlToCopy.contains(
-                "youtube.com/watch",
-                true
-            ) ||
-            urlToCopy.contains(
-                "youtu.be/",
-                true
-            ) ||
-            urlToCopy.contains(
-                "youtube.com/live",
-                true
-            ) ||
-            urlToCopy.contains(
-                "youtube.com/c/",
-                true
-            )
-        ) {
-
-            Toast.makeText(
-                this,
-                "Resolving YouTube stream...",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            resolveYouTubeWithRender(
-                urlToCopy,
-                onSuccess = { resolvedM3u8 ->
-
-                    try {
-
-                        val clipboard =
-                            getSystemService(
-                                CLIPBOARD_SERVICE
-                            ) as ClipboardManager
-
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText(
-                                "youtube_hls_m3u8",
-                                resolvedM3u8
-                            )
-                        )
-
-                        lastSelectedUrl =
-                            resolvedM3u8
-
-                        detectAndSaveUrl(
-                            resolvedM3u8
-                        )
-
-                        Toast.makeText(
-                            this,
-                            "YouTube HLS copied",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                    } catch (_: Throwable) {
-
-                        Toast.makeText(
-                            this,
-                            "Copy failed",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                },
-                onError = { error ->
-
-                    Toast.makeText(
-                        this,
-                        "YouTube resolve failed",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    Log.e(
-                        "RENDER_YOUTUBE_COPY_URL",
-                        error
-                    )
-                }
-            )
-
-            return@setItems
-        }
-
-        val clipboard =
-            getSystemService(
-                CLIPBOARD_SERVICE
-            ) as ClipboardManager
-
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(
-                "stream",
-                urlToCopy
-            )
-        )
-
-        Toast.makeText(
-            this,
-            "URL copied",
-            Toast.LENGTH_SHORT
-        ).show()
-
-    } catch (_: Throwable) {
-
-        Toast.makeText(
-            this,
-            "Copy failed",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    true
-}
-
-                "SAVE CHANNEL" -> {
-
-                    try {
-
-                        addSavedChannel(
-                            finalUrl
-                        )
-
-                    } catch (_: Throwable) {
-
-                        Toast.makeText(
-                            this,
-                            "Save failed",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-
-                "OPEN BEST STREAM" -> {
-
-                    try {
-
-                        val intent =
-                            Intent(
-                                Intent.ACTION_VIEW
-                            ).apply {
-
-                                setDataAndType(
-                                    Uri.parse(bestStreamUrl),
-                                    "video/*"
-                                )
-
-                                addCategory(
-                                    Intent.CATEGORY_BROWSABLE
-                                )
-                            }
-
-                        startActivity(
-                            Intent.createChooser(
-                                intent,
-                                "Open Best Stream"
-                            )
-                        )
-
-                    } catch (_: Throwable) {
-
-                        Toast.makeText(
-                            this,
-                            "Cannot open best stream",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-
-                "COPY BEST STREAM" -> {
-
-                    try {
-
-                        val clipboard =
-                            getSystemService(
-                                CLIPBOARD_SERVICE
-                            ) as ClipboardManager
-
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText(
-                                "best_stream",
-                                bestStreamUrl
-                            )
-                        )
-
-                        Toast.makeText(
-                            this,
-                            "Best stream copied",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                    } catch (_: Throwable) {}
-                }
-
-                "OPEN YOUTUBE WATCH" -> {
-
-    try {
-
-        val ytUrl =
-            youtubeWatchUrl
-                .trim()
-
-        if (ytUrl.isBlank()) {
-
-            Toast.makeText(
-                this,
-                "No YouTube watch URL",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return@setItems
-        }
-
-        Toast.makeText(
-            this,
-            "Resolving YouTube stream...",
-            Toast.LENGTH_SHORT
-        ).show()
-
-        resolveYouTubeWithRender(
-            ytUrl,
-            onSuccess = { resolvedM3u8 ->
-
-                try {
-
-                    lastSelectedUrl =
-                        resolvedM3u8
-
-                    detectAndSaveUrl(
-                        resolvedM3u8
-                    )
 
                     val intent =
                         Intent(
@@ -4676,8 +4201,12 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                         ).apply {
 
                             setDataAndType(
-                                Uri.parse(resolvedM3u8),
-                                "application/vnd.apple.mpegurl"
+                                Uri.parse(urlToOpen),
+                                "video/*"
+                            )
+
+                            addCategory(
+                                Intent.CATEGORY_BROWSABLE
                             )
 
                             addFlags(
@@ -4688,7 +4217,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                     startActivity(
                         Intent.createChooser(
                             intent,
-                            "Open YouTube HLS"
+                            "Open With"
                         )
                     )
 
@@ -4696,68 +4225,78 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                     Toast.makeText(
                         this,
-                        "Cannot open resolved stream",
+                        "No compatible player",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-            },
-            onError = { error ->
-
-                Toast.makeText(
-                    this,
-                    "YouTube resolve failed",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.e(
-                    "RENDER_YOUTUBE_WATCH",
-                    error
-                )
             }
-        )
 
-    } catch (_: Throwable) {
-
-        Toast.makeText(
-            this,
-            "Cannot resolve YouTube link",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    true
-}
-
-                "COPY YOUTUBE WATCH" -> {
-
-    try {
-
-        val ytUrl =
-            youtubeWatchUrl
-                .trim()
-
-        if (ytUrl.isBlank()) {
-
-            Toast.makeText(
-                this,
-                "No YouTube watch URL",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return@setItems
-        }
-
-        Toast.makeText(
-            this,
-            "Resolving YouTube stream...",
-            Toast.LENGTH_SHORT
-        ).show()
-
-        resolveYouTubeWithRender(
-            ytUrl,
-            onSuccess = { resolvedM3u8 ->
+            "SHARE URL" -> {
 
                 try {
+
+                    val urlToShare =
+                        finalUrl.trim()
+
+                    if (urlToShare.isBlank()) {
+
+                        Toast.makeText(
+                            this,
+                            "No URL selected",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@setItems
+                    }
+
+                    val shareIntent =
+                        Intent(
+                            Intent.ACTION_SEND
+                        ).apply {
+
+                            type =
+                                "text/plain"
+
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                urlToShare
+                            )
+                        }
+
+                    startActivity(
+                        Intent.createChooser(
+                            shareIntent,
+                            "Share Stream"
+                        )
+                    )
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "Share failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            "COPY URL" -> {
+
+                try {
+
+                    val urlToCopy =
+                        finalUrl.trim()
+
+                    if (urlToCopy.isBlank()) {
+
+                        Toast.makeText(
+                            this,
+                            "No URL selected",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@setItems
+                    }
 
                     val clipboard =
                         getSystemService(
@@ -4766,21 +4305,14 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
                     clipboard.setPrimaryClip(
                         ClipData.newPlainText(
-                            "youtube_hls_m3u8",
-                            resolvedM3u8
+                            "stream",
+                            urlToCopy
                         )
-                    )
-
-                    lastSelectedUrl =
-                        resolvedM3u8
-
-                    detectAndSaveUrl(
-                        resolvedM3u8
                     )
 
                     Toast.makeText(
                         this,
-                        "YouTube HLS copied",
+                        "URL copied",
                         Toast.LENGTH_SHORT
                     ).show()
 
@@ -4792,82 +4324,205 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-            },
-            onError = { error ->
-
-                Toast.makeText(
-                    this,
-                    "YouTube resolve failed",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.e(
-                    "RENDER_YOUTUBE_COPY",
-                    error
-                )
             }
-        )
 
-    } catch (_: Throwable) {
+            "SAVE CHANNEL" -> {
 
-        Toast.makeText(
-            this,
-            "Cannot copy YouTube stream",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+                try {
 
-    true
-}
+                    addSavedChannel(
+                        finalUrl
+                    )
 
-                "COPY DASH PAIR" -> {
+                } catch (_: Throwable) {
 
-                    try {
+                    Toast.makeText(
+                        this,
+                        "Save failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
 
-                        val dashPairText =
-                            """
-YOUTUBE DASH PAIR
+            "OPEN BEST STREAM" -> {
 
-VIDEO ITAG:
-$youtubeDashVideoItag
+                try {
 
-VIDEO URL:
-$youtubeDashVideoUrl
+                    val intent =
+                        Intent(
+                            Intent.ACTION_VIEW
+                        ).apply {
 
-AUDIO ITAG:
-$youtubeDashAudioItag
-
-AUDIO URL:
-$youtubeDashAudioUrl
-                            """.trimIndent()
-
-                        val clipboard =
-                            getSystemService(
-                                CLIPBOARD_SERVICE
-                            ) as ClipboardManager
-
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText(
-                                "youtube_dash_pair",
-                                dashPairText
+                            setDataAndType(
+                                Uri.parse(bestStreamUrl),
+                                "video/*"
                             )
+
+                            addCategory(
+                                Intent.CATEGORY_BROWSABLE
+                            )
+
+                            addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
+                        }
+
+                    startActivity(
+                        Intent.createChooser(
+                            intent,
+                            "Open Best Stream"
                         )
+                    )
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "Cannot open best stream",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            "COPY BEST STREAM" -> {
+
+                try {
+
+                    val clipboard =
+                        getSystemService(
+                            CLIPBOARD_SERVICE
+                        ) as ClipboardManager
+
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            "best_stream",
+                            bestStreamUrl
+                        )
+                    )
+
+                    Toast.makeText(
+                        this,
+                        "Best stream copied",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {}
+            }
+
+            "OPEN YOUTUBE WATCH" -> {
+
+                try {
+
+                    val ytUrl =
+                        youtubeWatchUrl
+                            .trim()
+
+                    if (ytUrl.isBlank()) {
 
                         Toast.makeText(
                             this,
-                            "DASH pair copied",
+                            "No YouTube watch URL",
                             Toast.LENGTH_SHORT
                         ).show()
 
-                    } catch (_: Throwable) {}
+                        return@setItems
+                    }
+
+                    Toast.makeText(
+                        this,
+                        "Opening YouTube watch URL",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    val intent =
+                        Intent(
+                            Intent.ACTION_VIEW
+                        ).apply {
+
+                            data =
+                                Uri.parse(
+                                    ytUrl
+                                )
+
+                            addCategory(
+                                Intent.CATEGORY_BROWSABLE
+                            )
+
+                            addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
+                        }
+
+                    startActivity(
+                        Intent.createChooser(
+                            intent,
+                            "Open YouTube Link"
+                        )
+                    )
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "Cannot open YouTube link",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+            }
 
-                "SHARE DASH PAIR" -> {
+            "COPY YOUTUBE WATCH" -> {
 
-                    try {
+                try {
 
-                        val dashPairText =
-                            """
+                    val ytUrl =
+                        youtubeWatchUrl
+                            .trim()
+
+                    if (ytUrl.isBlank()) {
+
+                        Toast.makeText(
+                            this,
+                            "No YouTube watch URL",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@setItems
+                    }
+
+                    val clipboard =
+                        getSystemService(
+                            CLIPBOARD_SERVICE
+                        ) as ClipboardManager
+
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            "youtube_watch",
+                            ytUrl
+                        )
+                    )
+
+                    Toast.makeText(
+                        this,
+                        "YouTube link copied",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {
+
+                    Toast.makeText(
+                        this,
+                        "Copy failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            "COPY DASH PAIR" -> {
+
+                try {
+
+                    val dashPairText =
+                        """
 YOUTUBE DASH PAIR
 
 VIDEO ITAG:
@@ -4881,45 +4536,86 @@ $youtubeDashAudioItag
 
 AUDIO URL:
 $youtubeDashAudioUrl
-                            """.trimIndent()
+                        """.trimIndent()
 
-                        val shareIntent =
-                            Intent(
-                                Intent.ACTION_SEND
-                            ).apply {
+                    val clipboard =
+                        getSystemService(
+                            CLIPBOARD_SERVICE
+                        ) as ClipboardManager
 
-                                type =
-                                    "text/plain"
-
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    dashPairText
-                                )
-                            }
-
-                        startActivity(
-                            Intent.createChooser(
-                                shareIntent,
-                                "Share DASH Pair"
-                            )
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            "youtube_dash_pair",
+                            dashPairText
                         )
+                    )
 
-                    } catch (_: Throwable) {}
-                }
+                    Toast.makeText(
+                        this,
+                        "DASH pair copied",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {}
             }
 
-            dialogInterface.dismiss()
+            "SHARE DASH PAIR" -> {
+
+                try {
+
+                    val dashPairText =
+                        """
+YOUTUBE DASH PAIR
+
+VIDEO ITAG:
+$youtubeDashVideoItag
+
+VIDEO URL:
+$youtubeDashVideoUrl
+
+AUDIO ITAG:
+$youtubeDashAudioItag
+
+AUDIO URL:
+$youtubeDashAudioUrl
+                        """.trimIndent()
+
+                    val shareIntent =
+                        Intent(
+                            Intent.ACTION_SEND
+                        ).apply {
+
+                            type =
+                                "text/plain"
+
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                dashPairText
+                            )
+                        }
+
+                    startActivity(
+                        Intent.createChooser(
+                            shareIntent,
+                            "Share DASH Pair"
+                        )
+                    )
+
+                } catch (_: Throwable) {}
+            }
         }
 
-        .setNegativeButton(
-            "CLOSE",
-            null
-        )
+        dialogInterface.dismiss()
+    }
 
-        .show()
+    .setNegativeButton(
+        "CLOSE",
+        null
+    )
 
-    true
-}
+    .show()
+
+true
 
 } // END onCreate()
 
