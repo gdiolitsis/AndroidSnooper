@@ -16,7 +16,7 @@ jobs:
 
   build:
 
-    name: Build Debug APK
+    name: Build Debug APK + Release AAB
 
     runs-on: ubuntu-latest
 
@@ -73,12 +73,29 @@ jobs:
         run: ./gradlew assembleDebug --stacktrace
 
       # -------------------------------------------------
-      # UPLOAD APK
+      # BUILD RELEASE AAB
       # -------------------------------------------------
-      - name: Upload APK
+      - name: Build Release AAB
+        run: ./gradlew bundleRelease --stacktrace
+
+      # -------------------------------------------------
+      # UPLOAD DEBUG APK
+      # -------------------------------------------------
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: AndroidSnooper-debug-apk
+          name: GEL-IPTV-Media-Analyzer-debug-apk
 
           path: |
             **/build/outputs/apk/debug/*.apk
+
+      # -------------------------------------------------
+      # UPLOAD RELEASE AAB
+      # -------------------------------------------------
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: GEL-IPTV-Media-Analyzer-release-aab
+
+          path: |
+            **/build/outputs/bundle/release/*.aab
