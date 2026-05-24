@@ -4617,6 +4617,8 @@ $youtubeDashAudioUrl
 
 true
 
+} // END result long press listener
+
 } // END onCreate()
 
 // =====================================
