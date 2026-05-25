@@ -1452,8 +1452,8 @@ binding.contentMain.webview.webViewClient =
                     )
 
                     binding.contentMain.urlInput.setSelection(
-                        binding.contentMain.urlInput.text.length
-                    )
+    0
+)
 
                     binding.contentMain.result.append(
                         """
@@ -1471,93 +1471,137 @@ $url
         }
 
         override fun onPageFinished(
-            view: WebView?,
-            url: String?
-        ) {
+    view: WebView?,
+    url: String?
+) {
 
-            super.onPageFinished(
-                view,
-                url
-            )
+    super.onPageFinished(
+        view,
+        url
+    )
+
+    try {
+
+        if (!url.isNullOrBlank()) {
+
+            // =====================================
+            // UPDATE URL BAR
+            // Show URL from the beginning
+            // =====================================
 
             try {
 
-                if (!url.isNullOrBlank()) {
+                binding.contentMain.urlInput.setText(
+                    url
+                )
 
-                    binding.contentMain.result.append(
-                        """
+                binding.contentMain.urlInput.setSelection(
+                    0
+                )
+
+                liveUrlInputText =
+                    url
+
+            } catch (_: Throwable) {}
+
+            // =====================================
+            // PAGE FINISHED LOG
+            // =====================================
+
+            binding.contentMain.result.append(
+                """
 
 PAGE FINISHED:
 $url
 
 ────────────────────
 
-                        """.trimIndent()
-                    )
+                """.trimIndent()
+            )
 
-                    handleInterceptedMediaUrl(
-                        url,
-                        null
-                    )
+            // =====================================
+            // DETECT PAGE URL
+            // =====================================
 
-                    detectAndSaveUrl(
-                        url
-                    )
+            handleInterceptedMediaUrl(
+                url,
+                null
+            )
 
-                    enablePageTextSelection(
-                        view
-                    )
+            detectAndSaveUrl(
+                url
+            )
 
-                    runDeepMediaScan(
-                        view
-                    )
+            // =====================================
+            // ENABLE PAGE TEXT SELECTION
+            // =====================================
 
-                    binding.contentMain.webview.postDelayed(
-                        {
-                            try {
+            enablePageTextSelection(
+                view
+            )
 
-                                if (
-                                    view != null &&
-                                    !isFinishing &&
-                                    !isDestroyed
-                                ) {
+            // =====================================
+            // DEEP MEDIA SCAN
+            // =====================================
 
-                                    lastDeepScanTime =
-                                        0L
+            runDeepMediaScan(
+                view
+            )
 
-                                    runDeepMediaScan(
-                                        view
-                                    )
-                                }
+            // =====================================
+            // DELAYED RESCAN 1
+            // =====================================
 
-                            } catch (_: Throwable) {}
-                        },
-                        2500
-                    )
+            binding.contentMain.webview.postDelayed(
+                {
+                    try {
 
-                    binding.contentMain.webview.postDelayed(
-                        {
-                            try {
+                        if (
+                            view != null &&
+                            !isFinishing &&
+                            !isDestroyed
+                        ) {
 
-                                if (
-                                    view != null &&
-                                    !isFinishing &&
-                                    !isDestroyed
-                                ) {
+                            lastDeepScanTime =
+                                0L
 
-                                    runDeepMediaScan(
-                                        view
-                                    )
-                                }
+                            runDeepMediaScan(
+                                view
+                            )
+                        }
 
-                            } catch (_: Throwable) {}
-                        },
-                        6000
-                    )
-                }
+                    } catch (_: Throwable) {}
+                },
+                2500
+            )
 
-            } catch (_: Throwable) {}
+            // =====================================
+            // DELAYED RESCAN 2
+            // =====================================
+
+            binding.contentMain.webview.postDelayed(
+                {
+                    try {
+
+                        if (
+                            view != null &&
+                            !isFinishing &&
+                            !isDestroyed
+                        ) {
+
+                            runDeepMediaScan(
+                                view
+                            )
+                        }
+
+                    } catch (_: Throwable) {}
+                },
+                6000
+            )
         }
+
+    } catch (_: Throwable) {}
+}
 
         override fun shouldOverrideUrlLoading(
             view: WebView?,
