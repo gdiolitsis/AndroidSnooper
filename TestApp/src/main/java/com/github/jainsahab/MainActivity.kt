@@ -26,6 +26,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.appcompat.app.AppCompatActivity
 import com.github.jainsahab.databinding.ActivityMainBinding
 import okhttp3.Call
@@ -49,6 +50,12 @@ private lateinit var binding:
         
 private var liveUrlInputText =
     ""
+    
+ private var protectedFallbackShown =
+    false
+
+private var refererRetryDone =
+    false
 
 // =====================================  
 // UNIQUE URL CACHE  
@@ -1489,13 +1496,6 @@ binding.contentMain.webview.webViewClient =
                     binding.contentMain.urlInput.setSelection(
     0
 )
-
-                    binding.contentMain.result.append(
-                        """
-
-PAGE STARTED:
-$url
-
 ────────────────────
 
                         """.trimIndent()
@@ -1505,7 +1505,7 @@ $url
             } catch (_: Throwable) {}
         }
 
-        override fun onPageFinished(
+override fun onPageFinished(
     view: WebView?,
     url: String?
 ) {
@@ -1521,7 +1521,7 @@ $url
 
             // =====================================
             // UPDATE URL BAR
-            // Show URL from the beginning
+            // Show URL from beginning
             // =====================================
 
             try {
@@ -1540,57 +1540,43 @@ $url
             } catch (_: Throwable) {}
 
             // =====================================
-            // PAGE FINISHED LOG
+            // FORCE WEBVIEW RENDER REFRESH
             // =====================================
-
-            binding.contentMain.result.append(
-                """
-
-PAGE FINISHED:
-$url
-
-────────────────────
-
-                """.trimIndent()
-            )
-            
-// =====================================
-// FORCE WEBVIEW RENDER REFRESH
-// =====================================
-
-try {
-
-    view?.postDelayed(
-        {
 
             try {
 
-                view.setBackgroundColor(
-                    android.graphics.Color.WHITE
+                view?.postDelayed(
+                    {
+
+                        try {
+
+                            view.setBackgroundColor(
+                                android.graphics.Color.WHITE
+                            )
+
+                            view.requestLayout()
+
+                            view.invalidate()
+
+                            view.requestFocus()
+
+                        } catch (_: Throwable) {}
+                    },
+                    300
                 )
 
-                view.requestLayout()
-
-                view.invalidate()
-
-                view.requestFocus()
-
             } catch (_: Throwable) {}
-        },
-        300
-    )
 
-} catch (_: Throwable) {}
+            // =====================================
+            // PAGE DOM DIAGNOSTIC
+            // Detect blank / protected / WebView-blocked pages
+            // No debug output in production
+            // =====================================
 
-// =====================================
-// PAGE DOM DIAGNOSTIC
-// Detect blank / protected / WebView-blocked pages
-// =====================================
+            try {
 
-try {
-
-    view?.evaluateJavascript(
-        """
+                view?.evaluateJavascript(
+                    """
 (function() {
 
     try {
@@ -1606,34 +1592,78 @@ try {
                 ? document.body.innerText || ""
                 : "";
 
-        var htmlLength =
+        var html =
             document.documentElement
-                ? document.documentElement.outerHTML.length
-                : 0;
+                ? document.documentElement.outerHTML || ""
+                : "";
+
+        var htmlLength =
+            html.length;
 
         var bodyLength =
             bodyText.length;
 
-        var result =
-            "DOM TITLE: " + title + "\n" +
-            "READY STATE: " + ready + "\n" +
-            "BODY TEXT LENGTH: " + bodyLength + "\n" +
-            "HTML LENGTH: " + htmlLength + "\n";
+        var hasVideo =
+            document.querySelectorAll("video").length;
+
+        var hasIframe =
+            document.querySelectorAll("iframe").length;
+
+        var hasScript =
+            document.querySelectorAll("script").length;
+
+        var lowerText =
+            bodyText.toLowerCase();
+
+        var hasProtectedWords =
+            (
+                lowerText.indexOf("protected") >= 0 ||
+                lowerText.indexOf("drm") >= 0 ||
+                lowerText.indexOf("geoblock") >= 0 ||
+                lowerText.indexOf("geo") >= 0 ||
+                lowerText.indexOf("content protected") >= 0 ||
+                lowerText.indexOf("contenido protegido") >= 0 ||
+                lowerText.indexOf("acceso a contenido protegido") >= 0
+            );
+
+        var verdict =
+            "PAGE HAS DOM CONTENT";
 
         if (
             bodyLength < 30 &&
             htmlLength < 5000
         ) {
 
-            result +=
-                "VERDICT: BLANK / BLOCKED / PROTECTED PAGE";
-        } else {
+            verdict =
+                "BLANK / BLOCKED / PROTECTED PAGE";
 
-            result +=
-                "VERDICT: PAGE HAS DOM CONTENT";
+        } else if (
+            hasProtectedWords
+        ) {
+
+            verdict =
+                "PROTECTED / DRM / GEO MESSAGE DETECTED";
+
+        } else if (
+            hasVideo === 0 &&
+            hasIframe === 0 &&
+            bodyLength < 200
+        ) {
+
+            verdict =
+                "NO VISIBLE MEDIA DOM";
         }
 
-        return result;
+        return (
+            "DOM TITLE: " + title + "\n" +
+            "READY STATE: " + ready + "\n" +
+            "BODY TEXT LENGTH: " + bodyLength + "\n" +
+            "HTML LENGTH: " + htmlLength + "\n" +
+            "VIDEO TAGS: " + hasVideo + "\n" +
+            "IFRAME TAGS: " + hasIframe + "\n" +
+            "SCRIPT TAGS: " + hasScript + "\n" +
+            "VERDICT: " + verdict
+        );
 
     } catch(e) {
 
@@ -1641,26 +1671,48 @@ try {
     }
 
 })();
-        """.trimIndent()
-    ) { jsResult ->
+                    """.trimIndent()
+                ) { jsResult ->
 
-        try {
+                    try {
 
-            binding.contentMain.result.append(
-                """
+                        val cleanResult =
+                            jsResult
+                                .removePrefix("\"")
+                                .removeSuffix("\"")
+                                .replace("\\n", "\n")
+                                .replace("\\\"", "\"")
 
-PAGE DIAGNOSTIC:
-$jsResult
+                        val isBlockedPage =
+                            cleanResult.contains(
+                                "BLANK / BLOCKED / PROTECTED PAGE",
+                                true
+                            ) ||
+                            cleanResult.contains(
+                                "PROTECTED / DRM / GEO",
+                                true
+                            )
 
-────────────────────
+                        if (isBlockedPage) {
 
-                """.trimIndent()
-            )
+                            val retried =
+                                retryWithRefererOnce(
+                                    url
+                                )
 
-        } catch (_: Throwable) {}
-    }
+                            if (!retried) {
 
-} catch (_: Throwable) {}
+                                showProtectedPageFallback(
+                                    url,
+                                    cleanResult
+                                )
+                            }
+                        }
+
+                    } catch (_: Throwable) {}
+                }
+
+            } catch (_: Throwable) {}
 
             // =====================================
             // DETECT PAGE URL
@@ -1901,13 +1953,7 @@ binding.contentMain.webview.webChromeClient =
                         view.requestLayout()
 
                         view.invalidate()
-
-                        binding.contentMain.result.append(
-                            """
-
-WEBVIEW PROGRESS:
-$newProgress%
-
+                      
 ────────────────────
 
                             """.trimIndent()
@@ -2022,82 +2068,88 @@ $newProgress%
 
 binding.contentMain.openBrowser.setOnClickListener {
 
-    // =====================================
-    // RESET DETECTION STATE
-    // =====================================
+// =====================================
+// RESET DETECTION STATE
+// =====================================
 
-    detectedStreams.clear()
-    detectedVideos.clear()
-    detectedImages.clear()
-    detectedAudio.clear()
-    detectedMasterStreams.clear()
-    detectedChannels.clear()
+detectedStreams.clear()
+detectedVideos.clear()
+detectedImages.clear()
+detectedAudio.clear()
+detectedMasterStreams.clear()
+detectedChannels.clear()
 
-    streamScores.clear()
-    streamValidation.clear()
-    streamSources.clear()
-    streamHeaders.clear()
-    streamTokens.clear()
-    streamResolution.clear()
-    streamBandwidth.clear()
-    streamCodec.clear()
-    streamInfoSnapshots.clear()
-    streamHitCounter.clear()
+streamScores.clear()
+streamValidation.clear()
+streamSources.clear()
+streamHeaders.clear()
+streamTokens.clear()
+streamResolution.clear()
+streamBandwidth.clear()
+streamCodec.clear()
+streamInfoSnapshots.clear()
+streamHitCounter.clear()
 
-    blobRelations.clear()
-    manifestRelations.clear()
-    liveHeartbeatMap.clear()
+blobRelations.clear()
+manifestRelations.clear()
+liveHeartbeatMap.clear()
 
-    bestStreamUrl =
-        ""
+bestStreamUrl =
+    ""
 
-    bestStreamScore =
-        0
+bestStreamScore =
+    0
 
-    bestLiveUrl =
-        ""
+bestLiveUrl =
+    ""
 
-    bestLiveScore =
-        0
+bestLiveScore =
+    0
 
-    youtubeEmbedUrl =
-        ""
+youtubeEmbedUrl =
+    ""
 
-    youtubeWatchUrl =
-        ""
+youtubeWatchUrl =
+    ""
 
-    youtubeDashVideoUrl =
-        ""
+youtubeDashVideoUrl =
+    ""
 
-    youtubeDashAudioUrl =
-        ""
+youtubeDashAudioUrl =
+    ""
 
-    youtubeDashVideoItag =
-        ""
+youtubeDashVideoItag =
+    ""
 
-    youtubeDashAudioItag =
-        ""
+youtubeDashAudioItag =
+    ""
 
-    bestVideoItag =
-        0
+bestVideoItag =
+    0
 
-    bestAudioItag =
-        0
+bestAudioItag =
+    0
 
-    liveLocked =
-        false
+liveLocked =
+    false
 
-    lockedStreamId =
-        ""
+lockedStreamId =
+    ""
 
-    lastSelectedUrl =
-        ""
+lastSelectedUrl =
+    ""
 
-    lastDeepScanTime =
-        0L
+lastDeepScanTime =
+    0L
 
-    monitorRunning =
-        false
+monitorRunning =
+    false
+
+protectedFallbackShown =
+    false
+
+refererRetryDone =
+    false
 
     // =====================================
     // READ CURRENT INPUT DIRECTLY
@@ -4643,6 +4695,211 @@ true
 } // END result long press listener
 
 } // END onCreate()
+
+// =====================================
+// OPEN EXTERNAL BROWSER / CUSTOM TAB
+// =====================================
+
+private fun openWithExternalBrowser(
+    url: String
+) {
+
+    try {
+
+        val cleanUrl =
+            url
+                .trim()
+
+        if (cleanUrl.isBlank()) {
+            return
+        }
+
+        val customTabsIntent =
+            CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .build()
+
+        customTabsIntent.launchUrl(
+            this,
+            Uri.parse(cleanUrl)
+        )
+
+    } catch (_: Throwable) {
+
+        try {
+
+            val intent =
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(url)
+                ).apply {
+
+                    addCategory(
+                        Intent.CATEGORY_BROWSABLE
+                    )
+
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK
+                    )
+                }
+
+            startActivity(
+                Intent.createChooser(
+                    intent,
+                    "Open With Browser"
+                )
+            )
+
+        } catch (_: Throwable) {
+
+            Toast.makeText(
+                this,
+                "Cannot open browser",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+}
+
+// =====================================
+// REFERER ORIGIN
+// =====================================
+
+private fun buildRefererOrigin(
+    url: String
+): String {
+
+    return try {
+
+        val uri =
+            Uri.parse(url)
+
+        val scheme =
+            uri.scheme
+                ?: "https"
+
+        val host =
+            uri.host
+                ?: ""
+
+        if (host.isBlank()) {
+            "https://www.google.com/"
+        } else {
+            "$scheme://$host/"
+        }
+
+    } catch (_: Throwable) {
+
+        "https://www.google.com/"
+    }
+}
+
+// =====================================
+// PROTECTED PAGE FALLBACK
+// =====================================
+
+private fun showProtectedPageFallback(
+    url: String,
+    reason: String
+) {
+
+    try {
+
+        if (protectedFallbackShown) {
+            return
+        }
+
+        protectedFallbackShown =
+            true
+
+        binding.contentMain.result.text =
+            """
+
+PROTECTED / BLOCKED PAGE
+
+The page loaded, but returned no readable media DOM.
+
+Reason:
+$reason
+
+This source may block Android WebView, require protected playback, geo/session access, browser verification, or external browser cookies.
+
+ACTION:
+Open With Browser.
+
+────────────────────
+
+            """.trimIndent()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Protected / Blocked Page")
+            .setMessage(
+                "This source does not expose readable media content inside the analyzer.\n\nOpen it with browser?"
+            )
+            .setPositiveButton("OPEN WITH BROWSER") { _, _ ->
+
+                openWithExternalBrowser(
+                    url
+                )
+            }
+            .setNegativeButton("STAY", null)
+            .show()
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
+// REFERER-AWARE RETRY
+// =====================================
+
+private fun retryWithRefererOnce(
+    url: String
+): Boolean {
+
+    if (refererRetryDone) {
+        return false
+    }
+
+    refererRetryDone =
+        true
+
+    return try {
+
+        val referer =
+            buildRefererOrigin(
+                url
+            )
+
+        binding.contentMain.webview.postDelayed(
+            {
+
+                try {
+
+                    binding.contentMain.webview.stopLoading()
+
+                    binding.contentMain.webview.loadUrl(
+                        url,
+                        mapOf(
+                            "Referer" to referer,
+                            "Origin" to referer.trimEnd('/'),
+                            "Cache-Control" to "no-cache",
+                            "Pragma" to "no-cache",
+                            "Accept-Language" to "en-US,en;q=0.9"
+                        )
+                    )
+
+                } catch (_: Throwable) {}
+            },
+            500
+        )
+
+        true
+
+    } catch (_: Throwable) {
+
+        false
+    }
+}
 
 // =====================================
 // RENDER YOUTUBE HLS RESOLVER
