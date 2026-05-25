@@ -1998,46 +1998,35 @@ binding.contentMain.webview.webChromeClient =
 
 // =====================================
 // OPEN PAGE
+// Safe WebView navigation
 // =====================================
 
 binding.contentMain.openBrowser.setOnClickListener {
 
+    // =====================================
+    // RESET DETECTION STATE
+    // =====================================
+
     detectedStreams.clear()
-
     detectedVideos.clear()
-
     detectedImages.clear()
-
     detectedAudio.clear()
-
     detectedMasterStreams.clear()
-
     detectedChannels.clear()
 
     streamScores.clear()
-
     streamValidation.clear()
-
     streamSources.clear()
-
     streamHeaders.clear()
-
     streamTokens.clear()
-
     streamResolution.clear()
-
     streamBandwidth.clear()
-
     streamCodec.clear()
-
     streamInfoSnapshots.clear()
-
     streamHitCounter.clear()
 
     blobRelations.clear()
-
     manifestRelations.clear()
-
     liveHeartbeatMap.clear()
 
     bestStreamUrl =
@@ -2091,154 +2080,17 @@ binding.contentMain.openBrowser.setOnClickListener {
     monitorRunning =
         false
 
-    binding.contentMain.result.text =
-        ""
-
     // =====================================
-    // RESET WEBVIEW LIGHT STATE
+    // READ CURRENT INPUT DIRECTLY
+    // No cached / old search text
     // =====================================
-
-    try {
-
-        binding.contentMain.webview.stopLoading()
-
-        binding.contentMain.webview.clearMatches()
-
-        CookieManager
-            .getInstance()
-            .flush()
-
-    } catch (_: Throwable) {}
-
-    // =====================================
-    // RESET WEBVIEW JS MEMORY
-    // =====================================
-
-    try {
-
-        binding.contentMain.webview.evaluateJavascript(
-            """
-
-(function() {
-
-    try {
-
-        window.__gelMediaResults =
-            [];
-
-        window.__gelLastResults =
-            [];
-
-        window.__gelDetectedUrls =
-            {};
-
-        window.__gelScanCounter =
-            0;
-
-        window.__gelFetchHooked =
-            false;
-
-        window.__gelFetchResponseHook =
-            false;
-
-        window.__gelXHRResponseHook =
-            false;
-
-        window.__gelPerformanceObserverHooked =
-            false;
-
-        window.__gelMutationMediaHooked =
-            false;
-
-        window.__gelMediaAttributeHooked =
-            false;
-
-        window.__gelBlobHooked =
-            false;
-
-        window.__gelMSEHooked =
-            false;
-
-        window.__gelSourceBufferHooked =
-            false;
-
-        window.__gelWorkerHooked =
-            false;
-
-        window.__gelWebSocketHooked =
-            false;
-
-        console.log(
-            "GEL_FULL_DETECTION_RESET"
-        );
-
-    } catch(e) {}
-
-})();
-
-            """.trimIndent(),
-            null
-        )
-
-    } catch (_: Throwable) {}
-
-    // =====================================
-    // DESKTOP MODE
-    // =====================================
-
-    val desktopMode =
-        true
-
-    if (desktopMode) {
-
-        binding.contentMain.webview.settings.userAgentString =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-
-    } else {
-
-        binding.contentMain.webview.settings.userAgentString =
-            null
-    }
-
-    // =====================================
-    // HIDE KEYBOARD
-    // =====================================
-
-    try {
-
-        val imm =
-            getSystemService(
-                INPUT_METHOD_SERVICE
-            ) as android.view.inputmethod.InputMethodManager
-
-        imm.hideSoftInputFromWindow(
-            currentFocus?.windowToken,
-            0
-        )
-
-    } catch (_: Throwable) {}
-
-// =====================================
-// REMOVE INPUT FOCUS
-// =====================================
-
-binding.contentMain.urlInput.clearFocus()
-
-// =====================================
-// LOAD PAGE — READ INPUT AFTER FOCUS COMMIT
-// =====================================
-
-binding.contentMain.webview.postDelayed({
 
     val enteredText =
-    liveUrlInputText
-        .ifBlank {
-            binding.contentMain.urlInput
-                .text
-                ?.toString()
-                ?.trim()
-                .orEmpty()
-        }
+        binding.contentMain.urlInput
+            .text
+            ?.toString()
+            ?.trim()
+            .orEmpty()
 
     val finalUrl =
         when {
@@ -2278,10 +2130,46 @@ binding.contentMain.webview.postDelayed({
             }
         }
 
+    liveUrlInputText =
+        enteredText
+
+    // =====================================
+    // HIDE KEYBOARD / CLEAR FOCUS
+    // =====================================
+
     try {
 
-        binding.contentMain.result.text =
-            """
+        val imm =
+            getSystemService(
+                INPUT_METHOD_SERVICE
+            ) as android.view.inputmethod.InputMethodManager
+
+        imm.hideSoftInputFromWindow(
+            binding.contentMain.urlInput.windowToken,
+            0
+        )
+
+    } catch (_: Throwable) {}
+
+    binding.contentMain.urlInput.clearFocus()
+
+    // =====================================
+    // DESKTOP MODE
+    // =====================================
+
+    try {
+
+        binding.contentMain.webview.settings.userAgentString =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+    } catch (_: Throwable) {}
+
+    // =====================================
+    // UI LOG
+    // =====================================
+
+    binding.contentMain.result.text =
+        """
 LOADING WITH ANALYZER:
 
 INPUT:
@@ -2292,46 +2180,60 @@ $finalUrl
 
 ────────────────────
 
-            """.trimIndent()
+        """.trimIndent()
+
+    // =====================================
+    // SAFE WEBVIEW RESET + LOAD
+    // =====================================
+
+    try {
 
         binding.contentMain.webview.stopLoading()
 
-        binding.contentMain.webview.clearHistory()
-
         binding.contentMain.webview.loadUrl(
-            finalUrl,
-            mapOf(
-                "Cache-Control" to "no-cache",
-                "Pragma" to "no-cache",
-                "Upgrade-Insecure-Requests" to "1"
+            "about:blank"
+        )
+
+    } catch (_: Throwable) {}
+
+    binding.contentMain.webview.postDelayed({
+
+        try {
+
+            binding.contentMain.webview.stopLoading()
+
+            binding.contentMain.webview.loadUrl(
+                finalUrl,
+                mapOf(
+                    "Cache-Control" to "no-cache",
+                    "Pragma" to "no-cache"
+                )
             )
-        )
 
-        Log.e(
-            "GEL_LOAD_ANALYZER",
-            "INPUT=$enteredText FINAL=$finalUrl"
-        )
+            Log.e(
+                "GEL_LOAD_ANALYZER",
+                "INPUT=$enteredText FINAL=$finalUrl"
+            )
 
-    } catch (t: Throwable) {
+        } catch (t: Throwable) {
 
-        Log.e(
-            "GEL_LOAD_ANALYZER",
-            "load failed",
-            t
-        )
+            Log.e(
+                "GEL_LOAD_ANALYZER",
+                "load failed",
+                t
+            )
 
-        Toast.makeText(
-            this,
-            "Analyzer load failed",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+            Toast.makeText(
+                this,
+                "Analyzer load failed",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
 
-}, 150)
+    }, 500)
+}
 
-} // END OPEN PAGE / OPEN WITH ANALYZER
-
-// =====================================  
+    // =====================================  
     // OPEN CHROME  
     // =====================================  
 
