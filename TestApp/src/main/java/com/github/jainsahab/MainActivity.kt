@@ -2127,43 +2127,6 @@ binding.contentMain.openBrowser.setOnClickListener {
 
     } catch (_: Throwable) {}
 
-    val enteredText =
-        binding.contentMain.urlInput
-            .text
-            .toString()
-            .trim()
-
-    val finalUrl =
-        when {
-
-            enteredText.isEmpty() -> {
-
-                "https://www.google.com"
-            }
-
-            enteredText.startsWith("http") -> {
-
-                enteredText
-            }
-
-            enteredText.contains(".") &&
-                !enteredText.contains(" ") -> {
-
-                "https://$enteredText"
-            }
-
-            else -> {
-
-                val query =
-                    enteredText.replace(
-                        " ",
-                        "+"
-                    )
-
-                "https://www.google.com/search?q=$query"
-            }
-        }
-
     // =====================================
     // DESKTOP MODE
     // =====================================
@@ -2200,15 +2163,62 @@ binding.contentMain.openBrowser.setOnClickListener {
 
     } catch (_: Throwable) {}
 
-    // =====================================
-    // REMOVE INPUT FOCUS
-    // =====================================
+// =====================================
+// REMOVE INPUT FOCUS
+// =====================================
 
-    binding.contentMain.urlInput.clearFocus()
+binding.contentMain.urlInput.clearFocus()
 
-    // =====================================
-    // LOAD PAGE — FORCE ANALYZER NAVIGATION
-    // =====================================
+// =====================================
+// LOAD PAGE — READ INPUT AFTER FOCUS COMMIT
+// =====================================
+
+binding.contentMain.webview.postDelayed({
+
+    val enteredText =
+        binding.contentMain.urlInput
+            .text
+            ?.toString()
+            ?.trim()
+            .orEmpty()
+
+    val finalUrl =
+        when {
+
+            enteredText.isEmpty() -> {
+
+                "https://www.google.com"
+            }
+
+            enteredText.startsWith(
+                "http://",
+                true
+            ) ||
+            enteredText.startsWith(
+                "https://",
+                true
+            ) -> {
+
+                enteredText
+            }
+
+            enteredText.contains(".") &&
+                !enteredText.contains(" ") -> {
+
+                "https://$enteredText"
+            }
+
+            else -> {
+
+                val query =
+                    java.net.URLEncoder.encode(
+                        enteredText,
+                        "UTF-8"
+                    )
+
+                "https://www.google.com/search?q=$query"
+            }
+        }
 
     try {
 
@@ -2216,6 +2226,10 @@ binding.contentMain.openBrowser.setOnClickListener {
             """
 LOADING WITH ANALYZER:
 
+INPUT:
+$enteredText
+
+FINAL URL:
 $finalUrl
 
 ────────────────────
@@ -2226,45 +2240,25 @@ $finalUrl
 
         binding.contentMain.webview.clearHistory()
 
-        binding.contentMain.webview.post {
+        binding.contentMain.webview.loadUrl(
+            finalUrl,
+            mapOf(
+                "Cache-Control" to "no-cache",
+                "Pragma" to "no-cache",
+                "Upgrade-Insecure-Requests" to "1"
+            )
+        )
 
-            try {
-
-                binding.contentMain.webview.loadUrl(
-                    finalUrl,
-                    mapOf(
-                        "Cache-Control" to "no-cache",
-                        "Pragma" to "no-cache",
-                        "Upgrade-Insecure-Requests" to "1"
-                    )
-                )
-
-                Log.e(
-                    "GEL_LOAD_ANALYZER",
-                    finalUrl
-                )
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "GEL_LOAD_ANALYZER",
-                    "load failed",
-                    t
-                )
-
-                Toast.makeText(
-                    this,
-                    "Cannot load page",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
+        Log.e(
+            "GEL_LOAD_ANALYZER",
+            "INPUT=$enteredText FINAL=$finalUrl"
+        )
 
     } catch (t: Throwable) {
 
         Log.e(
             "GEL_LOAD_ANALYZER",
-            "fatal load failed",
+            "load failed",
             t
         )
 
@@ -2274,7 +2268,8 @@ $finalUrl
             Toast.LENGTH_SHORT
         ).show()
     }
-}
+
+}, 150)
 
 // =====================================  
     // OPEN CHROME  
