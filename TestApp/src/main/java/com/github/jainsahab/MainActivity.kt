@@ -45,6 +45,9 @@ class MainActivity : AppCompatActivity() {
 
 private lateinit var binding:  
         ActivityMainBinding  
+        
+private var liveUrlInputText =
+    ""
 
 // =====================================  
 // UNIQUE URL CACHE  
@@ -963,11 +966,63 @@ window.setSoftInputMode(
 binding.contentMain.result.isVerticalScrollBarEnabled = true
 
 binding.contentMain.result.movementMethod =
-android.text.method.ScrollingMovementMethod()
+    android.text.method.ScrollingMovementMethod()
 
-setSupportActionBar(  
-        binding.toolbar  
+// =====================================
+// LIVE URL INPUT TRACKER
+// =====================================
+
+try {
+
+    liveUrlInputText =
+        binding.contentMain.urlInput
+            .text
+            ?.toString()
+            ?.trim()
+            .orEmpty()
+
+    binding.contentMain.urlInput.addTextChangedListener(
+        object : android.text.TextWatcher {
+
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) {}
+
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
+
+                liveUrlInputText =
+                    s
+                        ?.toString()
+                        ?.trim()
+                        .orEmpty()
+            }
+
+            override fun afterTextChanged(
+                s: android.text.Editable?
+            ) {
+
+                liveUrlInputText =
+                    s
+                        ?.toString()
+                        ?.trim()
+                        .orEmpty()
+            }
+        }
     )
+
+} catch (_: Throwable) {}
+
+setSupportActionBar(
+    binding.toolbar
+)
 
 onBackPressedDispatcher.addCallback(this) {
 
@@ -2176,11 +2231,14 @@ binding.contentMain.urlInput.clearFocus()
 binding.contentMain.webview.postDelayed({
 
     val enteredText =
-        binding.contentMain.urlInput
-            .text
-            ?.toString()
-            ?.trim()
-            .orEmpty()
+    liveUrlInputText
+        .ifBlank {
+            binding.contentMain.urlInput
+                .text
+                ?.toString()
+                ?.trim()
+                .orEmpty()
+        }
 
     val finalUrl =
         when {
