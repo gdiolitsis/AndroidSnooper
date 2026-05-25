@@ -1327,42 +1327,92 @@ binding.contentMain.result.setTextIsSelectable(true)
 
 // =====================================
 // WEBVIEW CLIENT
+// Safe navigation + URL interception only
 // =====================================
 
 binding.contentMain.webview.webViewClient =
     object : WebViewClient() {
-    
-// =====================================
-// UPDATE URL BAR ON PAGE STARTED
-// =====================================
 
-override fun onPageStarted(
-    view: WebView?,
-    url: String?,
-    favicon: android.graphics.Bitmap?
-) {
+        // =====================================
+        // PAGE STARTED
+        // =====================================
 
-    super.onPageStarted(
-        view,
-        url,
-        favicon
-    )
+        override fun onPageStarted(
+            view: WebView?,
+            url: String?,
+            favicon: android.graphics.Bitmap?
+        ) {
 
-    try {
+            super.onPageStarted(
+                view,
+                url,
+                favicon
+            )
 
-        if (!url.isNullOrBlank()) {
+            try {
 
-            binding.contentMain.urlInput.setText(
+                if (!url.isNullOrBlank()) {
+
+                    binding.contentMain.urlInput.setText(
+                        url
+                    )
+
+                    binding.contentMain.urlInput.setSelection(
+                        binding.contentMain.urlInput.text.length
+                    )
+
+                    binding.contentMain.result.append(
+                        """
+
+PAGE STARTED:
+$url
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+        // =====================================
+        // PAGE FINISHED
+        // =====================================
+
+        override fun onPageFinished(
+            view: WebView?,
+            url: String?
+        ) {
+
+            super.onPageFinished(
+                view,
                 url
             )
 
-            binding.contentMain.urlInput.setSelection(
-                binding.contentMain.urlInput.text.length
-            )
+            try {
+
+                if (!url.isNullOrBlank()) {
+
+                    binding.contentMain.result.append(
+                        """
+
+PAGE FINISHED:
+$url
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+                }
+
+            } catch (_: Throwable) {}
         }
 
-    } catch (_: Throwable) {}
-}
+        // =====================================
+        // URL LOADING
+        // Do not force reload manually
+        // =====================================
 
         override fun shouldOverrideUrlLoading(
             view: WebView?,
@@ -1383,15 +1433,9 @@ override fun onPageStarted(
                         url,
                         request
                     )
-
-                    view?.loadUrl(url)
-
-                    true
-
-                } else {
-
-                    false
                 }
+
+                false
 
             } catch (_: Throwable) {
 
@@ -1399,41 +1443,115 @@ override fun onPageStarted(
             }
         }
 
-override fun shouldInterceptRequest(
-    view: WebView?,
-    request: WebResourceRequest?
-): WebResourceResponse? {
+        // =====================================
+        // REQUEST INTERCEPT
+        // Important: do NOT read response body here
+        // =====================================
 
-    val url =
-        request
-            ?.url
-            ?.toString()
-            ?: ""
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): WebResourceResponse? {
 
-    try {
-
-        if (url.isNotBlank()) {
-
-            handleInterceptedMediaUrl(
-                url,
+            val url =
                 request
-            )
+                    ?.url
+                    ?.toString()
+                    ?: ""
+
+            try {
+
+                if (url.isNotBlank()) {
+
+                    handleInterceptedMediaUrl(
+                        url,
+                        request
+                    )
+                }
+
+            } catch (_: Throwable) {}
+
+            return null
         }
 
-    } catch (_: Throwable) {}
+        // =====================================
+        // WEBVIEW ERROR
+        // =====================================
 
-    val response =
-        try {
+        override fun onReceivedError(
+            view: WebView?,
+            request: WebResourceRequest?,
+            error: WebResourceError?
+        ) {
 
-            super.shouldInterceptRequest(
+            super.onReceivedError(
                 view,
-                request
+                request,
+                error
             )
 
-        } catch (_: Throwable) {
+            try {
 
-            null
+                if (request?.isForMainFrame == true) {
+
+                    binding.contentMain.result.append(
+                        """
+
+WEBVIEW ERROR:
+${request.url}
+
+${error?.description ?: "Unknown error"}
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+                }
+
+            } catch (_: Throwable) {}
         }
+
+        // =====================================
+        // HTTP ERROR
+        // =====================================
+
+        override fun onReceivedHttpError(
+            view: WebView?,
+            request: WebResourceRequest?,
+            errorResponse: WebResourceResponse?
+        ) {
+
+            super.onReceivedHttpError(
+                view,
+                request,
+                errorResponse
+            )
+
+            try {
+
+                if (request?.isForMainFrame == true) {
+
+                    binding.contentMain.result.append(
+                        """
+
+HTTP ERROR:
+${request.url}
+
+STATUS:
+${errorResponse?.statusCode ?: 0}
+
+REASON:
+${errorResponse?.reasonPhrase ?: ""}
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+                }
+
+            } catch (_: Throwable) {}
+        }
+    }
 
     // =====================================
     // RESPONSE BODY SNIFFER
