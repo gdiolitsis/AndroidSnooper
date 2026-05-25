@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
 
-        applicationId "com.github.jainsahab"
+        applicationId "com.geliptvmediaanalyzer"
 
         minSdk 21
 
@@ -93,6 +93,8 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
 
     implementation 'androidx.multidex:multidex:2.0.1'
+
+    implementation 'androidx.browser:browser:1.8.0'
 
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
