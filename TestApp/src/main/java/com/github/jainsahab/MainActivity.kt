@@ -1228,6 +1228,41 @@ binding.contentMain.webview.setOnTouchListener { v, _ ->
 }
 
 // =====================================
+// WEBVIEW RENDERING LAYER FIX
+// Prevent blank / invisible WebView rendering
+// =====================================
+
+try {
+
+    binding.contentMain.webview.setBackgroundColor(
+        android.graphics.Color.WHITE
+    )
+
+    binding.contentMain.webview.setLayerType(
+        View.LAYER_TYPE_HARDWARE,
+        null
+    )
+
+    binding.contentMain.webview.isFocusable =
+        true
+
+    binding.contentMain.webview.isFocusableInTouchMode =
+        true
+
+    binding.contentMain.webview.requestFocus()
+
+    if (
+        android.os.Build.VERSION.SDK_INT >=
+        android.os.Build.VERSION_CODES.M
+    ) {
+
+        binding.contentMain.webview.settings.offscreenPreRaster =
+            true
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
 // WEBVIEW LONG PRESS MENU
 // IMAGE = CUSTOM POPUP
 // TEXT  = DEFAULT WEBVIEW SELECTION
@@ -1518,6 +1553,114 @@ $url
 
                 """.trimIndent()
             )
+            
+// =====================================
+// FORCE WEBVIEW RENDER REFRESH
+// =====================================
+
+try {
+
+    view?.postDelayed(
+        {
+
+            try {
+
+                view.setBackgroundColor(
+                    android.graphics.Color.WHITE
+                )
+
+                view.requestLayout()
+
+                view.invalidate()
+
+                view.requestFocus()
+
+            } catch (_: Throwable) {}
+        },
+        300
+    )
+
+} catch (_: Throwable) {}
+
+// =====================================
+// PAGE DOM DIAGNOSTIC
+// Detect blank / protected / WebView-blocked pages
+// =====================================
+
+try {
+
+    view?.evaluateJavascript(
+        """
+(function() {
+
+    try {
+
+        var title =
+            document.title || "";
+
+        var ready =
+            document.readyState || "";
+
+        var bodyText =
+            document.body
+                ? document.body.innerText || ""
+                : "";
+
+        var htmlLength =
+            document.documentElement
+                ? document.documentElement.outerHTML.length
+                : 0;
+
+        var bodyLength =
+            bodyText.length;
+
+        var result =
+            "DOM TITLE: " + title + "\n" +
+            "READY STATE: " + ready + "\n" +
+            "BODY TEXT LENGTH: " + bodyLength + "\n" +
+            "HTML LENGTH: " + htmlLength + "\n";
+
+        if (
+            bodyLength < 30 &&
+            htmlLength < 5000
+        ) {
+
+            result +=
+                "VERDICT: BLANK / BLOCKED / PROTECTED PAGE";
+        } else {
+
+            result +=
+                "VERDICT: PAGE HAS DOM CONTENT";
+        }
+
+        return result;
+
+    } catch(e) {
+
+        return "DOM DIAGNOSTIC ERROR: " + e;
+    }
+
+})();
+        """.trimIndent()
+    ) { jsResult ->
+
+        try {
+
+            binding.contentMain.result.append(
+                """
+
+PAGE DIAGNOSTIC:
+$jsResult
+
+────────────────────
+
+                """.trimIndent()
+            )
+
+        } catch (_: Throwable) {}
+    }
+
+} catch (_: Throwable) {}
 
             // =====================================
             // DETECT PAGE URL
@@ -1735,6 +1878,49 @@ ${errorResponse?.reasonPhrase ?: ""}
 
 binding.contentMain.webview.webChromeClient =
     object : WebChromeClient() {
+    
+    override fun onProgressChanged(
+    view: WebView?,
+    newProgress: Int
+) {
+
+    super.onProgressChanged(
+        view,
+        newProgress
+    )
+
+    try {
+
+        if (newProgress >= 100) {
+
+            view?.postDelayed(
+                {
+
+                    try {
+
+                        view.requestLayout()
+
+                        view.invalidate()
+
+                        binding.contentMain.result.append(
+                            """
+
+WEBVIEW PROGRESS:
+$newProgress%
+
+────────────────────
+
+                            """.trimIndent()
+                        )
+
+                    } catch (_: Throwable) {}
+                },
+                300
+            )
+        }
+
+    } catch (_: Throwable) {}
+}
 
         override fun onCreateWindow(
             view: WebView?,
