@@ -1333,10 +1333,6 @@ binding.contentMain.result.setTextIsSelectable(true)
 binding.contentMain.webview.webViewClient =
     object : WebViewClient() {
 
-        // =====================================
-        // PAGE STARTED
-        // =====================================
-
         override fun onPageStarted(
             view: WebView?,
             url: String?,
@@ -1376,10 +1372,6 @@ $url
             } catch (_: Throwable) {}
         }
 
-        // =====================================
-        // PAGE FINISHED
-        // =====================================
-
         override fun onPageFinished(
             view: WebView?,
             url: String?
@@ -1404,15 +1396,70 @@ $url
 
                         """.trimIndent()
                     )
+
+                    handleInterceptedMediaUrl(
+                        url,
+                        null
+                    )
+
+                    detectAndSaveUrl(
+                        url
+                    )
+
+                    enablePageTextSelection(
+                        view
+                    )
+
+                    runDeepMediaScan(
+                        view
+                    )
+
+                    binding.contentMain.webview.postDelayed(
+                        {
+                            try {
+
+                                if (
+                                    view != null &&
+                                    !isFinishing &&
+                                    !isDestroyed
+                                ) {
+
+                                    lastDeepScanTime =
+                                        0L
+
+                                    runDeepMediaScan(
+                                        view
+                                    )
+                                }
+
+                            } catch (_: Throwable) {}
+                        },
+                        2500
+                    )
+
+                    binding.contentMain.webview.postDelayed(
+                        {
+                            try {
+
+                                if (
+                                    view != null &&
+                                    !isFinishing &&
+                                    !isDestroyed
+                                ) {
+
+                                    runDeepMediaScan(
+                                        view
+                                    )
+                                }
+
+                            } catch (_: Throwable) {}
+                        },
+                        6000
+                    )
                 }
 
             } catch (_: Throwable) {}
         }
-
-        // =====================================
-        // URL LOADING
-        // Do not force reload manually
-        // =====================================
 
         override fun shouldOverrideUrlLoading(
             view: WebView?,
@@ -1443,11 +1490,6 @@ $url
             }
         }
 
-        // =====================================
-        // REQUEST INTERCEPT
-        // Important: do NOT read response body here
-        // =====================================
-
         override fun shouldInterceptRequest(
             view: WebView?,
             request: WebResourceRequest?
@@ -1473,10 +1515,6 @@ $url
 
             return null
         }
-
-        // =====================================
-        // WEBVIEW ERROR
-        // =====================================
 
         override fun onReceivedError(
             view: WebView?,
@@ -1510,10 +1548,6 @@ ${error?.description ?: "Unknown error"}
 
             } catch (_: Throwable) {}
         }
-
-        // =====================================
-        // HTTP ERROR
-        // =====================================
 
         override fun onReceivedHttpError(
             view: WebView?,
@@ -1552,467 +1586,6 @@ ${errorResponse?.reasonPhrase ?: ""}
             } catch (_: Throwable) {}
         }
     }
-
-    // =====================================
-    // RESPONSE BODY SNIFFER
-    // =====================================
-
-    try {
-
-        val mime =
-            response
-                ?.mimeType
-                ?.lowercase()
-                .orEmpty()
-
-        val headers =
-            response
-                ?.responseHeaders
-                ?: emptyMap()
-
-        headers.forEach { entry ->
-
-            try {
-
-                val key =
-                    entry.key.lowercase()
-
-                val value =
-                    entry.value.lowercase()
-
-                if (
-                    key.contains("content-type") ||
-                    key.contains("server") ||
-                    key.contains("cache") ||
-                    key.contains("cdn") ||
-                    key.contains("akamai") ||
-                    key.contains("cloudfront") ||
-                    key.contains("expires")
-                ) {
-
-                    Log.e(
-                        "STREAM_HEADER",
-                        "${entry.key} -> ${entry.value}"
-                    )
-                }
-
-                if (
-                    value.contains("akamai") ||
-                    value.contains("cloudfront") ||
-                    value.contains("fastly") ||
-                    value.contains("edge")
-                ) {
-
-                    Log.e(
-                        "LIVE_CDN",
-                        "${entry.key} -> ${entry.value}"
-                    )
-                }
-
-            } catch (_: Throwable) {}
-        }
-
-        if (
-            mime.contains("json") ||
-            mime.contains("javascript") ||
-            mime.contains("xml") ||
-            mime.contains("text") ||
-            mime.contains("mpegurl") ||
-            mime.contains("dash")
-        ) {
-
-            val rawBytes =
-                response
-                    ?.data
-                    ?.readBytes()
-
-            val body =
-                rawBytes
-                    ?.toString(Charsets.UTF_8)
-                    .orEmpty()
-                    
-// =====================================
-// STRONG / BRUTAL HLS EXTRACTION
-// YouTube / Euronews / escaped HTML-JSON
-// =====================================
-
-try {
-
-    val foundUrls =
-        linkedSetOf<String>()
-
-    foundUrls.addAll(
-        extractM3u8UrlsFromText(
-            body
-        )
-    )
-
-    foundUrls.addAll(
-        extractBrutalHlsUrlsFromText(
-            body
-        )
-    )
-
-    foundUrls.forEach { found ->
-
-        try {
-
-            markStreamSource(
-                found,
-                "BRUTAL_HLS_BODY"
-            )
-
-            detectAndSaveUrl(
-                found
-            )
-
-            Log.e(
-                "BRUTAL_HLS_BODY",
-                found
-            )
-
-        } catch (_: Throwable) {}
-    }
-
-} catch (_: Throwable) {}
-
-            // =====================================
-            // BODY MEDIA EXTRACTION
-            // =====================================
-
-            val regex =
-                "(https?:\\\\/\\\\/[^\"'\\\\s]+?(m3u8|mpd|mp4|m4s|ts)(\\\\?[^\"'\\\\s]*)?)"
-                    .toRegex(
-                        RegexOption.IGNORE_CASE
-                    )
-
-            regex.findAll(body)
-                .forEach { match ->
-
-                    try {
-
-                        val found =
-                            match.value
-                                .replace("\\\\/", "/")
-                                .replace("\\/", "/")
-                                .trim()
-
-                        if (found.isNotBlank()) {
-
-                            markStreamSource(
-                                found,
-                                "BODY"
-                            )
-
-                            detectAndSaveUrl(
-                                found
-                            )
-
-                            Log.e(
-                                "BODY_MEDIA",
-                                found
-                            )
-                        }
-
-                    } catch (_: Throwable) {}
-                }
-
-            // =====================================
-            // M3U8 BODY PARSER
-            // =====================================
-
-            if (
-                url.contains(".m3u8", true) &&
-                body.contains("#EXTM3U", true)
-            ) {
-
-                Log.e(
-                    "M3U8_BODY",
-                    body
-                )
-
-                val lines =
-                    body.lines()
-
-// =====================================
-// LIVE / VOD HLS DETECTION
-// =====================================
-
-val hasEndList =
-    body.contains(
-        "#EXT-X-ENDLIST",
-        true
-    )
-
-val hasSegments =
-    body.contains(
-        "#EXTINF",
-        true
-    ) ||
-        body.contains(
-            "#EXT-X-TARGETDURATION",
-            true
-        )
-
-val isLiveStream =
-    !hasEndList &&
-        hasSegments
-
-// =====================================
-// HLS BODY VERDICT
-// =====================================
-
-val hlsVerdict =
-    classifyHlsBody(
-        url,
-        body
-    )
-
-hlsVerdicts[url] =
-    hlsVerdict
-
-streamValidation[url] =
-    hlsVerdict
-
-Log.e(
-    "HLS_VERDICT",
-    "$hlsVerdict -> $url"
-)
-
-when (hlsVerdict) {
-
-    "HLS_LIVE",
-    "HLS_LIVE_CANDIDATE" -> {
-
-        Log.e(
-            "LIVE_HLS_CONFIRMED",
-            url
-        )
-
-        bestLiveUrl =
-            url
-
-        bestLiveScore +=
-            1000
-    }
-
-    "HLS_MASTER" -> {
-
-        Log.e(
-            "HLS_MASTER_CONFIRMED",
-            url
-        )
-    }
-
-    "HLS_VOD" -> {
-
-        Log.e(
-            "VOD_HLS_CONFIRMED",
-            url
-        )
-    }
-
-    else -> {
-
-        Log.e(
-            "HLS_UNKNOWN",
-            url
-        )
-    }
-}
-
-                lines.forEachIndexed { index, line ->
-
-                    try {
-
-                        val current =
-                            line.trim()
-
-                        if (
-                            current.contains(
-                                "#EXT-X-STREAM-INF",
-                                true
-                            )
-                        ) {
-
-                            val next =
-                                if (index + 1 < lines.size) {
-                                    lines[index + 1].trim()
-                                } else {
-                                    ""
-                                }
-
-                            if (
-                                next.endsWith(".m3u8") ||
-                                next.contains(".m3u8?")
-                            ) {
-
-                                val absolute =
-                                    if (next.startsWith("http")) {
-                                        next
-                                    } else {
-                                        val base =
-                                            url.substringBeforeLast("/")
-
-                                        "$base/$next"
-                                    }
-
-                                markStreamSource(
-                                    absolute,
-                                    "HLS_VARIANT"
-                                )
-
-                                detectAndSaveUrl(
-                                    absolute
-                                )
-
-                                Log.e(
-                                    "HLS_VARIANT",
-                                    absolute
-                                )
-                            }
-                        }
-
-                    } catch (_: Throwable) {}
-                }
-            }
-
-            if (rawBytes != null) {
-
-                return WebResourceResponse(
-                    response.mimeType,
-                    response.encoding,
-                    response.statusCode,
-                    response.reasonPhrase,
-                    response.responseHeaders,
-                    rawBytes.inputStream()
-                )
-            }
-        }
-
-    } catch (_: Throwable) {}
-
-    return response
-}
-
-override fun onPageFinished(
-    view: WebView?,
-    url: String?
-) {
-
-    super.onPageFinished(
-        view,
-        url
-    )
-
-    try {
-
-        if (
-            !url.isNullOrBlank()
-        ) {
-
-            // =====================================
-            // UPDATE URL BAR
-            // =====================================
-
-            binding.contentMain.urlInput.setText(
-                url
-            )
-
-            binding.contentMain.urlInput.setSelection(
-                binding.contentMain.urlInput.text.length
-            )
-
-            // =====================================
-            // DETECT PAGE URL
-            // =====================================
-
-            handleInterceptedMediaUrl(
-                url,
-                null
-            )
-
-            detectAndSaveUrl(
-                url
-            )
-
-            // =====================================
-            // ENABLE TEXT SELECTION
-            // =====================================
-
-            enablePageTextSelection(
-                view
-            )
-
-// =====================================
-// DEEP MEDIA SCAN
-// =====================================
-
-runDeepMediaScan(
-    view
-)
-
-// =====================================
-// DELAYED LIGHT RESCAN FOR JS PLAYERS
-// =====================================
-
-binding.contentMain.webview.postDelayed(
-    {
-
-        try {
-
-            if (
-                view != null &&
-                !isFinishing &&
-                !isDestroyed
-            ) {
-
-                lastDeepScanTime =
-                    0L
-
-                runDeepMediaScan(
-                    view
-                )
-            }
-
-        } catch (_: Throwable) {}
-
-    },
-    2500
-)
-            
-binding.contentMain.webview.postDelayed(
-    {
-        try {
-
-            runDeepMediaScan(
-                view
-            )
-
-        } catch (_: Throwable) {}
-    },
-    2500
-)
-
-binding.contentMain.webview.postDelayed(
-    {
-        try {
-
-            runDeepMediaScan(
-                view
-            )
-
-        } catch (_: Throwable) {}
-    },
-    6000
-)
-
-        }
-
-    } catch (_: Throwable) {}
-}
-
-} // END WebViewClient
 
 // =====================================
 // WEB CHROME CLIENT (FULLSCREEN)
