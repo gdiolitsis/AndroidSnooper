@@ -1680,16 +1680,40 @@ override fun onPageFinished(
 
 })();
                     """.trimIndent()
+                    
                 ) { jsResult ->
 
-                    try {
+    try {
 
-                        val cleanResult =
-                            jsResult
-                                .removePrefix("\"")
-                                .removeSuffix("\"")
-                                .replace("\\n", "\n")
-                                .replace("\\\"", "\"")
+        if (
+            url.equals(
+                "about:blank",
+                true
+            ) ||
+            url.contains(
+                "google.com/search",
+                true
+            ) ||
+            (
+                !url.startsWith(
+                    "http://",
+                    true
+                ) &&
+                !url.startsWith(
+                    "https://",
+                    true
+                )
+            )
+        ) {
+            return@evaluateJavascript
+        }
+
+        val cleanResult =
+            jsResult
+                .removePrefix("\"")
+                .removeSuffix("\"")
+                .replace("\\n", "\n")
+                .replace("\\\"", "\"")
 
                         val isBlockedPage =
                             cleanResult.contains(
@@ -4808,6 +4832,37 @@ private fun showProtectedPageFallback(
 
     try {
 
+        val cleanUrl =
+            url.trim()
+
+        // =====================================
+        // IGNORE INTERNAL / SEARCH / EMPTY PAGES
+        // =====================================
+
+        if (
+            cleanUrl.isBlank() ||
+            cleanUrl.equals(
+                "about:blank",
+                true
+            ) ||
+            (
+                !cleanUrl.startsWith(
+                    "http://",
+                    true
+                ) &&
+                !cleanUrl.startsWith(
+                    "https://",
+                    true
+                )
+            ) ||
+            cleanUrl.contains(
+                "google.com/search",
+                true
+            )
+        ) {
+            return
+        }
+
         if (protectedFallbackShown) {
             return
         }
@@ -4821,9 +4876,6 @@ private fun showProtectedPageFallback(
 PROTECTED / BLOCKED PAGE
 
 The page loaded, but returned no readable media DOM.
-
-Reason:
-$reason
 
 This source may block Android WebView, require protected playback, geo/session access, browser verification, or external browser cookies.
 
@@ -4842,7 +4894,7 @@ Open With Browser.
             .setPositiveButton("OPEN WITH BROWSER") { _, _ ->
 
                 openWithExternalBrowser(
-                    url
+                    cleanUrl
                 )
             }
             .setNegativeButton("STAY", null)
