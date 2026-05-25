@@ -2207,15 +2207,73 @@ binding.contentMain.openBrowser.setOnClickListener {
     binding.contentMain.urlInput.clearFocus()
 
     // =====================================
-    // LOAD PAGE
+    // LOAD PAGE — FORCE ANALYZER NAVIGATION
     // =====================================
 
-    binding.contentMain.webview.loadUrl(
-        finalUrl,
-        mapOf(
-            "Cache-Control" to "no-cache"
+    try {
+
+        binding.contentMain.result.text =
+            """
+LOADING WITH ANALYZER:
+
+$finalUrl
+
+────────────────────
+
+            """.trimIndent()
+
+        binding.contentMain.webview.stopLoading()
+
+        binding.contentMain.webview.clearHistory()
+
+        binding.contentMain.webview.post {
+
+            try {
+
+                binding.contentMain.webview.loadUrl(
+                    finalUrl,
+                    mapOf(
+                        "Cache-Control" to "no-cache",
+                        "Pragma" to "no-cache",
+                        "Upgrade-Insecure-Requests" to "1"
+                    )
+                )
+
+                Log.e(
+                    "GEL_LOAD_ANALYZER",
+                    finalUrl
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "GEL_LOAD_ANALYZER",
+                    "load failed",
+                    t
+                )
+
+                Toast.makeText(
+                    this,
+                    "Cannot load page",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "GEL_LOAD_ANALYZER",
+            "fatal load failed",
+            t
         )
-    )
+
+        Toast.makeText(
+            this,
+            "Analyzer load failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 }
 
 // =====================================  
