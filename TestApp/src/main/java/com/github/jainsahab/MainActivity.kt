@@ -56,6 +56,9 @@ private var liveUrlInputText =
 
 private var refererRetryDone =
     false
+    
+private var popupWebView: WebView? =
+    null
 
 // =====================================  
 // UNIQUE URL CACHE  
@@ -1034,12 +1037,19 @@ setSupportActionBar(
 
 onBackPressedDispatcher.addCallback(this) {
 
-when {  
+    if (popupWebView != null) {
 
-    customView != null -> {  
+        closePopupWebView()
 
-        customView?.visibility =  
-            View.GONE  
+        return@addCallback
+    }
+
+    when {
+
+        customView != null -> {
+
+            customView?.visibility =
+                View.GONE
 
         (customView?.parent as? ViewGroup)  
             ?.removeView(customView)  
@@ -1996,30 +2006,261 @@ binding.contentMain.webview.webChromeClient =
 }
 
         override fun onCreateWindow(
-            view: WebView?,
-            isDialog: Boolean,
-            isUserGesture: Boolean,
-            resultMsg: android.os.Message?
-        ): Boolean {
+    view: WebView?,
+    isDialog: Boolean,
+    isUserGesture: Boolean,
+    resultMsg: android.os.Message?
+): Boolean {
 
-            return try {
+    return try {
 
-                val transport =
-                    resultMsg?.obj
-                        as? WebView.WebViewTransport
+        closePopupWebView()
 
-                transport?.webView =
-                    binding.contentMain.webview
+        val childWebView =
+            WebView(this@MainActivity)
 
-                resultMsg?.sendToTarget()
+        popupWebView =
+            childWebView
 
+        childWebView.layoutParams =
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+
+        childWebView.settings.apply {
+
+            javaScriptEnabled =
                 true
 
-            } catch (_: Throwable) {
+            domStorageEnabled =
+                true
 
+            databaseEnabled =
+                true
+
+            allowFileAccess =
+                true
+
+            allowContentAccess =
+                true
+
+            mediaPlaybackRequiresUserGesture =
                 false
-            }
+
+            loadsImagesAutomatically =
+                true
+
+            blockNetworkImage =
+                false
+
+            blockNetworkLoads =
+                false
+
+            useWideViewPort =
+                true
+
+            loadWithOverviewMode =
+                true
+
+            setSupportZoom(
+                true
+            )
+
+            builtInZoomControls =
+                true
+
+            displayZoomControls =
+                false
+
+            javaScriptCanOpenWindowsAutomatically =
+                true
+
+            setSupportMultipleWindows(
+                false
+            )
+
+            mixedContentMode =
+                WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+            cacheMode =
+                WebSettings.LOAD_DEFAULT
+
+            userAgentString =
+                binding.contentMain.webview.settings.userAgentString
         }
+
+        try {
+
+            val cookieManager =
+                CookieManager.getInstance()
+
+            cookieManager.setAcceptCookie(
+                true
+            )
+
+            cookieManager.setAcceptThirdPartyCookies(
+                childWebView,
+                true
+            )
+
+            cookieManager.flush()
+
+        } catch (_: Throwable) {}
+
+        childWebView.webViewClient =
+            object : WebViewClient() {
+
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): Boolean {
+
+                    val popupUrl =
+                        request
+                            ?.url
+                            ?.toString()
+                            .orEmpty()
+
+                    return try {
+
+                        if (popupUrl.isNotBlank()) {
+
+                            binding.contentMain.urlInput.setText(
+                                popupUrl
+                            )
+
+                            binding.contentMain.urlInput.setSelection(
+                                0
+                            )
+
+                            liveUrlInputText =
+                                popupUrl
+
+                            handleInterceptedMediaUrl(
+                                popupUrl,
+                                request
+                            )
+                        }
+
+                        false
+
+                    } catch (_: Throwable) {
+
+                        false
+                    }
+                }
+
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): WebResourceResponse? {
+
+                    val popupUrl =
+                        request
+                            ?.url
+                            ?.toString()
+                            .orEmpty()
+
+                    try {
+
+                        if (popupUrl.isNotBlank()) {
+
+                            handleInterceptedMediaUrl(
+                                popupUrl,
+                                request
+                            )
+                        }
+
+                    } catch (_: Throwable) {}
+
+                    return null
+                }
+
+                override fun onPageFinished(
+                    view: WebView?,
+                    url: String?
+                ) {
+
+                    super.onPageFinished(
+                        view,
+                        url
+                    )
+
+                    try {
+
+                        if (!url.isNullOrBlank()) {
+
+                            binding.contentMain.urlInput.setText(
+                                url
+                            )
+
+                            binding.contentMain.urlInput.setSelection(
+                                0
+                            )
+
+                            liveUrlInputText =
+                                url
+
+                            handleInterceptedMediaUrl(
+                                url,
+                                null
+                            )
+
+                            detectAndSaveUrl(
+                                url
+                            )
+
+                            runDeepMediaScan(
+                                view
+                            )
+                        }
+
+                    } catch (_: Throwable) {}
+                }
+            }
+
+        childWebView.webChromeClient =
+            object : WebChromeClient() {
+
+                override fun onCloseWindow(
+                    window: WebView?
+                ) {
+
+                    closePopupWebView()
+                }
+            }
+
+        val root =
+            window.decorView
+                .rootView as ViewGroup
+
+        root.addView(
+            childWebView
+        )
+
+        val transport =
+            resultMsg?.obj
+                as? WebView.WebViewTransport
+
+        transport?.webView =
+            childWebView
+
+        resultMsg?.sendToTarget()
+
+        true
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "POPUP_WEBVIEW",
+            "create popup failed",
+            t
+        )
+
+        false
+    }
+}
 
         override fun onShowCustomView(
             view: View?,
@@ -4722,6 +4963,29 @@ true
 } // END result long press listener
 
 } // END onCreate()
+
+// =====================================
+// CLOSE POPUP WEBVIEW
+// =====================================
+
+private fun closePopupWebView() {
+
+    try {
+
+        popupWebView?.stopLoading()
+
+        (popupWebView?.parent as? ViewGroup)
+            ?.removeView(
+                popupWebView
+            )
+
+        popupWebView?.destroy()
+
+        popupWebView =
+            null
+
+    } catch (_: Throwable) {}
+}
 
 // =====================================
 // OPEN EXTERNAL BROWSER / CUSTOM TAB
