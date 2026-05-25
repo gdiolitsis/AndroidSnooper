@@ -1474,36 +1474,35 @@ binding.contentMain.webview.webViewClient =
     object : WebViewClient() {
 
         override fun onPageStarted(
-            view: WebView?,
-            url: String?,
-            favicon: android.graphics.Bitmap?
-        ) {
+    view: WebView?,
+    url: String?,
+    favicon: android.graphics.Bitmap?
+) {
 
-            super.onPageStarted(
-                view,
-                url,
-                favicon
+    super.onPageStarted(
+        view,
+        url,
+        favicon
+    )
+
+    try {
+
+        if (!url.isNullOrBlank()) {
+
+            binding.contentMain.urlInput.setText(
+                url
             )
 
-            try {
+            binding.contentMain.urlInput.setSelection(
+                0
+            )
 
-                if (!url.isNullOrBlank()) {
-
-                    binding.contentMain.urlInput.setText(
-                        url
-                    )
-
-                    binding.contentMain.urlInput.setSelection(
-    0
-)
-────────────────────
-
-                        """.trimIndent()
-                    )
-                }
-
-            } catch (_: Throwable) {}
+            liveUrlInputText =
+                url
         }
+
+    } catch (_: Throwable) {}
+}
 
 override fun onPageFinished(
     view: WebView?,
@@ -1953,11 +1952,6 @@ binding.contentMain.webview.webChromeClient =
                         view.requestLayout()
 
                         view.invalidate()
-                      
-────────────────────
-
-                            """.trimIndent()
-                        )
 
                     } catch (_: Throwable) {}
                 },
