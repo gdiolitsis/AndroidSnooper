@@ -1064,55 +1064,152 @@ when {
 
 // =====================================
 // WEBVIEW SETTINGS
+// Full browser-mode analyzer profile
 // =====================================
 
 binding.contentMain.webview.settings.apply {
 
-    javaScriptEnabled = true
+    // =====================================
+    // JAVASCRIPT / STORAGE
+    // =====================================
 
-    domStorageEnabled = true
+    javaScriptEnabled =
+        true
 
-    databaseEnabled = true
+    javaScriptCanOpenWindowsAutomatically =
+        true
 
-    allowFileAccess = true
+    domStorageEnabled =
+        true
 
-    allowContentAccess = true
+    databaseEnabled =
+        true
 
-    mediaPlaybackRequiresUserGesture = false
+    // =====================================
+    // NETWORK / MEDIA
+    // =====================================
 
-    loadsImagesAutomatically = true
+    loadsImagesAutomatically =
+        true
 
-    useWideViewPort = true
+    blockNetworkImage =
+        false
 
-    loadWithOverviewMode = false
+    blockNetworkLoads =
+        false
 
-    setSupportZoom(true)
-
-    builtInZoomControls = true
-
-    displayZoomControls = false
-
-    javaScriptCanOpenWindowsAutomatically = true
-
-    setSupportMultipleWindows(false)
+    mediaPlaybackRequiresUserGesture =
+        false
 
     mixedContentMode =
         WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+    cacheMode =
+        WebSettings.LOAD_DEFAULT
+
+    // =====================================
+    // VIEWPORT / DESKTOP-LIKE BEHAVIOR
+    // =====================================
+
+    useWideViewPort =
+        true
+
+    loadWithOverviewMode =
+        true
+
+    setSupportZoom(
+        true
+    )
+
+    builtInZoomControls =
+        true
+
+    displayZoomControls =
+        false
+
+    // =====================================
+    // WINDOWS / POPUPS
+    // =====================================
+
+    setSupportMultipleWindows(
+        true
+    )
+
+    // =====================================
+    // ACCESS
+    // Keep safe for Play Store
+    // =====================================
+
+    allowFileAccess =
+        true
+
+    allowContentAccess =
+        true
+
+    allowFileAccessFromFileURLs =
+        false
+
+    allowUniversalAccessFromFileURLs =
+        false
+
+    // =====================================
+    // USER AGENT
+    // Stable desktop Chrome identity
+    // =====================================
 
     userAgentString =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
         "Chrome/137.0.0.0 Safari/537.36"
-
-    cacheMode =
-        WebSettings.LOAD_DEFAULT
 }
+
+// =====================================
+// WEBVIEW SAFE BROWSING
+// =====================================
+
+try {
+
+    if (
+        android.os.Build.VERSION.SDK_INT >=
+        android.os.Build.VERSION_CODES.O
+    ) {
+
+        binding.contentMain.webview.settings.safeBrowsingEnabled =
+            true
+    }
+
+} catch (_: Throwable) {}
+
+// =====================================
+// WEBVIEW COOKIES
+// =====================================
+
+try {
+
+    val cookieManager =
+        CookieManager.getInstance()
+
+    cookieManager.setAcceptCookie(
+        true
+    )
+
+    cookieManager.setAcceptThirdPartyCookies(
+        binding.contentMain.webview,
+        true
+    )
+
+    cookieManager.flush()
+
+} catch (_: Throwable) {}
 
 // =====================================
 // WEBVIEW SCROLL FIX
 // =====================================
 
 binding.contentMain.webview.isVerticalScrollBarEnabled =
+    true
+
+binding.contentMain.webview.isHorizontalScrollBarEnabled =
     true
 
 binding.contentMain.webview.isScrollbarFadingEnabled =
@@ -1844,17 +1941,6 @@ binding.contentMain.openBrowser.setOnClickListener {
     } catch (_: Throwable) {}
 
     binding.contentMain.urlInput.clearFocus()
-
-    // =====================================
-    // DESKTOP MODE
-    // =====================================
-
-    try {
-
-        binding.contentMain.webview.settings.userAgentString =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-
-    } catch (_: Throwable) {}
 
     // =====================================
     // UI LOG
