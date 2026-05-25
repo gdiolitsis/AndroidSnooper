@@ -1518,6 +1518,15 @@ override fun onPageFinished(
 
         if (!url.isNullOrBlank()) {
 
+            if (
+                url.equals(
+                    "about:blank",
+                    true
+                )
+            ) {
+                return
+            }
+
             // =====================================
             // UPDATE URL BAR
             // Show URL from beginning
