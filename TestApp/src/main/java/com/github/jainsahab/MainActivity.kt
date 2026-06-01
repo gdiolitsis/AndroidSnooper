@@ -169,40 +169,103 @@ private fun loadSavedChannels() {
             prefs.getString(
                 savedChannelsKey,
                 "[]"
-            ) ?: "[]"
+            )
+                ?.trim()
+                ?: "[]"
+
+        if (raw.isBlank()) {
+            return
+        }
 
         val array =
-            org.json.JSONArray(raw)
+            org.json.JSONArray(
+                raw
+            )
 
         for (i in 0 until array.length()) {
 
             try {
 
                 val obj =
-                    array.getJSONObject(i)
+                    array.optJSONObject(
+                        i
+                    ) ?: continue
 
-                val channel =
-                    SavedChannel(
-                        name = obj.optString("name"),
-                        url = obj.optString("url"),
-                        logo = obj.optString("logo"),
-                        group = obj.optString("group")
-                    )
+                val name =
+                    obj.optString(
+                        "name",
+                        ""
+                    ).trim()
+
+                val url =
+                    obj.optString(
+                        "url",
+                        ""
+                    ).trim()
+
+                val logo =
+                    obj.optString(
+                        "logo",
+                        "noimage.png"
+                    ).trim()
+                        .ifBlank {
+                            "noimage.png"
+                        }
+
+                val group =
+                    obj.optString(
+                        "group",
+                        "Live Streams"
+                    ).trim()
+                        .ifBlank {
+                            "Live Streams"
+                        }
 
                 if (
-                    channel.url.isNotBlank() &&
-                    isExportableStream(channel.url)
+                    url.isBlank() ||
+                    !isExportableStream(url)
                 ) {
-
-                    savedChannels.add(
-                        channel
-                    )
+                    continue
                 }
+
+                val exists =
+                    savedChannels.any { channel ->
+
+                        channel.url == url
+                    }
+
+                if (exists) {
+                    continue
+                }
+
+                savedChannels.add(
+                    SavedChannel(
+                        name =
+                            name.ifBlank {
+                                buildChannelName(url)
+                            },
+                        url =
+                            url,
+                        logo =
+                            logo,
+                        group =
+                            group
+                    )
+                )
 
             } catch (_: Throwable) {}
         }
 
-    } catch (_: Throwable) {}
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SAVED_CHANNELS",
+            "load failed",
+            t
+        )
+
+        savedChannels.clear()
+    }
 }
 
 // =====================================
@@ -250,18 +313,34 @@ private fun persistSavedChannels() {
             } catch (_: Throwable) {}
         }
 
-        getSharedPreferences(
-            savedChannelsPrefsName,
-            MODE_PRIVATE
-        )
-            .edit()
-            .putString(
-                savedChannelsKey,
-                array.toString()
+        val ok =
+            getSharedPreferences(
+                savedChannelsPrefsName,
+                MODE_PRIVATE
             )
-            .apply()
+                .edit()
+                .putString(
+                    savedChannelsKey,
+                    array.toString()
+                )
+                .commit()
 
-    } catch (_: Throwable) {}
+        if (!ok) {
+
+            Log.e(
+                "SAVED_CHANNELS",
+                "persist commit failed"
+            )
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SAVED_CHANNELS",
+            "persist failed",
+            t
+        )
+    }
 }
 
 // =====================================
@@ -329,10 +408,17 @@ private fun addSavedChannel(
 
     try {
 
+        // =====================================
+        // LOAD EXISTING SAVED CHANNELS FIRST
+        // CRITICAL: prevents overwrite of old saved list
+        // =====================================
+
+        loadSavedChannels()
+
         val cleanUrl =
-    normalizeSavedChannelUrl(
-        url
-    )
+            normalizeSavedChannelUrl(
+                url
+            )
 
         if (
             cleanUrl.isBlank() ||
@@ -348,6 +434,13 @@ private fun addSavedChannel(
             }
 
         if (exists) {
+
+            Toast.makeText(
+                this,
+                "Channel already saved",
+                Toast.LENGTH_SHORT
+            ).show()
+
             return
         }
 
@@ -405,7 +498,14 @@ private fun addSavedChannel(
             Toast.LENGTH_SHORT
         ).show()
 
-    } catch (_: Throwable) {}
+    } catch (_: Throwable) {
+
+        Toast.makeText(
+            this,
+            "Save failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 }
 
 // =====================================
