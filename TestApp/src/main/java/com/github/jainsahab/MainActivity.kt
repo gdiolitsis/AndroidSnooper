@@ -59,6 +59,24 @@ private var refererRetryDone =
     
 private var popupWebView: WebView? =
     null
+    
+// =====================================
+// WEBVIEW USER INTERACTION GUARD
+// =====================================
+
+private var webUserInteracting =
+    false
+    
+// =====================================
+// CLEAR WEB INTERACTION FLAG
+// =====================================
+
+private val clearWebInteractionRunnable =
+    Runnable {
+
+        webUserInteracting =
+            false
+    }
 
 // =====================================  
 // UNIQUE URL CACHE  
@@ -1278,6 +1296,27 @@ binding.contentMain.webview.settings.apply {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
         "Chrome/137.0.0.0 Safari/537.36"
+}
+
+// =====================================
+// WEBVIEW TOUCH = TEMPORARY PAUSE SCANNER
+// =====================================
+
+binding.contentMain.webview.setOnTouchListener { _, _ ->
+
+    webUserInteracting =
+        true
+
+    binding.contentMain.webview.removeCallbacks(
+        clearWebInteractionRunnable
+    )
+
+    binding.contentMain.webview.postDelayed(
+        clearWebInteractionRunnable,
+        3000
+    )
+
+    false
 }
 
 // =====================================
@@ -15865,7 +15904,21 @@ private fun startStreamMonitor() {
 
             override fun run() {
 
-                try {
+    try {
+
+        // =====================================
+        // PAUSE SCANNER WHILE USER TOUCHES PAGE
+        // =====================================
+
+        if (webUserInteracting) {
+
+            binding.contentMain.webview.postDelayed(
+                this,
+                3000
+            )
+
+            return
+        }
 
                     val js =
                         """
