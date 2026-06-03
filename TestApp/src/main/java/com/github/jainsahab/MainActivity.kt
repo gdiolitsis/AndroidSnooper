@@ -6830,6 +6830,61 @@ private fun handleInterceptedMediaUrl(
 
         val lower =
             url.lowercase()
+
+// =====================================
+// EARLY WRAPPER / TRACKER CLEANUP
+// Never log Google/Facebook/analytics wrappers as streams.
+// Extract real playable URL first, then process only clean candidates.
+// =====================================
+
+try {
+
+    if (
+        isWrapperOrTrackerUrl(
+            url
+        )
+    ) {
+
+        val extractedStreams =
+            expandDetectedStreamCandidate(
+                url
+            )
+                .filter { candidate ->
+
+                    candidate.isNotBlank() &&
+                        candidate.startsWith(
+                            "http",
+                            true
+                        ) &&
+                        !isWrapperOrTrackerUrl(
+                            candidate
+                        ) &&
+                        isProbablyPlayableMediaUrl(
+                            candidate
+                        )
+                }
+                .distinct()
+
+        extractedStreams.forEach { candidate ->
+
+            try {
+
+                markStreamSource(
+                    candidate,
+                    "WRAPPER_EXTRACT"
+                )
+
+                detectAndSaveUrl(
+                    candidate
+                )
+
+            } catch (_: Throwable) {}
+        }
+
+        return
+    }
+
+} catch (_: Throwable) {}
             
 // =====================================
 // EARLY YOUTUBE WATCH SAVE
@@ -13555,6 +13610,54 @@ if (
 ) {
     return
 }
+
+// =====================================
+// WRAPPER / TRACKER EARLY CLEANUP
+// Do not show Google/Facebook/analytics wrapper URLs in logs/results.
+// Extract the real playable stream and process only that.
+// =====================================
+
+try {
+
+    if (
+        isWrapperOrTrackerUrl(url)
+    ) {
+
+        val extractedStreams =
+            expandDetectedStreamCandidate(
+                url
+            )
+                .filter { candidate ->
+
+                    candidate.isNotBlank() &&
+                        candidate.startsWith(
+                            "http",
+                            true
+                        ) &&
+                        !isWrapperOrTrackerUrl(
+                            candidate
+                        ) &&
+                        isProbablyPlayableMediaUrl(
+                            candidate
+                        )
+                }
+                .distinct()
+
+        extractedStreams.forEach { candidate ->
+
+            try {
+
+                detectAndSaveUrl(
+                    candidate
+                )
+
+            } catch (_: Throwable) {}
+        }
+
+        return
+    }
+
+} catch (_: Throwable) {}
 
 Log.e(
     "MEDIA_DETECT",
