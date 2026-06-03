@@ -18931,7 +18931,105 @@ private fun collectPlayableStreamUrls(): List<String> {
                 }
             }
 
-    }
+    } catch (_: Throwable) {}
+
+    return sortedStreams
+        .map { url ->
+
+            url
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .replace("&amp;", "&")
+                .trim()
+        }
+        .filter { url ->
+
+            url.isNotBlank() &&
+                url.startsWith(
+                    "http",
+                    true
+                ) &&
+                isExportableStream(
+                    url
+                )
+        }
+        .map { url ->
+
+            val key =
+                try {
+
+                    val lower =
+                        url.lowercase()
+
+                    if (
+                        lower.contains("googlevideo.com") ||
+                        lower.contains("videoplayback")
+                    ) {
+
+                        val uri =
+                            Uri.parse(url)
+
+                        val id =
+                            uri.getQueryParameter("id")
+                                ?.substringBefore(".")
+                                .orEmpty()
+
+                        val itag =
+                            uri.getQueryParameter("itag")
+                                .orEmpty()
+
+                        val mime =
+                            uri.getQueryParameter("mime")
+                                .orEmpty()
+
+                        val source =
+                            uri.getQueryParameter("source")
+                                .orEmpty()
+
+                        "googlevideo://$id/$itag/$mime/$source"
+
+                    } else if (
+                        lower.contains("youtube.com/watch") ||
+                        lower.contains("youtu.be/") ||
+                        lower.contains("youtube.com/live") ||
+                        lower.contains("youtube.com/c/")
+                    ) {
+
+                        val uri =
+                            Uri.parse(url)
+
+                        val v =
+                            uri.getQueryParameter("v")
+                                .orEmpty()
+
+                        if (v.isNotBlank()) {
+                            "youtube://watch/$v"
+                        } else {
+                            url.substringBefore("#").trim()
+                        }
+
+                    } else {
+
+                        url.substringBefore("#").trim()
+                    }
+
+                } catch (_: Throwable) {
+
+                    url
+                }
+
+            key to url
+        }
+        .distinctBy { pair ->
+
+            pair.first
+        }
+        .map { pair ->
+
+            pair.second
+        }
+}
+
 
 // =====================================
 // OPEN STREAM WITH PLAYER CHOOSER
@@ -19635,107 +19733,7 @@ private fun showSelectableStreamListDialog(
             Toast.LENGTH_SHORT
         ).show()
     }
-}
- catch (_: Throwable) {}
-
-    return sortedStreams
-        .map { url ->
-
-            url
-                .replace("\\u0026", "&")
-                .replace("\\/", "/")
-                .replace("&amp;", "&")
-                .trim()
-        }
-        .filter { url ->
-
-            url.isNotBlank() &&
-                url.startsWith(
-                    "http",
-                    true
-                ) &&
-                isExportableStream(
-                    url
-                )
-        }
-        .map { url ->
-
-            val key =
-                try {
-
-                    val lower =
-                        url.lowercase()
-
-                    if (
-                        lower.contains("googlevideo.com") ||
-                        lower.contains("videoplayback")
-                    ) {
-
-                        val uri =
-                            Uri.parse(url)
-
-                        val id =
-                            uri.getQueryParameter("id")
-                                ?.substringBefore(".")
-                                .orEmpty()
-
-                        val itag =
-                            uri.getQueryParameter("itag")
-                                .orEmpty()
-
-                        val mime =
-                            uri.getQueryParameter("mime")
-                                .orEmpty()
-
-                        val source =
-                            uri.getQueryParameter("source")
-                                .orEmpty()
-
-                        "googlevideo://$id/$itag/$mime/$source"
-
-                    } else if (
-                        lower.contains("youtube.com/watch") ||
-                        lower.contains("youtu.be/") ||
-                        lower.contains("youtube.com/live") ||
-                        lower.contains("youtube.com/c/")
-                    ) {
-
-                        val uri =
-                            Uri.parse(url)
-
-                        val v =
-                            uri.getQueryParameter("v")
-                                .orEmpty()
-
-                        if (v.isNotBlank()) {
-                            "youtube://watch/$v"
-                        } else {
-                            url.substringBefore("#").trim()
-                        }
-
-                    } else {
-
-                        url.substringBefore("#").trim()
-                    }
-
-                } catch (_: Throwable) {
-
-                    url
-                }
-
-            key to url
-        }
-        .distinctBy { pair ->
-
-            pair.first
-        }
-        .map { pair ->
-
-            pair.second
-        }
-}
-
-// =====================================
+}// =====================================
 // SHOW DETECTED STREAMS DIALOG
 // =====================================
 
