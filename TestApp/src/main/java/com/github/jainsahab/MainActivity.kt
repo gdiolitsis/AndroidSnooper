@@ -16297,8 +16297,14 @@ if (
     // =====================================
 
     if (
+        lower.contains("facebook.com/tr") ||
+        lower.contains("/tr/?") ||
+        lower.contains("translate.goog") ||
+        lower.contains("translate.google") ||
+        lower.contains("google.com/translate") ||
         lower.contains("doubleclick") ||
         lower.contains("googleads") ||
+        lower.contains("googlesyndication") ||
         lower.contains("analytics") ||
         lower.contains("/stats/") ||
         lower.contains("ptracking") ||
@@ -19143,66 +19149,426 @@ private fun shareText(
 }
 
 // =====================================
+// CLEAN DETECTED STREAM CANDIDATES
+// Keeps real playable media only.
+// Extracts embedded media URLs from tracker / translation wrappers.
+// =====================================
+
+private fun repeatedlyDecodeUrl(
+    rawUrl: String
+): String {
+
+    var current =
+        rawUrl
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .replace("&amp;", "&")
+            .trim()
+
+    try {
+
+        repeat(
+            3
+        ) {
+
+            val decoded =
+                java.net.URLDecoder.decode(
+                    current,
+                    "UTF-8"
+                )
+                    .replace("\\u0026", "&")
+                    .replace("\\/", "/")
+                    .replace("&amp;", "&")
+                    .trim()
+
+            if (decoded == current) {
+                return current
+            }
+
+            current =
+                decoded
+        }
+
+    } catch (_: Throwable) {}
+
+    return current
+}
+
+private fun isWrapperOrTrackerUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.contains("facebook.com/tr") ||
+            lower.contains("/tr/?") ||
+            lower.contains("translate.goog") ||
+            lower.contains("translate.google") ||
+            lower.contains("google.com/translate") ||
+            lower.contains("doubleclick") ||
+            lower.contains("googleads") ||
+            lower.contains("googlesyndication") ||
+            lower.contains("google-analytics") ||
+            lower.contains("analytics") ||
+            lower.contains("pagead") ||
+            lower.contains("collect?") ||
+            lower.contains("/collect") ||
+            lower.contains("/ajax?") ||
+            lower.contains("/stats/") ||
+            lower.contains("ptracking") ||
+            lower.contains("moat") ||
+            lower.contains("beacon") ||
+            lower.contains("pixel") ||
+            lower.contains("telemetry") ||
+            lower.contains("metrics") ||
+            lower.contains("favicon") ||
+            lower.contains("logo") ||
+            lower.contains("banner")
+        )
+}
+
+private fun isProbablyPlayableMediaUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.contains(".m3u8") ||
+            lower.contains(".mpd") ||
+            lower.contains(".mp4") ||
+            lower.contains(".webm") ||
+            lower.contains(".mkv") ||
+            lower.contains(".mov") ||
+            lower.contains(".avi") ||
+            lower.contains(".3gp") ||
+            lower.endsWith(".ts") ||
+            lower.contains(".ts?") ||
+            lower.contains(".mp3") ||
+            lower.contains(".m4a") ||
+            lower.contains(".aac") ||
+            lower.contains(".opus") ||
+            lower.contains(".wav") ||
+            lower.contains(".ogg") ||
+            lower.contains(".flac") ||
+            lower.contains("manifest/hls") ||
+            lower.contains("hls_playlist") ||
+            lower.contains("hlsmanifesturl") ||
+            lower.contains("googlevideo.com") ||
+            lower.contains("videoplayback") ||
+            lower.contains("youtube.com/watch") ||
+            lower.contains("youtu.be/")
+        )
+}
+
+private fun isTsMediaSegmentUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.endsWith(".ts") ||
+            lower.contains(".ts?") ||
+            Regex("/[^/?#]+\\.ts($|[?#])")
+                .containsMatchIn(
+                    lower
+                )
+        )
+}
+
+private fun cleanDetectedPlayableUrl(
+    rawUrl: String
+): String {
+
+    var clean =
+        rawUrl
+            .replace("\\u0026", "&")
+            .replace("\\/", "/")
+            .replace("&amp;", "&")
+            .trim()
+            .trimEnd(',')
+            .trimEnd(';')
+            .trimEnd(')')
+            .trimEnd(']')
+            .trimEnd('}')
+            .trimEnd('"')
+            .trimEnd('\'')
+
+    // Some tracker URLs contain a real stream followed by tracking fields.
+    // Example: ...playlist.m3u8&cd[Program_Name]=...
+    try {
+
+        val lower =
+            clean.lowercase()
+
+        val cutMarkers =
+            listOf(
+                "&cd[",
+                "&fbp=",
+                "&fbc=",
+                "&pmd[",
+                "&expv",
+                "&rqm=",
+                "&dl=",
+                "&ev=",
+                "&rl=",
+                "&if=",
+                "&ts=",
+                "&iw=",
+                "&coo=",
+                "&x_tr_"
+            )
+
+        if (
+            lower.contains(".m3u8") ||
+            lower.contains(".mpd")
+        ) {
+
+            cutMarkers.forEach { marker ->
+
+                val index =
+                    clean.indexOf(
+                        marker,
+                        ignoreCase = true
+                    )
+
+                if (index > 0) {
+                    clean = clean.substring(0, index)
+                }
+            }
+        }
+
+    } catch (_: Throwable) {}
+
+    return clean.trim()
+}
+
+private fun extractEmbeddedPlayableUrls(
+    rawUrl: String
+): List<String> {
+
+    val out =
+        mutableListOf<String>()
+
+    fun addCandidate(
+        value: String?
+    ) {
+
+        val candidate =
+            value
+                ?.trim()
+                .orEmpty()
+
+        if (candidate.isBlank()) {
+            return
+        }
+
+        val decoded =
+            repeatedlyDecodeUrl(
+                candidate
+            )
+
+        val clean =
+            cleanDetectedPlayableUrl(
+                decoded
+            )
+
+        if (
+            clean.startsWith(
+                "http",
+                true
+            ) &&
+            isProbablyPlayableMediaUrl(
+                clean
+            )
+        ) {
+            out.add(
+                clean
+            )
+        }
+    }
+
+    try {
+
+        val uri =
+            Uri.parse(
+                rawUrl
+            )
+
+        val keys =
+            uri.queryParameterNames
+
+        keys.forEach { key ->
+
+            val lowerKey =
+                key.lowercase()
+
+            if (
+                lowerKey == "url" ||
+                lowerKey == "u" ||
+                lowerKey == "src" ||
+                lowerKey == "stream" ||
+                lowerKey == "file" ||
+                lowerKey == "media" ||
+                lowerKey == "video" ||
+                lowerKey == "dl" ||
+                lowerKey == "cd[url]" ||
+                lowerKey.contains("stream") ||
+                lowerKey.contains("playlist") ||
+                lowerKey.contains("manifest")
+            ) {
+
+                addCandidate(
+                    uri.getQueryParameter(
+                        key
+                    )
+                )
+            }
+        }
+
+    } catch (_: Throwable) {}
+
+    try {
+
+        val decoded =
+            repeatedlyDecodeUrl(
+                rawUrl
+            )
+
+        val regex =
+            "(https?://[^\\s\"'<>]+)"
+                .toRegex()
+
+        regex.findAll(
+            decoded
+        ).forEach { match ->
+
+            addCandidate(
+                match.value
+            )
+        }
+
+    } catch (_: Throwable) {}
+
+    return out
+        .distinct()
+}
+
+private fun expandDetectedStreamCandidate(
+    rawUrl: String
+): List<String> {
+
+    val normalized =
+        cleanDetectedPlayableUrl(
+            repeatedlyDecodeUrl(
+                rawUrl
+            )
+        )
+
+    val embedded =
+        extractEmbeddedPlayableUrls(
+            rawUrl
+        )
+
+    val result =
+        mutableListOf<String>()
+
+    result.addAll(
+        embedded
+    )
+
+    if (
+        normalized.startsWith(
+            "http",
+            true
+        ) &&
+        !isWrapperOrTrackerUrl(
+            normalized
+        ) &&
+        isProbablyPlayableMediaUrl(
+            normalized
+        )
+    ) {
+
+        result.add(
+            normalized
+        )
+    }
+
+    return result
+        .distinct()
+}
+
+// =====================================
 // COLLECT PLAYABLE STREAM URLS FOR MENU
+// Clean version:
+// - removes trackers / translate / analytics wrappers
+// - extracts embedded real streams from wrapper URLs
+// - hides .ts segments when a matching .m3u8 exists
 // =====================================
 
 private fun collectPlayableStreamUrls(): List<String> {
 
-    val sortedStreams =
+    val rawStreams =
         mutableListOf<String>()
 
     try {
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             detectedStreams
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             detectedVideos
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             detectedAudio
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             streamInfoSnapshots.keys
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             streamSources.keys
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             streamValidation.keys
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             streamScores.keys
         )
 
-        sortedStreams.addAll(
+        rawStreams.addAll(
             streamTokens.keys
         )
 
         if (bestStreamUrl.isNotBlank()) {
-            sortedStreams.add(bestStreamUrl)
+            rawStreams.add(bestStreamUrl)
         }
 
         if (bestLiveUrl.isNotBlank()) {
-            sortedStreams.add(bestLiveUrl)
+            rawStreams.add(bestLiveUrl)
         }
 
         if (youtubeWatchUrl.isNotBlank()) {
-            sortedStreams.add(youtubeWatchUrl)
+            rawStreams.add(youtubeWatchUrl)
         }
 
         if (youtubeDashVideoUrl.isNotBlank()) {
-            sortedStreams.add(youtubeDashVideoUrl)
+            rawStreams.add(youtubeDashVideoUrl)
         }
 
         if (youtubeDashAudioUrl.isNotBlank()) {
-            sortedStreams.add(youtubeDashAudioUrl)
+            rawStreams.add(youtubeDashAudioUrl)
         }
 
         val resultText =
@@ -19218,117 +19584,154 @@ private fun collectPlayableStreamUrls(): List<String> {
         regex.findAll(resultText)
             .forEach { match ->
 
-                val found =
+                rawStreams.add(
                     match.value
-                        .trim()
-                        .trimEnd(',')
-                        .trimEnd(';')
-                        .trimEnd(')')
-                        .trimEnd(']')
-                        .trimEnd('}')
-
-                if (found.isNotBlank()) {
-                    sortedStreams.add(found)
-                }
+                )
             }
 
     } catch (_: Throwable) {}
 
-    return sortedStreams
-        .map { url ->
+    val expandedStreams =
+        mutableListOf<String>()
 
-            url
-                .replace("\\u0026", "&")
-                .replace("\\/", "/")
-                .replace("&amp;", "&")
-                .trim()
-        }
-        .filter { url ->
+    rawStreams.forEach { raw ->
 
-            url.isNotBlank() &&
-                url.startsWith(
-                    "http",
-                    true
-                ) &&
-                isExportableStream(
-                    url
+        try {
+
+            expandedStreams.addAll(
+                expandDetectedStreamCandidate(
+                    raw
                 )
-        }
-        .map { url ->
+            )
 
-            val key =
-                try {
+        } catch (_: Throwable) {}
+    }
 
-                    val lower =
-                        url.lowercase()
+    val playable =
+        expandedStreams
+            .map { url ->
 
-                    if (
-                        lower.contains("googlevideo.com") ||
-                        lower.contains("videoplayback")
-                    ) {
+                cleanDetectedPlayableUrl(
+                    repeatedlyDecodeUrl(
+                        url
+                    )
+                )
+            }
+            .filter { url ->
 
-                        val uri =
-                            Uri.parse(url)
+                url.isNotBlank() &&
+                    url.startsWith(
+                        "http",
+                        true
+                    ) &&
+                    !isWrapperOrTrackerUrl(
+                        url
+                    ) &&
+                    isExportableStream(
+                        url
+                    )
+            }
+            .map { url ->
 
-                        val id =
-                            uri.getQueryParameter("id")
-                                ?.substringBefore(".")
-                                .orEmpty()
+                val key =
+                    try {
 
-                        val itag =
-                            uri.getQueryParameter("itag")
-                                .orEmpty()
+                        val lower =
+                            url.lowercase()
 
-                        val mime =
-                            uri.getQueryParameter("mime")
-                                .orEmpty()
+                        if (
+                            lower.contains("googlevideo.com") ||
+                            lower.contains("videoplayback")
+                        ) {
 
-                        val source =
-                            uri.getQueryParameter("source")
-                                .orEmpty()
+                            val uri =
+                                Uri.parse(url)
 
-                        "googlevideo://$id/$itag/$mime/$source"
+                            val id =
+                                uri.getQueryParameter("id")
+                                    ?.substringBefore(".")
+                                    .orEmpty()
 
-                    } else if (
-                        lower.contains("youtube.com/watch") ||
-                        lower.contains("youtu.be/") ||
-                        lower.contains("youtube.com/live") ||
-                        lower.contains("youtube.com/c/")
-                    ) {
+                            val itag =
+                                uri.getQueryParameter("itag")
+                                    .orEmpty()
 
-                        val uri =
-                            Uri.parse(url)
+                            val mime =
+                                uri.getQueryParameter("mime")
+                                    .orEmpty()
 
-                        val v =
-                            uri.getQueryParameter("v")
-                                .orEmpty()
+                            val source =
+                                uri.getQueryParameter("source")
+                                    .orEmpty()
 
-                        if (v.isNotBlank()) {
-                            "youtube://watch/$v"
+                            "googlevideo://$id/$itag/$mime/$source"
+
+                        } else if (
+                            lower.contains("youtube.com/watch") ||
+                            lower.contains("youtu.be/") ||
+                            lower.contains("youtube.com/live") ||
+                            lower.contains("youtube.com/c/")
+                        ) {
+
+                            val uri =
+                                Uri.parse(url)
+
+                            val v =
+                                uri.getQueryParameter("v")
+                                    .orEmpty()
+
+                            if (v.isNotBlank()) {
+                                "youtube://watch/$v"
+                            } else {
+                                url.substringBefore("#").trim()
+                            }
+
                         } else {
+
                             url.substringBefore("#").trim()
                         }
 
-                    } else {
+                    } catch (_: Throwable) {
 
-                        url.substringBefore("#").trim()
+                        url
                     }
 
-                } catch (_: Throwable) {
+                key to url
+            }
+            .distinctBy { pair ->
 
-                    url
-                }
+                pair.first
+            }
+            .map { pair ->
 
-            key to url
+                pair.second
+            }
+
+    val hasM3u8 =
+        playable.any { url ->
+
+            val lower =
+                url.lowercase()
+
+            lower.contains(".m3u8") ||
+                lower.contains("manifest/hls") ||
+                lower.contains("hls_playlist") ||
+                lower.contains("hlsmanifesturl")
         }
-        .distinctBy { pair ->
 
-            pair.first
-        }
-        .map { pair ->
+    return if (hasM3u8) {
 
-            pair.second
+        playable.filter { url ->
+
+            !isTsMediaSegmentUrl(
+                url
+            )
         }
+
+    } else {
+
+        playable
+    }
 }
 
 
@@ -21533,8 +21936,14 @@ if (isJwPlayerVod) {
     if (
         lower.contains(".jpg") ||
         lower.contains(".png") ||
+        lower.contains("facebook.com/tr") ||
+        lower.contains("/tr/?") ||
+        lower.contains("translate.goog") ||
+        lower.contains("translate.google") ||
+        lower.contains("google.com/translate") ||
         lower.contains("doubleclick") ||
         lower.contains("googleads") ||
+        lower.contains("googlesyndication") ||
         lower.contains("analytics") ||
         lower.contains("stats")
     ) {
