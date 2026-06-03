@@ -269,9 +269,7 @@ private val savedChannelsKey =
 // LOAD SAVED CHANNELS
 // =====================================
 
-private fun loadSavedChannels()
-loadBrowserHistory()
-loadBrowserBookmarks() {
+private fun loadSavedChannels() {
 
     try {
 
