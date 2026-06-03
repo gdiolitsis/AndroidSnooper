@@ -187,26 +187,86 @@
         android:overScrollMode="never" />
 
     <!-- ===================================== -->
-    <!-- RESULTS -->
+    <!-- RESULTS PANEL -->
+    <!-- Collapsed / Normal / Expanded -->
     <!-- ===================================== -->
 
-    <ScrollView
-        android:id="@+id/resultScroll"
+    <LinearLayout
+        android:id="@+id/resultsPanel"
         android:layout_width="match_parent"
-        android:layout_height="90dp"
-        android:fillViewport="true"
-        android:scrollbars="vertical">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FAFAFA">
 
-        <TextView
-            android:id="@+id/result"
+        <LinearLayout
+            android:id="@+id/resultPanelHeader"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:textIsSelectable="true"
-            android:textSize="12sp"
-            android:longClickable="true"
-            android:scrollbars="vertical" />
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:background="#F2F2F2">
 
-    </ScrollView>
+            <Button
+                android:id="@+id/btnResultsToggle"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="RESULTS ▲"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnResultCopy"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="COPY"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnResultClear"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="CLEAR"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <ScrollView
+            android:id="@+id/resultScroll"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:fillViewport="true"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/result"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:textIsSelectable="true"
+                android:textSize="12sp"
+                android:longClickable="true"
+                android:scrollbars="vertical" />
+
+        </ScrollView>
+
+    </LinearLayout>
 
 </LinearLayout>
