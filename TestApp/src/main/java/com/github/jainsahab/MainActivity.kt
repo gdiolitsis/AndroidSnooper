@@ -5870,13 +5870,27 @@ androidx.appcompat.app.AlertDialog.Builder(this)
 
                 try {
 
+                    val cleanBestStreamUrl =
+                        getCleanBestStreamUrl()
+
+                    if (cleanBestStreamUrl.isBlank()) {
+
+                        Toast.makeText(
+                            this,
+                            "No clean best stream",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@setOnMenuItemClickListener true
+                    }
+
                     val intent =
                         Intent(
                             Intent.ACTION_VIEW
                         ).apply {
 
                             setDataAndType(
-                                Uri.parse(bestStreamUrl),
+                                Uri.parse(cleanBestStreamUrl),
                                 "video/*"
                             )
 
@@ -5910,6 +5924,20 @@ androidx.appcompat.app.AlertDialog.Builder(this)
 
                 try {
 
+                    val cleanBestStreamUrl =
+                        getCleanBestStreamUrl()
+
+                    if (cleanBestStreamUrl.isBlank()) {
+
+                        Toast.makeText(
+                            this,
+                            "No clean best stream",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@setOnMenuItemClickListener true
+                    }
+
                     val clipboard =
                         getSystemService(
                             CLIPBOARD_SERVICE
@@ -5918,7 +5946,7 @@ androidx.appcompat.app.AlertDialog.Builder(this)
                     clipboard.setPrimaryClip(
                         ClipData.newPlainText(
                             "best_stream",
-                            bestStreamUrl
+                            cleanBestStreamUrl
                         )
                     )
 
@@ -14447,16 +14475,61 @@ if (
     streamScore > bestStreamScore
 ) {
 
-    bestStreamScore =
-        streamScore
+    val bestCandidateUrl =
+        try {
 
-    bestStreamUrl =
-        cleanedUrl
+            expandDetectedStreamCandidate(
+                cleanedUrl
+            )
+                .filter { candidate ->
 
-    Log.e(
-        "BEST_STREAM",
-        "$bestStreamScore -> $bestStreamUrl"
-    )
+                    candidate.isNotBlank() &&
+                        candidate.startsWith(
+                            "http",
+                            true
+                        ) &&
+                        !isWrapperOrTrackerUrl(
+                            candidate
+                        ) &&
+                        isExportableStream(
+                            candidate
+                        )
+                }
+                .maxByOrNull { candidate ->
+
+                    calculateStreamScore(
+                        candidate
+                    )
+                }
+                ?: cleanDetectedPlayableUrl(
+                    repeatedlyDecodeUrl(
+                        cleanedUrl
+                    )
+                )
+
+        } catch (_: Throwable) {
+
+            cleanedUrl
+        }
+
+    if (
+        bestCandidateUrl.isNotBlank() &&
+        !isWrapperOrTrackerUrl(
+            bestCandidateUrl
+        )
+    ) {
+
+        bestStreamScore =
+            streamScore
+
+        bestStreamUrl =
+            bestCandidateUrl
+
+        Log.e(
+            "BEST_STREAM",
+            "$bestStreamScore -> $bestStreamUrl"
+        )
+    }
 }
 
 // =====================================
@@ -15389,11 +15462,14 @@ val extraPlayableLinks =
             append("\n\n")
         }
 
-        if (bestStreamUrl.isNotBlank()) {
+        val cleanBestStreamUrl =
+            getCleanBestStreamUrl()
+
+        if (cleanBestStreamUrl.isNotBlank()) {
 
             append("⭐ BEST STREAM")
             append("\n")
-            append(bestStreamUrl)
+            append(cleanBestStreamUrl)
             append("\n\n")
         }
     }
@@ -15487,7 +15563,7 @@ try {
             dashAudio = youtubeDashAudioUrl,
             dashVideoItag = youtubeDashVideoItag,
             dashAudioItag = youtubeDashAudioItag,
-            bestStream = bestStreamUrl,
+            bestStream = getCleanBestStreamUrl(),
             bestLive = bestLiveUrl
         )
 
@@ -19731,6 +19807,80 @@ private fun collectPlayableStreamUrls(): List<String> {
     } else {
 
         playable
+    }
+}
+
+
+// =====================================
+// CLEAN BEST STREAM URL
+// Never expose tracker / analytics wrappers as Best Stream.
+// Extracts embedded playable media URL when Best Stream was detected
+// through Google/Facebook/analytics wrapper payloads.
+// =====================================
+
+private fun getCleanBestStreamUrl(): String {
+
+    return try {
+
+        val candidates =
+            mutableListOf<String>()
+
+        if (bestStreamUrl.isNotBlank()) {
+
+            candidates.addAll(
+                expandDetectedStreamCandidate(
+                    bestStreamUrl
+                )
+            )
+        }
+
+        if (bestLiveUrl.isNotBlank()) {
+
+            candidates.addAll(
+                expandDetectedStreamCandidate(
+                    bestLiveUrl
+                )
+            )
+        }
+
+        candidates.addAll(
+            collectPlayableStreamUrls()
+        )
+
+        candidates
+            .map { candidate ->
+
+                cleanDetectedPlayableUrl(
+                    repeatedlyDecodeUrl(
+                        candidate
+                    )
+                )
+            }
+            .filter { candidate ->
+
+                candidate.isNotBlank() &&
+                    candidate.startsWith(
+                        "http",
+                        true
+                    ) &&
+                    !isWrapperOrTrackerUrl(
+                        candidate
+                    ) &&
+                    isExportableStream(
+                        candidate
+                    )
+            }
+            .maxByOrNull { candidate ->
+
+                calculateStreamScore(
+                    candidate
+                )
+            }
+            .orEmpty()
+
+    } catch (_: Throwable) {
+
+        ""
     }
 }
 
