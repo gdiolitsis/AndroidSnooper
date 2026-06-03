@@ -1423,22 +1423,31 @@ binding.contentMain.webview.settings.apply {
 }
 
 // =====================================
-// WEBVIEW TOUCH = TEMPORARY PAUSE SCANNER
+// WEBVIEW TOUCH = PAUSE SCANNER + SCROLL FIX
+// Prevent ANR while user taps / scrolls / opens images
 // =====================================
 
-binding.contentMain.webview.setOnTouchListener { _, _ ->
+binding.contentMain.webview.setOnTouchListener { v, _ ->
 
-    webUserInteracting =
-        true
+    try {
 
-    binding.contentMain.webview.removeCallbacks(
-        clearWebInteractionRunnable
-    )
+        webUserInteracting =
+            true
 
-    binding.contentMain.webview.postDelayed(
-        clearWebInteractionRunnable,
-        3000
-    )
+        binding.contentMain.webview.removeCallbacks(
+            clearWebInteractionRunnable
+        )
+
+        binding.contentMain.webview.postDelayed(
+            clearWebInteractionRunnable,
+            3500
+        )
+
+        v.parent?.requestDisallowInterceptTouchEvent(
+            true
+        )
+
+    } catch (_: Throwable) {}
 
     false
 }
@@ -1497,15 +1506,6 @@ binding.contentMain.webview.isScrollbarFadingEnabled =
 
 binding.contentMain.webview.overScrollMode =
     View.OVER_SCROLL_ALWAYS
-
-binding.contentMain.webview.setOnTouchListener { v, _ ->
-
-    v.parent?.requestDisallowInterceptTouchEvent(
-        true
-    )
-
-    false
-}
 
 // =====================================
 // WEBVIEW RENDERING LAYER FIX
@@ -2057,9 +2057,12 @@ override fun onPageFinished(
             // DEEP MEDIA SCAN
             // =====================================
 
-            runDeepMediaScan(
-                view
-            )
+            if (!webUserInteracting) {
+
+                                runDeepMediaScan(
+                                    view
+                                )
+                            }
 
             // =====================================
             // DELAYED RESCAN 1
@@ -2078,9 +2081,12 @@ override fun onPageFinished(
                             lastDeepScanTime =
                                 0L
 
-                            runDeepMediaScan(
-                                view
-                            )
+                            if (!webUserInteracting) {
+
+                                runDeepMediaScan(
+                                    view
+                                )
+                            }
                         }
 
                     } catch (_: Throwable) {}
@@ -2102,9 +2108,12 @@ override fun onPageFinished(
                             !isDestroyed
                         ) {
 
-                            runDeepMediaScan(
-                                view
-                            )
+                            if (!webUserInteracting) {
+
+                                runDeepMediaScan(
+                                    view
+                                )
+                            }
                         }
 
                     } catch (_: Throwable) {}
@@ -2500,9 +2509,12 @@ binding.contentMain.webview.webChromeClient =
                                 url
                             )
 
-                            runDeepMediaScan(
-                                view
-                            )
+                            if (!webUserInteracting) {
+
+                                runDeepMediaScan(
+                                    view
+                                )
+                            }
                         }
 
                     } catch (_: Throwable) {}
@@ -6155,6 +6167,15 @@ private fun runDeepMediaScan(
     try {
 
         if (view == null) {
+            return
+        }
+
+        // =====================================
+        // ANR GUARD
+        // Do not scan while user taps / scrolls / opens image previews
+        // =====================================
+
+        if (webUserInteracting) {
             return
         }
 
