@@ -31,6 +31,7 @@
 
     <!-- ===================================== -->
     <!-- ACTION BUTTONS -->
+    <!-- Clean browser/analyzer layout -->
     <!-- ===================================== -->
 
     <LinearLayout
@@ -73,45 +74,11 @@
             android:layout_marginBottom="8dp">
 
             <Button
-                android:id="@+id/openPlayer"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="6dp"
-                android:text="OPEN PLAYER" />
-
-            <Button
-                android:id="@+id/shareStreams"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:layout_marginEnd="6dp"
-                android:text="COPY/SHARE" />
-
-            <Button
-                android:id="@+id/exportM3u"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="EXPORT M3U" />
-
-        </LinearLayout>
-
-        <!-- ROW 3 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-
-            <Button
                 android:id="@+id/btnAll"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="2dp"
+                android:layout_marginEnd="3dp"
                 android:text="ALL"
                 android:textSize="12sp"
                 android:minHeight="48dp"
@@ -124,8 +91,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
+                android:layout_marginStart="3dp"
+                android:layout_marginEnd="3dp"
                 android:text="VIDEOS"
                 android:textSize="12sp"
                 android:minHeight="48dp"
@@ -138,23 +105,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
+                android:layout_marginStart="3dp"
+                android:layout_marginEnd="3dp"
                 android:text="AUDIO"
-                android:textSize="12sp"
-                android:minHeight="48dp"
-                android:minWidth="0dp"
-                android:paddingStart="2dp"
-                android:paddingEnd="2dp" />
-
-            <Button
-                android:id="@+id/btnSavedChannels"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.25"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
-                android:text="SAVED"
                 android:textSize="12sp"
                 android:minHeight="48dp"
                 android:minWidth="0dp"
@@ -166,7 +119,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="2dp"
+                android:layout_marginStart="3dp"
                 android:text="CLEAR"
                 android:textSize="12sp"
                 android:minHeight="48dp"
@@ -175,6 +128,35 @@
                 android:paddingEnd="2dp" />
 
         </LinearLayout>
+
+        <!-- HIDDEN / MENU-ONLY ACTIONS -->
+        <Button
+            android:id="@+id/openPlayer"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="OPEN PLAYER" />
+
+        <Button
+            android:id="@+id/shareStreams"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="COPY/SHARE" />
+
+        <Button
+            android:id="@+id/exportM3u"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="EXPORT M3U" />
+
+        <Button
+            android:id="@+id/btnSavedChannels"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="SAVED" />
 
         <!-- HIDDEN / UNUSED -->
         <Button
