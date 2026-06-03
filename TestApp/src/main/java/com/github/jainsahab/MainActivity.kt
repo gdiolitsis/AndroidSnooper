@@ -89,7 +89,7 @@ private val menuSavedChannelsId =
 private val menuDetectedStreamsId =
     91005
 
-private val menuCopyDetectedStreamsId =
+private val menuOpenPlayerId =
     91006
 
 private val menuExportM3uId =
@@ -668,6 +668,7 @@ private fun addSavedChannel(
 // SHOW SAVED CHANNELS DIALOG
 // =====================================
 
+
 private fun showSavedChannelsDialog() {
 
     try {
@@ -685,213 +686,49 @@ private fun showSavedChannelsDialog() {
             return
         }
 
-        val scrollView =
-            android.widget.ScrollView(this)
+        showSelectableStreamListDialog(
+            title = "Saved Channels",
+            urls = savedChannels.map { channel -> channel.url },
+            showSave = false,
+            showDelete = true
+        ) { selectedUrls ->
 
-        val container =
-            LinearLayout(this).apply {
+            try {
 
-                orientation =
-                    LinearLayout.VERTICAL
+                savedChannels.removeAll { channel ->
 
-                setPadding(
-                    20,
-                    20,
-                    20,
-                    20
-                )
-            }
+                    selectedUrls.any { selected ->
 
-        scrollView.addView(container)
-
-        savedChannels
-            .toList()
-            .forEach { channel ->
-
-                val itemBox =
-                    LinearLayout(this).apply {
-
-                        orientation =
-                            LinearLayout.VERTICAL
-
-                        setPadding(
-                            0,
-                            10,
-                            0,
-                            16
-                        )
-                    }
-
-                val info =
-                    TextView(this).apply {
-
-                        text =
-                            """
-${channel.name}
-
-${channel.url}
-                            """.trimIndent()
-
-                        textSize =
-                            13f
-
-                        setTextIsSelectable(
+                        selected.equals(
+                            channel.url,
                             true
                         )
-
-                        setPadding(
-                            0,
-                            0,
-                            0,
-                            10
-                        )
                     }
+                }
 
-                val buttonRow =
-                    LinearLayout(this).apply {
+                persistSavedChannels()
 
-                        orientation =
-                            LinearLayout.HORIZONTAL
-                    }
+                Toast.makeText(
+                    this,
+                    "Deleted ${selectedUrls.size} channel(s)",
+                    Toast.LENGTH_SHORT
+                ).show()
 
-                val openButton =
-                    Button(this).apply {
+            } catch (t: Throwable) {
 
-                        text =
-                            "OPEN"
+                Log.e(
+                    "SAVED_CHANNELS_DIALOG",
+                    "delete selected failed",
+                    t
+                )
 
-                        layoutParams =
-                            LinearLayout.LayoutParams(
-                                0,
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                1f
-                            ).apply {
-
-                                setMargins(
-                                    0,
-                                    0,
-                                    6,
-                                    0
-                                )
-                            }
-
-                        setOnClickListener {
-
-                            try {
-
-                                val intent =
-                                    Intent(
-                                        Intent.ACTION_VIEW
-                                    ).apply {
-
-                                        data =
-                                            Uri.parse(
-                                                channel.url
-                                            )
-
-                                        addCategory(
-                                            Intent.CATEGORY_BROWSABLE
-                                        )
-                                    }
-
-                                startActivity(
-                                    Intent.createChooser(
-                                        intent,
-                                        "Open Channel"
-                                    )
-                                )
-
-                            } catch (_: Throwable) {
-
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Cannot open channel",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-
-                val deleteButton =
-                    Button(this).apply {
-
-                        text =
-                            "DELETE"
-
-                        layoutParams =
-                            LinearLayout.LayoutParams(
-                                0,
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                1f
-                            ).apply {
-
-                                setMargins(
-                                    6,
-                                    0,
-                                    0,
-                                    0
-                                )
-                            }
-
-                        setOnClickListener {
-
-                            try {
-
-                                savedChannels.removeAll { saved ->
-
-                                    saved.url == channel.url
-                                }
-
-                                persistSavedChannels()
-
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Channel deleted",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-
-                                showSavedChannelsDialog()
-
-                            } catch (_: Throwable) {
-
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Delete failed",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-
-                buttonRow.addView(openButton)
-                buttonRow.addView(deleteButton)
-
-                itemBox.addView(info)
-                itemBox.addView(buttonRow)
-
-                container.addView(itemBox)
-
-                val line =
-                    TextView(this).apply {
-
-                        text =
-                            "────────────────────────"
-
-                        textSize =
-                            12f
-                    }
-
-                container.addView(line)
+                Toast.makeText(
+                    this,
+                    "Delete failed",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Saved Channels")
-            .setView(scrollView)
-            .setNegativeButton(
-                "CLOSE",
-                null
-            )
-            .show()
+        }
 
     } catch (t: Throwable) {
 
@@ -908,6 +745,7 @@ ${channel.url}
         ).show()
     }
 }
+
 
 // =====================================
 // STREAM INFO SNAPSHOTS
@@ -19093,7 +18931,712 @@ private fun collectPlayableStreamUrls(): List<String> {
                 }
             }
 
-    } catch (_: Throwable) {}
+    }
+
+// =====================================
+// OPEN STREAM WITH PLAYER CHOOSER
+// =====================================
+
+private fun openStreamWithPlayerChooser(
+    url: String
+) {
+
+    try {
+
+        val urlToOpen =
+            url
+                .trim()
+                .replace("\n", "")
+                .replace("\r", "")
+                .replace(" ", "")
+
+        if (urlToOpen.isBlank()) {
+            return
+        }
+
+        lastSelectedUrl =
+            urlToOpen
+
+        val lower =
+            urlToOpen.lowercase()
+
+        if (
+            lower.contains(
+                "youtube.com/watch",
+                true
+            ) ||
+            lower.contains(
+                "youtu.be/",
+                true
+            ) ||
+            lower.contains(
+                "youtube.com/live",
+                true
+            ) ||
+            lower.contains(
+                "youtube.com/c/",
+                true
+            )
+        ) {
+
+            val intent =
+                Intent(
+                    Intent.ACTION_VIEW
+                ).apply {
+
+                    data =
+                        Uri.parse(
+                            urlToOpen
+                        )
+
+                    addCategory(
+                        Intent.CATEGORY_BROWSABLE
+                    )
+
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK
+                    )
+                }
+
+            startActivity(
+                Intent.createChooser(
+                    intent,
+                    "Open YouTube Link"
+                )
+            )
+
+            return
+        }
+
+        val mimeType =
+            when {
+
+                lower.contains(".mp3") ->
+                    "audio/mpeg"
+
+                lower.contains(".m4a") ->
+                    "audio/mp4"
+
+                lower.contains(".aac") ->
+                    "audio/aac"
+
+                lower.contains(".opus") ->
+                    "audio/opus"
+
+                lower.contains(".wav") ->
+                    "audio/wav"
+
+                lower.contains(".ogg") ->
+                    "audio/ogg"
+
+                lower.contains(".flac") ->
+                    "audio/flac"
+
+                lower.contains(".m3u8") ||
+                    lower.contains("hls") ->
+                    "application/vnd.apple.mpegurl"
+
+                lower.contains(".mpd") ||
+                    lower.contains("dash") ->
+                    "application/dash+xml"
+
+                lower.contains(".mp4") ->
+                    "video/mp4"
+
+                lower.contains(".webm") ->
+                    "video/webm"
+
+                lower.contains(".mkv") ||
+                    lower.contains(".mov") ||
+                    lower.contains(".avi") ||
+                    lower.contains(".3gp") ||
+                    lower.endsWith(".ts") ||
+                    lower.contains(".ts?") ||
+                    lower.contains("googlevideo.com") ||
+                    lower.contains("videoplayback") ->
+                    "video/*"
+
+                else ->
+                    "*/*"
+            }
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+
+                setDataAndType(
+                    Uri.parse(
+                        urlToOpen
+                    ),
+                    mimeType
+                )
+
+                addCategory(
+                    Intent.CATEGORY_BROWSABLE
+                )
+
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open Stream With"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "PLAYER_OPEN",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Cannot open stream",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// OPEN SELECTED STREAMS
+// For multiple selections: choose one stream to open
+// =====================================
+
+private fun openSelectedStreamsWithPlayer(
+    selectedUrls: List<String>
+) {
+
+    try {
+
+        val cleanList =
+            selectedUrls
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+
+        if (cleanList.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No streams selected",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        if (cleanList.size == 1) {
+
+            openStreamWithPlayerChooser(
+                cleanList.first()
+            )
+
+            return
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Select Stream To Open")
+            .setItems(
+                cleanList.toTypedArray()
+            ) { _, which ->
+
+                openStreamWithPlayerChooser(
+                    cleanList[which]
+                )
+            }
+            .setNegativeButton(
+                "CLOSE",
+                null
+            )
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "PLAYER_OPEN_SELECTED",
+            "failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// SHOW SELECTABLE STREAM LIST DIALOG
+// Shared engine for Detected Streams / Saved Channels
+// =====================================
+
+private fun showSelectableStreamListDialog(
+    title: String,
+    urls: List<String>,
+    showSave: Boolean,
+    showDelete: Boolean,
+    onDeleteSelected: ((List<String>) -> Unit)? = null
+) {
+
+    try {
+
+        val streamList =
+            urls
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .toTypedArray()
+
+        if (streamList.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No streams found",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val selected =
+            mutableListOf<String>()
+
+        val dialogHeight =
+            (resources.displayMetrics.heightPixels * 0.90f).toInt()
+
+        val root =
+            android.widget.LinearLayout(this).apply {
+
+                orientation =
+                    android.widget.LinearLayout.VERTICAL
+
+                setPadding(
+                    20,
+                    10,
+                    20,
+                    10
+                )
+
+                minimumHeight =
+                    dialogHeight
+            }
+
+        val scrollView =
+            android.widget.ScrollView(this).apply {
+
+                isFillViewport =
+                    false
+
+                isVerticalScrollBarEnabled =
+                    true
+
+                overScrollMode =
+                    android.view.View.OVER_SCROLL_ALWAYS
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f
+                    )
+            }
+
+        val listContainer =
+            android.widget.LinearLayout(this).apply {
+
+                orientation =
+                    android.widget.LinearLayout.VERTICAL
+            }
+
+        scrollView.addView(
+            listContainer,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val checkBoxes =
+            mutableListOf<android.widget.CheckBox>()
+
+        streamList.forEach { url ->
+
+            val checkBox =
+                android.widget.CheckBox(this).apply {
+
+                    text =
+                        url
+
+                    textSize =
+                        13f
+
+                    setPadding(
+                        0,
+                        8,
+                        0,
+                        8
+                    )
+
+                    setOnCheckedChangeListener { _, isChecked ->
+
+                        if (isChecked) {
+
+                            if (!selected.contains(url)) {
+                                selected.add(url)
+                            }
+
+                        } else {
+
+                            selected.remove(url)
+                        }
+                    }
+                }
+
+            checkBoxes.add(
+                checkBox
+            )
+
+            listContainer.addView(
+                checkBox
+            )
+
+            val line =
+                android.view.View(this).apply {
+
+                    setBackgroundColor(
+                        0xFFE0E0E0.toInt()
+                    )
+
+                    layoutParams =
+                        android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                            1
+                        )
+                }
+
+            listContainer.addView(
+                line
+            )
+        }
+
+        root.addView(
+            scrollView
+        )
+
+        val buttonRow =
+            android.widget.LinearLayout(this).apply {
+
+                orientation =
+                    android.widget.LinearLayout.HORIZONTAL
+
+                setPadding(
+                    0,
+                    10,
+                    0,
+                    0
+                )
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+            }
+
+        val selectAllButton =
+            android.widget.Button(this).apply {
+
+                text =
+                    "SELECT\nALL"
+
+                textSize =
+                    10f
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    )
+            }
+
+        val openButton =
+            android.widget.Button(this).apply {
+
+                text =
+                    "OPEN"
+
+                textSize =
+                    11f
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    )
+            }
+
+        val saveButton =
+            android.widget.Button(this).apply {
+
+                text =
+                    "SAVE"
+
+                textSize =
+                    11f
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    )
+            }
+
+        val copyButton =
+            android.widget.Button(this).apply {
+
+                text =
+                    "COPY"
+
+                textSize =
+                    11f
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    )
+            }
+
+        val shareButton =
+            android.widget.Button(this).apply {
+
+                text =
+                    "SHARE"
+
+                textSize =
+                    11f
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    )
+            }
+
+        val deleteButton =
+            android.widget.Button(this).apply {
+
+                text =
+                    "DELETE"
+
+                textSize =
+                    11f
+
+                layoutParams =
+                    android.widget.LinearLayout.LayoutParams(
+                        0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    )
+            }
+
+        buttonRow.addView(selectAllButton)
+        buttonRow.addView(openButton)
+
+        if (showSave) {
+            buttonRow.addView(saveButton)
+        }
+
+        buttonRow.addView(copyButton)
+        buttonRow.addView(shareButton)
+
+        if (showDelete) {
+            buttonRow.addView(deleteButton)
+        }
+
+        root.addView(buttonRow)
+
+        val dialog =
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(root)
+                .setNegativeButton(
+                    "CLOSE",
+                    null
+                )
+                .show()
+
+        try {
+
+            dialog.window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.92f).toInt(),
+                dialogHeight
+            )
+
+        } catch (_: Throwable) {}
+
+        selectAllButton.setOnClickListener {
+
+            selected.clear()
+
+            checkBoxes.forEachIndexed { index, checkBox ->
+
+                checkBox.isChecked =
+                    true
+
+                val url =
+                    streamList[index]
+
+                if (!selected.contains(url)) {
+                    selected.add(url)
+                }
+            }
+
+            Toast.makeText(
+                this,
+                "All selected",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        openButton.setOnClickListener {
+
+            openSelectedStreamsWithPlayer(
+                selected
+            )
+        }
+
+        saveButton.setOnClickListener {
+
+            if (selected.isEmpty()) {
+
+                Toast.makeText(
+                    this,
+                    "No streams selected",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return@setOnClickListener
+            }
+
+            var savedCount =
+                0
+
+            selected.forEach { url ->
+
+                try {
+
+                    addSavedChannel(
+                        url
+                    )
+
+                    savedCount++
+
+                } catch (_: Throwable) {}
+            }
+
+            Toast.makeText(
+                this,
+                "Saved $savedCount channel(s)",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        copyButton.setOnClickListener {
+
+            if (selected.isEmpty()) {
+
+                Toast.makeText(
+                    this,
+                    "No streams selected",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return@setOnClickListener
+            }
+
+            copyTextToClipboard(
+                "selected_streams",
+                selected.joinToString("\n\n"),
+                "Selected streams copied"
+            )
+        }
+
+        shareButton.setOnClickListener {
+
+            if (selected.isEmpty()) {
+
+                Toast.makeText(
+                    this,
+                    "No streams selected",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return@setOnClickListener
+            }
+
+            shareText(
+                title,
+                selected.joinToString("\n\n")
+            )
+        }
+
+        deleteButton.setOnClickListener {
+
+            if (selected.isEmpty()) {
+
+                Toast.makeText(
+                    this,
+                    "No streams selected",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return@setOnClickListener
+            }
+
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Delete selected?")
+                .setMessage("Delete ${selected.size} selected item(s)?")
+                .setPositiveButton(
+                    "DELETE"
+                ) { _, _ ->
+
+                    onDeleteSelected?.invoke(
+                        selected.toList()
+                    )
+
+                    dialog.dismiss()
+                }
+                .setNegativeButton(
+                    "CANCEL",
+                    null
+                )
+                .show()
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SELECTABLE_STREAM_DIALOG",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Dialog failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+ catch (_: Throwable) {}
 
     return sortedStreams
         .map { url ->
@@ -19196,6 +19739,7 @@ private fun collectPlayableStreamUrls(): List<String> {
 // SHOW DETECTED STREAMS DIALOG
 // =====================================
 
+
 private fun showDetectedStreamsDialog() {
 
     try {
@@ -19214,40 +19758,12 @@ private fun showDetectedStreamsDialog() {
             return
         }
 
-        val items =
-            streamList.toTypedArray()
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Detected Streams")
-            .setItems(items) { _, which ->
-
-                try {
-
-                    val url =
-                        items[which]
-
-                    lastSelectedUrl =
-                        url
-
-                    copyTextToClipboard(
-                        "detected_stream",
-                        url,
-                        "Stream copied"
-                    )
-
-                } catch (_: Throwable) {}
-            }
-            .setPositiveButton(
-                "COPY ALL"
-            ) { _, _ ->
-
-                copyDetectedStreamsToClipboard()
-            }
-            .setNegativeButton(
-                "CLOSE",
-                null
-            )
-            .show()
+        showSelectableStreamListDialog(
+            title = "Detected Streams",
+            urls = streamList,
+            showSave = true,
+            showDelete = false
+        )
 
     } catch (t: Throwable) {
 
@@ -19264,6 +19780,7 @@ private fun showDetectedStreamsDialog() {
         ).show()
     }
 }
+
 
 // =====================================
 // COPY DETECTED STREAMS
@@ -20276,6 +20793,7 @@ private fun clearBrowserData() {
 // MENU  
 // =====================================
 
+
 override fun onCreateOptionsMenu(
     menu: Menu
 ): Boolean {
@@ -20286,6 +20804,12 @@ override fun onCreateOptionsMenu(
     )
 
     try {
+
+        menu.add(Menu.NONE, menuOpenNewTabId, Menu.NONE, "Open New Tab")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuTabsId, Menu.NONE, "Tabs")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
         menu.add(Menu.NONE, menuHistoryId, Menu.NONE, "History")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
@@ -20299,19 +20823,13 @@ override fun onCreateOptionsMenu(
         menu.add(Menu.NONE, menuAddToHomeScreenId, Menu.NONE, "Add to Home Screen")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-        menu.add(Menu.NONE, menuOpenNewTabId, Menu.NONE, "Open New Tab")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-
-        menu.add(Menu.NONE, menuTabsId, Menu.NONE, "Tabs")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-
         menu.add(Menu.NONE, menuSavedChannelsId, Menu.NONE, "Saved Channels")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
         menu.add(Menu.NONE, menuDetectedStreamsId, Menu.NONE, "Detected Streams")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-        menu.add(Menu.NONE, menuCopyDetectedStreamsId, Menu.NONE, "Copy Detected Streams")
+        menu.add(Menu.NONE, menuOpenPlayerId, Menu.NONE, "Open Player")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
         menu.add(Menu.NONE, menuExportM3uId, Menu.NONE, "Export M3U")
@@ -20344,13 +20862,14 @@ override fun onCreateOptionsMenu(
         menu.add(Menu.NONE, menuMobileModeId, Menu.NONE, "Mobile Mode")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-        menu.add(Menu.NONE, menuClearBrowserDataId, Menu.NONE, "Clear Browser Data")
+        menu.add(Menu.NONE, menuClearBrowserDataId, Menu.NONE, "Clear Browser Data/cache")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
     } catch (_: Throwable) {}
 
     return true
 }
+
 
 override fun onOptionsItemSelected(
     item: MenuItem
@@ -20398,8 +20917,8 @@ override fun onOptionsItemSelected(
             true
         }
 
-        menuCopyDetectedStreamsId -> {
-            copyDetectedStreamsToClipboard()
+        menuOpenPlayerId -> {
+            binding.contentMain.openPlayer.performClick()
             true
         }
 
