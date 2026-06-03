@@ -148,6 +148,21 @@ private val mobileUserAgent =
         "Chrome/137.0.0.0 Mobile Safari/537.36"
 
 // =====================================
+// RESULTS PANEL STATE
+// 0 = collapsed, 1 = normal, 2 = expanded
+// =====================================
+
+private var resultsPanelState =
+    1
+
+private val resultsPanelCollapsedHeightDp =
+    0
+
+private val resultsPanelNormalHeightDp =
+    90
+
+
+// =====================================
 // AUTOMATIC COOKIE CONSENT RECOVERY
 // OneTrust / cookie banner safe reload
 // =====================================
@@ -1742,6 +1757,245 @@ private fun installCookieConsentWatcher(
     } catch (_: Throwable) {}
 }
 
+
+// =====================================
+// RESULTS PANEL HELPERS
+// Collapsed / Normal / Expanded URL output panel
+// =====================================
+
+private fun dpToPx(
+    dp: Int
+): Int {
+
+    return try {
+
+        (
+            dp *
+                resources.displayMetrics.density
+            ).toInt()
+
+    } catch (_: Throwable) {
+
+        dp
+    }
+}
+
+private fun setupResultsPanel() {
+
+    try {
+
+        binding.contentMain.btnResultsToggle.setOnClickListener {
+
+            toggleResultsPanel()
+        }
+
+        binding.contentMain.resultPanelHeader.setOnClickListener {
+
+            toggleResultsPanel()
+        }
+
+        binding.contentMain.resultPanelHeader.setOnLongClickListener {
+
+            setResultsPanelState(
+                0
+            )
+
+            true
+        }
+
+        binding.contentMain.btnResultCopy.setOnClickListener {
+
+            copyResultsPanelText()
+        }
+
+        binding.contentMain.btnResultClear.setOnClickListener {
+
+            try {
+
+                binding.contentMain.btnClear.performClick()
+
+            } catch (_: Throwable) {
+
+                clearResultsPanelOnly()
+            }
+        }
+
+        setResultsPanelState(
+            resultsPanelState
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "RESULTS_PANEL",
+            "setup failed",
+            t
+        )
+    }
+}
+
+private fun toggleResultsPanel() {
+
+    val nextState =
+        when (resultsPanelState) {
+
+            0 -> 1
+            1 -> 2
+            else -> 0
+        }
+
+    setResultsPanelState(
+        nextState
+    )
+}
+
+private fun setResultsPanelState(
+    state: Int
+) {
+
+    try {
+
+        resultsPanelState =
+            when (state) {
+
+                0 -> 0
+                2 -> 2
+                else -> 1
+            }
+
+        val targetHeight =
+            when (resultsPanelState) {
+
+                0 ->
+                    dpToPx(
+                        resultsPanelCollapsedHeightDp
+                    )
+
+                2 ->
+                    (
+                        resources.displayMetrics.heightPixels *
+                            0.42f
+                        ).toInt()
+
+                else ->
+                    dpToPx(
+                        resultsPanelNormalHeightDp
+                    )
+            }
+
+        val params =
+            binding.contentMain.resultScroll.layoutParams
+
+        params.height =
+            targetHeight
+
+        binding.contentMain.resultScroll.layoutParams =
+            params
+
+        binding.contentMain.resultScroll.visibility =
+            if (resultsPanelState == 0) {
+                View.GONE
+            } else {
+                View.VISIBLE
+            }
+
+        binding.contentMain.btnResultsToggle.text =
+            when (resultsPanelState) {
+
+                0 -> "RESULTS ▲"
+                2 -> "RESULTS ▼"
+                else -> "RESULTS ▲"
+            }
+
+        binding.contentMain.resultPanelHeader.alpha =
+            if (resultsPanelState == 0) {
+                0.88f
+            } else {
+                1.0f
+            }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "RESULTS_PANEL",
+            "state failed",
+            t
+        )
+    }
+}
+
+private fun copyResultsPanelText() {
+
+    try {
+
+        val text =
+            binding.contentMain.result
+                .text
+                ?.toString()
+                ?.trim()
+                .orEmpty()
+
+        if (text.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "No results to copy",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                "gel_results",
+                text
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "Results copied",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "RESULTS_PANEL",
+            "copy failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Copy failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+private fun clearResultsPanelOnly() {
+
+    try {
+
+        binding.contentMain.result.text =
+            ""
+
+        Toast.makeText(
+            this,
+            "Results cleared",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+}
+
 // =====================================  
 // ON CREATE  
 // =====================================  
@@ -1774,6 +2028,8 @@ binding.contentMain.result.isVerticalScrollBarEnabled = true
 
 binding.contentMain.result.movementMethod =
     android.text.method.ScrollingMovementMethod()
+
+setupResultsPanel()
 
 // =====================================
 // LIVE URL INPUT TRACKER
