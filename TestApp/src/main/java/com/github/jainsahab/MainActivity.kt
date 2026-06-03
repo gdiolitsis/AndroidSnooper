@@ -1195,6 +1195,7 @@ try {
 // =====================================
 // PREVIEW IMAGE IN APP
 // Shows image large without opening source page
+// Fixed: explicit preview height, no blank dialog
 // =====================================
 
 private fun showImagePreviewDialog(
@@ -1224,6 +1225,15 @@ private fun showImagePreviewDialog(
                 .replace("\"", "&quot;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
+
+        val dialogWidth =
+            (resources.displayMetrics.widthPixels * 0.96f).toInt()
+
+        val dialogHeight =
+            (resources.displayMetrics.heightPixels * 0.88f).toInt()
+
+        val previewHeight =
+            (resources.displayMetrics.heightPixels * 0.68f).toInt()
 
         val previewWebView =
             WebView(this)
@@ -1263,7 +1273,28 @@ private fun showImagePreviewDialog(
 
             mixedContentMode =
                 WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+            cacheMode =
+                WebSettings.LOAD_DEFAULT
         }
+
+        try {
+
+            val cookieManager =
+                CookieManager.getInstance()
+
+            cookieManager.setAcceptCookie(
+                true
+            )
+
+            cookieManager.setAcceptThirdPartyCookies(
+                previewWebView,
+                true
+            )
+
+            cookieManager.flush()
+
+        } catch (_: Throwable) {}
 
         previewWebView.setBackgroundColor(
             android.graphics.Color.BLACK
@@ -1274,13 +1305,13 @@ private fun showImagePreviewDialog(
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=6.0, user-scalable=yes">
 <style>
 html, body {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     background: #000000;
     overflow: auto;
 }
@@ -1290,7 +1321,10 @@ body {
     justify-content: center;
 }
 img {
-    max-width: 100%;
+    display: block;
+    max-width: 100vw;
+    max-height: 100vh;
+    width: auto;
     height: auto;
     object-fit: contain;
 }
@@ -1302,14 +1336,6 @@ img {
 </html>
             """.trimIndent()
 
-        previewWebView.loadDataWithBaseURL(
-            cleanUrl,
-            html,
-            "text/html",
-            "UTF-8",
-            null
-        )
-
         val root =
             LinearLayout(this).apply {
 
@@ -1319,14 +1345,16 @@ img {
                 setBackgroundColor(
                     android.graphics.Color.BLACK
                 )
+
+                minimumHeight =
+                    dialogHeight
             }
 
         root.addView(
             previewWebView,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+                previewHeight
             )
         )
 
@@ -1397,7 +1425,11 @@ img {
         )
 
         root.addView(
-            buttonRow
+            buttonRow,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         )
 
         val dialog =
@@ -1467,6 +1499,36 @@ img {
             }
         }
 
+        dialog.setOnShowListener {
+
+            try {
+
+                dialog.window?.setLayout(
+                    dialogWidth,
+                    dialogHeight
+                )
+
+                previewWebView.postDelayed(
+                    {
+
+                        try {
+
+                            previewWebView.loadDataWithBaseURL(
+                                cleanUrl,
+                                html,
+                                "text/html",
+                                "UTF-8",
+                                null
+                            )
+
+                        } catch (_: Throwable) {}
+                    },
+                    150
+                )
+
+            } catch (_: Throwable) {}
+        }
+
         dialog.setOnDismissListener {
 
             try {
@@ -1479,15 +1541,6 @@ img {
         }
 
         dialog.show()
-
-        try {
-
-            dialog.window?.setLayout(
-                (resources.displayMetrics.widthPixels * 0.96f).toInt(),
-                (resources.displayMetrics.heightPixels * 0.88f).toInt()
-            )
-
-        } catch (_: Throwable) {}
 
     } catch (t: Throwable) {
 
