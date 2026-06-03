@@ -89,7 +89,7 @@ private val menuSavedChannelsId =
 private val menuDetectedStreamsId =
     91005
 
-private val menuOpenPlayerId =
+private val menuCopyDetectedStreamsId =
     91006
 
 private val menuExportM3uId =
@@ -133,6 +133,9 @@ private val menuTranslatePageId =
 
 private val menuAddToHomeScreenId =
     91020
+
+private val menuOpenPlayerId =
+    91021
 
 private val desktopUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
@@ -666,8 +669,8 @@ private fun addSavedChannel(
 
 // =====================================
 // SHOW SAVED CHANNELS DIALOG
+// Full selectable manager: OPEN / COPY / SHARE / DELETE
 // =====================================
-
 
 private fun showSavedChannelsDialog() {
 
@@ -686,49 +689,50 @@ private fun showSavedChannelsDialog() {
             return
         }
 
-        showSelectableStreamListDialog(
+        val labels =
+            savedChannels.map { channel ->
+
+                "${channel.name}\n${channel.url}"
+            }
+
+        val urls =
+            savedChannels.map { channel ->
+
+                channel.url
+            }
+
+        showSelectableUrlsDialog(
             title = "Saved Channels",
-            urls = savedChannels.map { channel -> channel.url },
-            showSave = false,
-            showDelete = true
-        ) { selectedUrls ->
+            labels = labels,
+            urls = urls,
+            allowSave = false,
+            allowDelete = true,
+            onDeleteSelected = { selectedUrls ->
 
-            try {
+                try {
 
-                savedChannels.removeAll { channel ->
+                    loadSavedChannels()
 
-                    selectedUrls.any { selected ->
+                    savedChannels.removeAll { channel ->
 
-                        selected.equals(
-                            channel.url,
-                            true
+                        selectedUrls.contains(
+                            channel.url
                         )
                     }
-                }
 
-                persistSavedChannels()
+                    persistSavedChannels()
 
-                Toast.makeText(
-                    this,
-                    "Deleted ${selectedUrls.size} channel(s)",
-                    Toast.LENGTH_SHORT
-                ).show()
+                    Toast.makeText(
+                        this,
+                        "Deleted ${selectedUrls.size} channel(s)",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
-            } catch (t: Throwable) {
+                    showSavedChannelsDialog()
 
-                Log.e(
-                    "SAVED_CHANNELS_DIALOG",
-                    "delete selected failed",
-                    t
-                )
-
-                Toast.makeText(
-                    this,
-                    "Delete failed",
-                    Toast.LENGTH_SHORT
-                ).show()
+                } catch (_: Throwable) {}
             }
-        }
+        )
 
     } catch (t: Throwable) {
 
@@ -745,7 +749,6 @@ private fun showSavedChannelsDialog() {
         ).show()
     }
 }
-
 
 // =====================================
 // STREAM INFO SNAPSHOTS
@@ -19032,17 +19035,17 @@ private fun collectPlayableStreamUrls(): List<String> {
 
 
 // =====================================
-// OPEN STREAM WITH PLAYER CHOOSER
+// OPEN URL WITH PLAYER CHOOSER
 // =====================================
 
-private fun openStreamWithPlayerChooser(
-    url: String
+private fun openUrlWithPlayerChooser(
+    rawUrl: String
 ) {
 
     try {
 
         val urlToOpen =
-            url
+            rawUrl
                 .trim()
                 .replace("\n", "")
                 .replace("\r", "")
@@ -19059,22 +19062,10 @@ private fun openStreamWithPlayerChooser(
             urlToOpen.lowercase()
 
         if (
-            lower.contains(
-                "youtube.com/watch",
-                true
-            ) ||
-            lower.contains(
-                "youtu.be/",
-                true
-            ) ||
-            lower.contains(
-                "youtube.com/live",
-                true
-            ) ||
-            lower.contains(
-                "youtube.com/c/",
-                true
-            )
+            lower.contains("youtube.com/watch") ||
+            lower.contains("youtu.be/") ||
+            lower.contains("youtube.com/live") ||
+            lower.contains("youtube.com/c/")
         ) {
 
             val intent =
@@ -19203,11 +19194,11 @@ private fun openStreamWithPlayerChooser(
 }
 
 // =====================================
-// OPEN SELECTED STREAMS
-// For multiple selections: choose one stream to open
+// OPEN SELECTED URLS
+// If many selected, choose one from selected list
 // =====================================
 
-private fun openSelectedStreamsWithPlayer(
+private fun openSelectedUrlsWithPlayer(
     selectedUrls: List<String>
 ) {
 
@@ -19232,7 +19223,7 @@ private fun openSelectedStreamsWithPlayer(
 
         if (cleanList.size == 1) {
 
-            openStreamWithPlayerChooser(
+            openUrlWithPlayerChooser(
                 cleanList.first()
             )
 
@@ -19245,7 +19236,7 @@ private fun openSelectedStreamsWithPlayer(
                 cleanList.toTypedArray()
             ) { _, which ->
 
-                openStreamWithPlayerChooser(
+                openUrlWithPlayerChooser(
                     cleanList[which]
                 )
             }
@@ -19255,48 +19246,42 @@ private fun openSelectedStreamsWithPlayer(
             )
             .show()
 
-    } catch (t: Throwable) {
-
-        Log.e(
-            "PLAYER_OPEN_SELECTED",
-            "failed",
-            t
-        )
-    }
+    } catch (_: Throwable) {}
 }
 
 // =====================================
-// SHOW SELECTABLE STREAM LIST DIALOG
-// Shared engine for Detected Streams / Saved Channels
+// SELECTABLE URL DIALOG
+// Shared by Detected Streams and Saved Channels
 // =====================================
 
-private fun showSelectableStreamListDialog(
+private fun showSelectableUrlsDialog(
     title: String,
+    labels: List<String>,
     urls: List<String>,
-    showSave: Boolean,
-    showDelete: Boolean,
-    onDeleteSelected: ((List<String>) -> Unit)? = null
+    allowSave: Boolean,
+    allowDelete: Boolean,
+    onDeleteSelected: ((List<String>) -> Unit)?
 ) {
 
     try {
 
-        val streamList =
-            urls
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .distinct()
-                .toTypedArray()
-
-        if (streamList.isEmpty()) {
+        if (urls.isEmpty()) {
 
             Toast.makeText(
                 this,
-                "No streams found",
+                "No items",
                 Toast.LENGTH_SHORT
             ).show()
 
             return
         }
+
+        val safeLabels =
+            if (labels.size == urls.size) {
+                labels
+            } else {
+                urls
+            }
 
         val selected =
             mutableListOf<String>()
@@ -19359,13 +19344,13 @@ private fun showSelectableStreamListDialog(
         val checkBoxes =
             mutableListOf<android.widget.CheckBox>()
 
-        streamList.forEach { url ->
+        urls.forEachIndexed { index, url ->
 
             val checkBox =
                 android.widget.CheckBox(this).apply {
 
                     text =
-                        url
+                        safeLabels[index]
 
                     textSize =
                         13f
@@ -19435,12 +19420,6 @@ private fun showSelectableStreamListDialog(
                     0,
                     0
                 )
-
-                layoutParams =
-                    android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
             }
 
         val selectAllButton =
@@ -19548,18 +19527,20 @@ private fun showSelectableStreamListDialog(
         buttonRow.addView(selectAllButton)
         buttonRow.addView(openButton)
 
-        if (showSave) {
+        if (allowSave) {
             buttonRow.addView(saveButton)
         }
 
         buttonRow.addView(copyButton)
         buttonRow.addView(shareButton)
 
-        if (showDelete) {
+        if (allowDelete) {
             buttonRow.addView(deleteButton)
         }
 
-        root.addView(buttonRow)
+        root.addView(
+            buttonRow
+        )
 
         val dialog =
             androidx.appcompat.app.AlertDialog.Builder(this)
@@ -19590,7 +19571,7 @@ private fun showSelectableStreamListDialog(
                     true
 
                 val url =
-                    streamList[index]
+                    urls[index]
 
                 if (!selected.contains(url)) {
                     selected.add(url)
@@ -19606,8 +19587,8 @@ private fun showSelectableStreamListDialog(
 
         openButton.setOnClickListener {
 
-            openSelectedStreamsWithPlayer(
-                selected
+            openSelectedUrlsWithPlayer(
+                selected.toList()
             )
         }
 
@@ -19722,7 +19703,7 @@ private fun showSelectableStreamListDialog(
     } catch (t: Throwable) {
 
         Log.e(
-            "SELECTABLE_STREAM_DIALOG",
+            "SELECTABLE_URL_DIALOG",
             "failed",
             t
         )
@@ -19733,10 +19714,12 @@ private fun showSelectableStreamListDialog(
             Toast.LENGTH_SHORT
         ).show()
     }
-}// =====================================
-// SHOW DETECTED STREAMS DIALOG
-// =====================================
+}
 
+// =====================================
+// SHOW DETECTED STREAMS DIALOG
+// Full selectable manager: SAVE / OPEN / COPY / SHARE
+// =====================================
 
 private fun showDetectedStreamsDialog() {
 
@@ -19756,11 +19739,13 @@ private fun showDetectedStreamsDialog() {
             return
         }
 
-        showSelectableStreamListDialog(
+        showSelectableUrlsDialog(
             title = "Detected Streams",
+            labels = streamList,
             urls = streamList,
-            showSave = true,
-            showDelete = false
+            allowSave = true,
+            allowDelete = false,
+            onDeleteSelected = null
         )
 
     } catch (t: Throwable) {
@@ -19778,7 +19763,6 @@ private fun showDetectedStreamsDialog() {
         ).show()
     }
 }
-
 
 // =====================================
 // COPY DETECTED STREAMS
@@ -20791,7 +20775,6 @@ private fun clearBrowserData() {
 // MENU  
 // =====================================
 
-
 override fun onCreateOptionsMenu(
     menu: Menu
 ): Boolean {
@@ -20868,12 +20851,21 @@ override fun onCreateOptionsMenu(
     return true
 }
 
-
 override fun onOptionsItemSelected(
     item: MenuItem
 ): Boolean {
 
     return when (item.itemId) {
+
+        menuOpenNewTabId -> {
+            openNewBrowserTab()
+            true
+        }
+
+        menuTabsId -> {
+            showBrowserTabsDialog()
+            true
+        }
 
         menuHistoryId -> {
             showBrowserHistoryDialog()
@@ -20892,16 +20884,6 @@ override fun onOptionsItemSelected(
 
         menuAddToHomeScreenId -> {
             addCurrentPageToHomeScreen()
-            true
-        }
-
-        menuOpenNewTabId -> {
-            openNewBrowserTab()
-            true
-        }
-
-        menuTabsId -> {
-            showBrowserTabsDialog()
             true
         }
 
