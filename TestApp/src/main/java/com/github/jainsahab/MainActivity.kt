@@ -121,6 +121,18 @@ private val menuMobileModeId =
 private val menuClearBrowserDataId =
     91016
 
+private val menuOpenNewTabId =
+    91017
+
+private val menuTabsId =
+    91018
+
+private val menuTranslatePageId =
+    91019
+
+private val menuAddToHomeScreenId =
+    91020
+
 private val desktopUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
@@ -148,6 +160,22 @@ data class BrowserBookmarkEntry(
 
 private val browserBookmarks =
     mutableListOf<BrowserBookmarkEntry>()
+
+// =====================================
+// BROWSER TABS — SESSION ONLY
+// =====================================
+
+data class BrowserTabEntry(
+    val title: String,
+    val url: String,
+    val timestamp: Long
+)
+
+private val browserTabs =
+    mutableListOf<BrowserTabEntry>()
+
+private var currentBrowserTabIndex =
+    -1
     
  private var protectedFallbackShown =
     false
@@ -18462,6 +18490,644 @@ private fun copyDetectedStreamsToClipboard() {
     )
 }
 
+
+// =====================================
+// BROWSER TABS — SAVE CURRENT TAB
+// =====================================
+
+private fun saveCurrentBrowserTab() {
+
+    try {
+
+        val url =
+            getCurrentPageUrl()
+
+        if (
+            url.isBlank() ||
+            url.equals(
+                "about:blank",
+                true
+            )
+        ) {
+            return
+        }
+
+        val entry =
+            BrowserTabEntry(
+                title = getCurrentPageTitle(),
+                url = url,
+                timestamp = System.currentTimeMillis()
+            )
+
+        if (
+            currentBrowserTabIndex >= 0 &&
+            currentBrowserTabIndex < browserTabs.size
+        ) {
+
+            browserTabs[currentBrowserTabIndex] =
+                entry
+
+        } else {
+
+            browserTabs.add(entry)
+
+            currentBrowserTabIndex =
+                browserTabs.lastIndex
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_TABS",
+            "save current failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// OPEN NEW TAB
+// =====================================
+
+private fun openNewBrowserTab() {
+
+    try {
+
+        saveCurrentBrowserTab()
+
+        val newTabUrl =
+            "https://www.google.com"
+
+        browserTabs.add(
+            BrowserTabEntry(
+                title = "New Tab",
+                url = newTabUrl,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
+        currentBrowserTabIndex =
+            browserTabs.lastIndex
+
+        binding.contentMain.urlInput.setText(newTabUrl)
+        binding.contentMain.urlInput.setSelection(0)
+
+        liveUrlInputText =
+            newTabUrl
+
+        binding.contentMain.webview.loadUrl(
+            newTabUrl,
+            mapOf(
+                "Cache-Control" to "no-cache",
+                "Pragma" to "no-cache"
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "New tab opened",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_TABS",
+            "open new tab failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "New tab failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// OPEN SAVED TAB
+// =====================================
+
+private fun openBrowserTab(
+    entry: BrowserTabEntry,
+    index: Int
+) {
+
+    try {
+
+        saveCurrentBrowserTab()
+
+        currentBrowserTabIndex =
+            index
+
+        binding.contentMain.urlInput.setText(entry.url)
+        binding.contentMain.urlInput.setSelection(0)
+
+        liveUrlInputText =
+            entry.url
+
+        binding.contentMain.webview.loadUrl(
+            entry.url,
+            mapOf(
+                "Cache-Control" to "no-cache",
+                "Pragma" to "no-cache"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_TABS",
+            "open tab failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Cannot open tab",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// SHOW BROWSER TABS
+// =====================================
+
+private fun showBrowserTabsDialog() {
+
+    try {
+
+        saveCurrentBrowserTab()
+
+        if (browserTabs.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No tabs",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val scrollView =
+            android.widget.ScrollView(this)
+
+        val container =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(20, 20, 20, 20)
+            }
+
+        scrollView.addView(container)
+
+        val formatter =
+            java.text.SimpleDateFormat(
+                "dd/MM/yyyy HH:mm",
+                java.util.Locale.getDefault()
+            )
+
+        browserTabs.toList().forEachIndexed { index, entry ->
+
+            val itemBox =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(0, 10, 0, 16)
+                }
+
+            val dateText =
+                try {
+                    formatter.format(java.util.Date(entry.timestamp))
+                } catch (_: Throwable) {
+                    ""
+                }
+
+            val activeMark =
+                if (index == currentBrowserTabIndex) {
+                    "ACTIVE TAB\n\n"
+                } else {
+                    ""
+                }
+
+            val info =
+                TextView(this).apply {
+                    text =
+                        """
+$activeMark${entry.title}
+
+${entry.url}
+
+$dateText
+                        """.trimIndent()
+                    textSize = 13f
+                    setTextIsSelectable(true)
+                    setPadding(0, 0, 0, 10)
+                }
+
+            val buttonRow =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                }
+
+            val openButton =
+                Button(this).apply {
+                    text = "OPEN"
+                    layoutParams = LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    ).apply {
+                        setMargins(0, 0, 6, 0)
+                    }
+                    setOnClickListener {
+                        openBrowserTab(entry, index)
+                    }
+                }
+
+            val closeButton =
+                Button(this).apply {
+                    text = "CLOSE"
+                    layoutParams = LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    ).apply {
+                        setMargins(6, 0, 0, 0)
+                    }
+                    setOnClickListener {
+                        try {
+                            browserTabs.removeAt(index)
+                            if (currentBrowserTabIndex >= browserTabs.size) {
+                                currentBrowserTabIndex = browserTabs.lastIndex
+                            }
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Tab closed",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showBrowserTabsDialog()
+                        } catch (_: Throwable) {}
+                    }
+                }
+
+            buttonRow.addView(openButton)
+            buttonRow.addView(closeButton)
+            itemBox.addView(info)
+            itemBox.addView(buttonRow)
+            container.addView(itemBox)
+
+            val line = TextView(this).apply {
+                text = "────────────────────────"
+                textSize = 12f
+            }
+            container.addView(line)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Tabs")
+            .setView(scrollView)
+            .setPositiveButton("NEW TAB") { _, _ ->
+                openNewBrowserTab()
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_TABS",
+            "dialog failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Tabs failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// TRANSLATE CURRENT PAGE
+// =====================================
+
+private fun translateCurrentPage() {
+
+    try {
+
+        val url =
+            getCurrentPageUrl()
+
+        if (
+            url.isBlank() ||
+            url.equals(
+                "about:blank",
+                true
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "No page to translate",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val options =
+            arrayOf(
+                "Translate to Greek",
+                "Translate to English",
+                "Translate to Portuguese",
+                "Translate to Spanish"
+            )
+
+        val targets =
+            arrayOf("el", "en", "pt", "es")
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Translate Page")
+            .setItems(options) { _, which ->
+
+                try {
+
+                    val encodedUrl =
+                        java.net.URLEncoder.encode(
+                            url,
+                            "UTF-8"
+                        )
+
+                    val translateUrl =
+                        "https://translate.google.com/translate?sl=auto&tl=${targets[which]}&u=$encodedUrl"
+
+                    binding.contentMain.urlInput.setText(translateUrl)
+                    binding.contentMain.urlInput.setSelection(0)
+
+                    liveUrlInputText =
+                        translateUrl
+
+                    binding.contentMain.webview.loadUrl(
+                        translateUrl,
+                        mapOf(
+                            "Cache-Control" to "no-cache",
+                            "Pragma" to "no-cache"
+                        )
+                    )
+
+                } catch (t: Throwable) {
+
+                    Log.e(
+                        "TRANSLATE_PAGE",
+                        "load failed",
+                        t
+                    )
+
+                    Toast.makeText(
+                        this,
+                        "Translate failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .setNegativeButton("CANCEL", null)
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "TRANSLATE_PAGE",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Translate failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+
+// =====================================
+// ADD CURRENT PAGE TO HOME SCREEN
+// =====================================
+
+private fun addCurrentPageToHomeScreen() {
+
+    try {
+
+        val url =
+            getCurrentPageUrl()
+
+        if (
+            url.isBlank() ||
+            url.equals(
+                "about:blank",
+                true
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "No page to add",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val pageTitle =
+            try {
+
+                binding.contentMain.webview.title
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                    ?: Uri.parse(url).host
+                    ?: "GEL Page"
+
+            } catch (_: Throwable) {
+
+                "GEL Page"
+            }
+
+        val launchIntent =
+            Intent(
+                this,
+                MainActivity::class.java
+            ).apply {
+
+                action =
+                    Intent.ACTION_VIEW
+
+                data =
+                    Uri.parse(url)
+
+                addFlags(
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                )
+
+                addFlags(
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                )
+            }
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.O
+        ) {
+
+            val shortcutManager =
+                getSystemService(
+                    android.content.pm.ShortcutManager::class.java
+                )
+
+            if (
+                shortcutManager == null ||
+                !shortcutManager.isRequestPinShortcutSupported
+            ) {
+
+                Toast.makeText(
+                    this,
+                    "Home screen shortcut not supported",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return
+            }
+
+            val shortcutId =
+                "gel_page_" +
+                    kotlin.math.abs(
+                        url.hashCode()
+                    )
+
+            val shortcut =
+                android.content.pm.ShortcutInfo.Builder(
+                    this,
+                    shortcutId
+                )
+                    .setShortLabel(
+                        pageTitle.take(
+                            20
+                        )
+                    )
+                    .setLongLabel(
+                        pageTitle.take(
+                            40
+                        )
+                    )
+                    .setIcon(
+                        android.graphics.drawable.Icon.createWithResource(
+                            this,
+                            android.R.drawable.ic_menu_view
+                        )
+                    )
+                    .setIntent(
+                        launchIntent
+                    )
+                    .build()
+
+            val callbackIntent =
+                shortcutManager.createShortcutResultIntent(
+                    shortcut
+                )
+
+            val flags =
+                if (
+                    Build.VERSION.SDK_INT >=
+                    Build.VERSION_CODES.S
+                ) {
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                        android.app.PendingIntent.FLAG_MUTABLE
+                } else {
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                }
+
+            val successCallback =
+                android.app.PendingIntent.getBroadcast(
+                    this,
+                    0,
+                    callbackIntent,
+                    flags
+                )
+
+            shortcutManager.requestPinShortcut(
+                shortcut,
+                successCallback.intentSender
+            )
+
+            Toast.makeText(
+                this,
+                "Add to Home Screen requested",
+                Toast.LENGTH_SHORT
+            ).show()
+
+        } else {
+
+            @Suppress("DEPRECATION")
+            val shortcutIntent =
+                Intent(
+                    "com.android.launcher.action.INSTALL_SHORTCUT"
+                ).apply {
+
+                    putExtra(
+                        Intent.EXTRA_SHORTCUT_INTENT,
+                        launchIntent
+                    )
+
+                    putExtra(
+                        Intent.EXTRA_SHORTCUT_NAME,
+                        pageTitle.take(
+                            40
+                        )
+                    )
+
+                    putExtra(
+                        Intent.EXTRA_SHORTCUT_ICON_RESOURCE,
+                        Intent.ShortcutIconResource.fromContext(
+                            this@MainActivity,
+                            android.R.drawable.ic_menu_view
+                        )
+                    )
+
+                    putExtra(
+                        "duplicate",
+                        false
+                    )
+                }
+
+            sendBroadcast(
+                shortcutIntent
+            )
+
+            Toast.makeText(
+                this,
+                "Home screen shortcut requested",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "ADD_HOME_SHORTCUT",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Add to Home Screen failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
 // =====================================
 // SHARE / COPY PAGE URL
 // =====================================
@@ -18828,6 +19494,15 @@ override fun onCreateOptionsMenu(
         menu.add(Menu.NONE, menuAddBookmarkId, Menu.NONE, "Add Bookmark")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
+        menu.add(Menu.NONE, menuAddToHomeScreenId, Menu.NONE, "Add to Home Screen")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuOpenNewTabId, Menu.NONE, "Open New Tab")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuTabsId, Menu.NONE, "Tabs")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
         menu.add(Menu.NONE, menuSavedChannelsId, Menu.NONE, "Saved Channels")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
@@ -18847,6 +19522,9 @@ override fun onCreateOptionsMenu(
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
         menu.add(Menu.NONE, menuFindInPageId, Menu.NONE, "Find in Page")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuTranslatePageId, Menu.NONE, "Translate Page")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
         menu.add(Menu.NONE, menuReloadId, Menu.NONE, "Reload")
@@ -18893,6 +19571,21 @@ override fun onOptionsItemSelected(
             true
         }
 
+        menuAddToHomeScreenId -> {
+            addCurrentPageToHomeScreen()
+            true
+        }
+
+        menuOpenNewTabId -> {
+            openNewBrowserTab()
+            true
+        }
+
+        menuTabsId -> {
+            showBrowserTabsDialog()
+            true
+        }
+
         menuSavedChannelsId -> {
             showSavedChannelsDialog()
             true
@@ -18925,6 +19618,11 @@ override fun onOptionsItemSelected(
 
         menuFindInPageId -> {
             showFindInPageDialog()
+            true
+        }
+
+        menuTranslatePageId -> {
+            translateCurrentPage()
             true
         }
 
