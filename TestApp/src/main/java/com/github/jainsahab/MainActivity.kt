@@ -50,6 +50,104 @@ private lateinit var binding:
         
 private var liveUrlInputText =
     ""
+
+// =====================================
+// BROWSER HISTORY / BOOKMARKS / MENU IDS
+// =====================================
+
+private val browserHistoryPrefsName =
+    "gel_browser_history"
+
+private val browserHistoryKey =
+    "history_json"
+
+private val browserHistoryMaxItems =
+    100
+
+private val browserBookmarksPrefsName =
+    "gel_browser_bookmarks"
+
+private val browserBookmarksKey =
+    "bookmarks_json"
+
+private val browserBookmarksMaxItems =
+    200
+
+private val menuHistoryId =
+    91001
+
+private val menuBookmarksId =
+    91002
+
+private val menuAddBookmarkId =
+    91003
+
+private val menuSavedChannelsId =
+    91004
+
+private val menuDetectedStreamsId =
+    91005
+
+private val menuCopyDetectedStreamsId =
+    91006
+
+private val menuExportM3uId =
+    91007
+
+private val menuSharePageId =
+    91008
+
+private val menuCopyPageUrlId =
+    91009
+
+private val menuFindInPageId =
+    91010
+
+private val menuReloadId =
+    91011
+
+private val menuStopLoadingId =
+    91012
+
+private val menuOpenChromeId =
+    91013
+
+private val menuDesktopModeId =
+    91014
+
+private val menuMobileModeId =
+    91015
+
+private val menuClearBrowserDataId =
+    91016
+
+private val desktopUserAgent =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/137.0.0.0 Safari/537.36"
+
+private val mobileUserAgent =
+    "Mozilla/5.0 (Linux; Android 13) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/137.0.0.0 Mobile Safari/537.36"
+
+data class BrowserHistoryEntry(
+    val title: String,
+    val url: String,
+    val timestamp: Long
+)
+
+private val browserHistory =
+    mutableListOf<BrowserHistoryEntry>()
+
+data class BrowserBookmarkEntry(
+    val title: String,
+    val url: String,
+    val timestamp: Long
+)
+
+private val browserBookmarks =
+    mutableListOf<BrowserBookmarkEntry>()
     
  private var protectedFallbackShown =
     false
@@ -171,7 +269,9 @@ private val savedChannelsKey =
 // LOAD SAVED CHANNELS
 // =====================================
 
-private fun loadSavedChannels() {
+private fun loadSavedChannels()
+loadBrowserHistory()
+loadBrowserBookmarks() {
 
     try {
 
@@ -1293,9 +1393,7 @@ binding.contentMain.webview.settings.apply {
     // =====================================
 
     userAgentString =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-        "AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/137.0.0.0 Safari/537.36"
+        desktopUserAgent
 }
 
 // =====================================
@@ -1693,6 +1791,19 @@ override fun onPageFinished(
 
                 liveUrlInputText =
                     url
+
+            } catch (_: Throwable) {}
+
+            // =====================================
+            // SAVE PAGE TO HISTORY
+            // =====================================
+
+            try {
+
+                addBrowserHistory(
+                    url,
+                    view?.title
+                )
 
             } catch (_: Throwable) {}
 
@@ -2340,6 +2451,19 @@ binding.contentMain.webview.webChromeClient =
 
                             liveUrlInputText =
                                 url
+
+                            // =====================================
+                            // SAVE POPUP PAGE TO HISTORY
+                            // =====================================
+
+                            try {
+
+                                addBrowserHistory(
+                                    url,
+                                    view?.title
+                                )
+
+                            } catch (_: Throwable) {}
 
                             handleInterceptedMediaUrl(
                                 url,
@@ -16738,37 +16862,2111 @@ try {
     )
 }
 
+
+// =====================================
+// LOAD BROWSER HISTORY
+// =====================================
+
+private fun loadBrowserHistory() {
+
+    try {
+
+        browserHistory.clear()
+
+        val prefs =
+            getSharedPreferences(
+                browserHistoryPrefsName,
+                MODE_PRIVATE
+            )
+
+        val raw =
+            prefs.getString(
+                browserHistoryKey,
+                "[]"
+            )
+                ?.trim()
+                ?: "[]"
+
+        if (raw.isBlank()) {
+            return
+        }
+
+        val array =
+            org.json.JSONArray(
+                raw
+            )
+
+        for (i in 0 until array.length()) {
+
+            try {
+
+                val obj =
+                    array.optJSONObject(
+                        i
+                    ) ?: continue
+
+                val title =
+                    obj.optString(
+                        "title",
+                        ""
+                    ).trim()
+
+                val url =
+                    obj.optString(
+                        "url",
+                        ""
+                    ).trim()
+
+                val timestamp =
+                    obj.optLong(
+                        "timestamp",
+                        0L
+                    )
+
+                if (
+                    url.isBlank() ||
+                    url.equals(
+                        "about:blank",
+                        true
+                    )
+                ) {
+                    continue
+                }
+
+                browserHistory.add(
+                    BrowserHistoryEntry(
+                        title =
+                            title.ifBlank {
+                                url
+                            },
+                        url =
+                            url,
+                        timestamp =
+                            timestamp
+                    )
+                )
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_HISTORY",
+            "load failed",
+            t
+        )
+
+        browserHistory.clear()
+    }
+}
+
+// =====================================
+// SAVE BROWSER HISTORY
+// =====================================
+
+private fun persistBrowserHistory() {
+
+    try {
+
+        val array =
+            org.json.JSONArray()
+
+        browserHistory
+            .take(
+                browserHistoryMaxItems
+            )
+            .forEach { entry ->
+
+                try {
+
+                    val obj =
+                        org.json.JSONObject()
+
+                    obj.put(
+                        "title",
+                        entry.title
+                    )
+
+                    obj.put(
+                        "url",
+                        entry.url
+                    )
+
+                    obj.put(
+                        "timestamp",
+                        entry.timestamp
+                    )
+
+                    array.put(
+                        obj
+                    )
+
+                } catch (_: Throwable) {}
+            }
+
+        getSharedPreferences(
+            browserHistoryPrefsName,
+            MODE_PRIVATE
+        )
+            .edit()
+            .putString(
+                browserHistoryKey,
+                array.toString()
+            )
+            .apply()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_HISTORY",
+            "persist failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// ADD BROWSER HISTORY ENTRY
+// =====================================
+
+private fun addBrowserHistory(
+    url: String,
+    title: String?
+) {
+
+    try {
+
+        val cleanUrl =
+            url.trim()
+
+        if (
+            cleanUrl.isBlank() ||
+            cleanUrl.equals(
+                "about:blank",
+                true
+            ) ||
+            cleanUrl.startsWith(
+                "javascript:",
+                true
+            ) ||
+            cleanUrl.startsWith(
+                "data:",
+                true
+            )
+        ) {
+            return
+        }
+
+        loadBrowserHistory()
+
+        browserHistory.removeAll { entry ->
+
+            entry.url.equals(
+                cleanUrl,
+                true
+            )
+        }
+
+        browserHistory.add(
+            0,
+            BrowserHistoryEntry(
+                title =
+                    title
+                        ?.trim()
+                        ?.ifBlank {
+                            cleanUrl
+                        }
+                        ?: cleanUrl,
+                url =
+                    cleanUrl,
+                timestamp =
+                    System.currentTimeMillis()
+            )
+        )
+
+        while (
+            browserHistory.size >
+            browserHistoryMaxItems
+        ) {
+
+            browserHistory.removeAt(
+                browserHistory.lastIndex
+            )
+        }
+
+        persistBrowserHistory()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_HISTORY",
+            "add failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// OPEN HISTORY URL
+// =====================================
+
+private fun openHistoryUrl(
+    url: String
+) {
+
+    try {
+
+        if (url.isBlank()) {
+            return
+        }
+
+        binding.contentMain.urlInput.setText(
+            url
+        )
+
+        binding.contentMain.urlInput.setSelection(
+            0
+        )
+
+        liveUrlInputText =
+            url
+
+        binding.contentMain.webview.loadUrl(
+            url,
+            mapOf(
+                "Cache-Control" to "no-cache",
+                "Pragma" to "no-cache"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_HISTORY",
+            "open failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Cannot open history item",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// SHOW BROWSER HISTORY DIALOG
+// =====================================
+
+private fun showBrowserHistoryDialog() {
+
+    try {
+
+        loadBrowserHistory()
+
+        if (browserHistory.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No history",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val scrollView =
+            android.widget.ScrollView(this)
+
+        val container =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.VERTICAL
+
+                setPadding(
+                    20,
+                    20,
+                    20,
+                    20
+                )
+            }
+
+        scrollView.addView(container)
+
+        val formatter =
+            java.text.SimpleDateFormat(
+                "dd/MM/yyyy HH:mm",
+                java.util.Locale.getDefault()
+            )
+
+        browserHistory
+            .toList()
+            .forEach { entry ->
+
+                val itemBox =
+                    LinearLayout(this).apply {
+
+                        orientation =
+                            LinearLayout.VERTICAL
+
+                        setPadding(
+                            0,
+                            10,
+                            0,
+                            16
+                        )
+                    }
+
+                val dateText =
+                    try {
+
+                        formatter.format(
+                            java.util.Date(
+                                entry.timestamp
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        ""
+                    }
+
+                val info =
+                    TextView(this).apply {
+
+                        text =
+                            """
+${entry.title}
+
+${entry.url}
+
+$dateText
+                            """.trimIndent()
+
+                        textSize =
+                            13f
+
+                        setTextIsSelectable(
+                            true
+                        )
+
+                        setPadding(
+                            0,
+                            0,
+                            0,
+                            10
+                        )
+                    }
+
+                val buttonRow =
+                    LinearLayout(this).apply {
+
+                        orientation =
+                            LinearLayout.HORIZONTAL
+                    }
+
+                val openButton =
+                    Button(this).apply {
+
+                        text =
+                            "OPEN"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    0,
+                                    0,
+                                    6,
+                                    0
+                                )
+                            }
+
+                        setOnClickListener {
+
+                            openHistoryUrl(
+                                entry.url
+                            )
+                        }
+                    }
+
+                val copyButton =
+                    Button(this).apply {
+
+                        text =
+                            "COPY"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    6,
+                                    0,
+                                    6,
+                                    0
+                                )
+                            }
+
+                        setOnClickListener {
+
+                            copyTextToClipboard(
+                                "history_url",
+                                entry.url,
+                                "URL copied"
+                            )
+                        }
+                    }
+
+                val deleteButton =
+                    Button(this).apply {
+
+                        text =
+                            "DELETE"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    6,
+                                    0,
+                                    0,
+                                    0
+                                )
+                            }
+
+                        setOnClickListener {
+
+                            try {
+
+                                browserHistory.removeAll { saved ->
+
+                                    saved.url == entry.url
+                                }
+
+                                persistBrowserHistory()
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "History item deleted",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                showBrowserHistoryDialog()
+
+                            } catch (_: Throwable) {}
+                        }
+                    }
+
+                buttonRow.addView(openButton)
+                buttonRow.addView(copyButton)
+                buttonRow.addView(deleteButton)
+
+                itemBox.addView(info)
+                itemBox.addView(buttonRow)
+
+                container.addView(itemBox)
+
+                val line =
+                    TextView(this).apply {
+
+                        text =
+                            "────────────────────────"
+
+                        textSize =
+                            12f
+                    }
+
+                container.addView(line)
+            }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("History")
+            .setView(scrollView)
+            .setPositiveButton(
+                "CLEAR ALL"
+            ) { _, _ ->
+
+                try {
+
+                    browserHistory.clear()
+                    persistBrowserHistory()
+
+                    Toast.makeText(
+                        this,
+                        "History cleared",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {}
+            }
+            .setNegativeButton(
+                "CLOSE",
+                null
+            )
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_HISTORY",
+            "dialog failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "History failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// LOAD BROWSER BOOKMARKS
+// =====================================
+
+private fun loadBrowserBookmarks() {
+
+    try {
+
+        browserBookmarks.clear()
+
+        val prefs =
+            getSharedPreferences(
+                browserBookmarksPrefsName,
+                MODE_PRIVATE
+            )
+
+        val raw =
+            prefs.getString(
+                browserBookmarksKey,
+                "[]"
+            )
+                ?.trim()
+                ?: "[]"
+
+        if (raw.isBlank()) {
+            return
+        }
+
+        val array =
+            org.json.JSONArray(
+                raw
+            )
+
+        for (i in 0 until array.length()) {
+
+            try {
+
+                val obj =
+                    array.optJSONObject(
+                        i
+                    ) ?: continue
+
+                val title =
+                    obj.optString(
+                        "title",
+                        ""
+                    ).trim()
+
+                val url =
+                    obj.optString(
+                        "url",
+                        ""
+                    ).trim()
+
+                val timestamp =
+                    obj.optLong(
+                        "timestamp",
+                        0L
+                    )
+
+                if (
+                    url.isBlank() ||
+                    url.equals(
+                        "about:blank",
+                        true
+                    )
+                ) {
+                    continue
+                }
+
+                browserBookmarks.add(
+                    BrowserBookmarkEntry(
+                        title =
+                            title.ifBlank {
+                                url
+                            },
+                        url =
+                            url,
+                        timestamp =
+                            timestamp
+                    )
+                )
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_BOOKMARKS",
+            "load failed",
+            t
+        )
+
+        browserBookmarks.clear()
+    }
+}
+
+// =====================================
+// SAVE BROWSER BOOKMARKS
+// =====================================
+
+private fun persistBrowserBookmarks() {
+
+    try {
+
+        val array =
+            org.json.JSONArray()
+
+        browserBookmarks
+            .take(
+                browserBookmarksMaxItems
+            )
+            .forEach { entry ->
+
+                try {
+
+                    val obj =
+                        org.json.JSONObject()
+
+                    obj.put(
+                        "title",
+                        entry.title
+                    )
+
+                    obj.put(
+                        "url",
+                        entry.url
+                    )
+
+                    obj.put(
+                        "timestamp",
+                        entry.timestamp
+                    )
+
+                    array.put(
+                        obj
+                    )
+
+                } catch (_: Throwable) {}
+            }
+
+        getSharedPreferences(
+            browserBookmarksPrefsName,
+            MODE_PRIVATE
+        )
+            .edit()
+            .putString(
+                browserBookmarksKey,
+                array.toString()
+            )
+            .apply()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_BOOKMARKS",
+            "persist failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// GET CURRENT PAGE URL / TITLE
+// =====================================
+
+private fun getCurrentPageUrl(): String {
+
+    return try {
+
+        val webUrl =
+            binding.contentMain.webview.url
+                ?.trim()
+                .orEmpty()
+
+        val inputUrl =
+            binding.contentMain.urlInput
+                .text
+                ?.toString()
+                ?.trim()
+                .orEmpty()
+
+        when {
+
+            webUrl.isNotBlank() &&
+                !webUrl.equals(
+                    "about:blank",
+                    true
+                ) -> webUrl
+
+            inputUrl.isNotBlank() -> inputUrl
+
+            liveUrlInputText.isNotBlank() -> liveUrlInputText
+
+            else -> ""
+        }
+
+    } catch (_: Throwable) {
+
+        ""
+    }
+}
+
+private fun getCurrentPageTitle(): String {
+
+    return try {
+
+        binding.contentMain.webview.title
+            ?.trim()
+            ?.ifBlank {
+                getCurrentPageUrl()
+            }
+            ?: getCurrentPageUrl()
+
+    } catch (_: Throwable) {
+
+        getCurrentPageUrl()
+    }
+}
+
+// =====================================
+// ADD CURRENT PAGE BOOKMARK
+// =====================================
+
+private fun addCurrentPageBookmark() {
+
+    try {
+
+        val url =
+            getCurrentPageUrl()
+
+        if (
+            url.isBlank() ||
+            url.equals(
+                "about:blank",
+                true
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "No page to bookmark",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        loadBrowserBookmarks()
+
+        browserBookmarks.removeAll { entry ->
+
+            entry.url.equals(
+                url,
+                true
+            )
+        }
+
+        browserBookmarks.add(
+            0,
+            BrowserBookmarkEntry(
+                title =
+                    getCurrentPageTitle(),
+                url =
+                    url,
+                timestamp =
+                    System.currentTimeMillis()
+            )
+        )
+
+        while (
+            browserBookmarks.size >
+            browserBookmarksMaxItems
+        ) {
+
+            browserBookmarks.removeAt(
+                browserBookmarks.lastIndex
+            )
+        }
+
+        persistBrowserBookmarks()
+
+        Toast.makeText(
+            this,
+            "Bookmark saved",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_BOOKMARKS",
+            "add current failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Bookmark failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// OPEN BOOKMARK URL
+// =====================================
+
+private fun openBookmarkUrl(
+    url: String
+) {
+
+    try {
+
+        if (url.isBlank()) {
+            return
+        }
+
+        binding.contentMain.urlInput.setText(
+            url
+        )
+
+        binding.contentMain.urlInput.setSelection(
+            0
+        )
+
+        liveUrlInputText =
+            url
+
+        binding.contentMain.webview.loadUrl(
+            url,
+            mapOf(
+                "Cache-Control" to "no-cache",
+                "Pragma" to "no-cache"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_BOOKMARKS",
+            "open failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Cannot open bookmark",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// SHOW BOOKMARKS DIALOG
+// =====================================
+
+private fun showBrowserBookmarksDialog() {
+
+    try {
+
+        loadBrowserBookmarks()
+
+        if (browserBookmarks.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No bookmarks",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val scrollView =
+            android.widget.ScrollView(this)
+
+        val container =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.VERTICAL
+
+                setPadding(
+                    20,
+                    20,
+                    20,
+                    20
+                )
+            }
+
+        scrollView.addView(container)
+
+        val formatter =
+            java.text.SimpleDateFormat(
+                "dd/MM/yyyy HH:mm",
+                java.util.Locale.getDefault()
+            )
+
+        browserBookmarks
+            .toList()
+            .forEach { entry ->
+
+                val itemBox =
+                    LinearLayout(this).apply {
+
+                        orientation =
+                            LinearLayout.VERTICAL
+
+                        setPadding(
+                            0,
+                            10,
+                            0,
+                            16
+                        )
+                    }
+
+                val dateText =
+                    try {
+
+                        formatter.format(
+                            java.util.Date(
+                                entry.timestamp
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        ""
+                    }
+
+                val info =
+                    TextView(this).apply {
+
+                        text =
+                            """
+${entry.title}
+
+${entry.url}
+
+$dateText
+                            """.trimIndent()
+
+                        textSize =
+                            13f
+
+                        setTextIsSelectable(
+                            true
+                        )
+
+                        setPadding(
+                            0,
+                            0,
+                            0,
+                            10
+                        )
+                    }
+
+                val buttonRow =
+                    LinearLayout(this).apply {
+
+                        orientation =
+                            LinearLayout.HORIZONTAL
+                    }
+
+                val openButton =
+                    Button(this).apply {
+
+                        text =
+                            "OPEN"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    0,
+                                    0,
+                                    6,
+                                    0
+                                )
+                            }
+
+                        setOnClickListener {
+
+                            openBookmarkUrl(
+                                entry.url
+                            )
+                        }
+                    }
+
+                val copyButton =
+                    Button(this).apply {
+
+                        text =
+                            "COPY"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    6,
+                                    0,
+                                    6,
+                                    0
+                                )
+                            }
+
+                        setOnClickListener {
+
+                            copyTextToClipboard(
+                                "bookmark_url",
+                                entry.url,
+                                "URL copied"
+                            )
+                        }
+                    }
+
+                val deleteButton =
+                    Button(this).apply {
+
+                        text =
+                            "DELETE"
+
+                        layoutParams =
+                            LinearLayout.LayoutParams(
+                                0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                1f
+                            ).apply {
+
+                                setMargins(
+                                    6,
+                                    0,
+                                    0,
+                                    0
+                                )
+                            }
+
+                        setOnClickListener {
+
+                            try {
+
+                                browserBookmarks.removeAll { saved ->
+
+                                    saved.url == entry.url
+                                }
+
+                                persistBrowserBookmarks()
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Bookmark deleted",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                showBrowserBookmarksDialog()
+
+                            } catch (_: Throwable) {}
+                        }
+                    }
+
+                buttonRow.addView(openButton)
+                buttonRow.addView(copyButton)
+                buttonRow.addView(deleteButton)
+
+                itemBox.addView(info)
+                itemBox.addView(buttonRow)
+
+                container.addView(itemBox)
+
+                val line =
+                    TextView(this).apply {
+
+                        text =
+                            "────────────────────────"
+
+                        textSize =
+                            12f
+                    }
+
+                container.addView(line)
+            }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Bookmarks")
+            .setView(scrollView)
+            .setPositiveButton(
+                "CLEAR ALL"
+            ) { _, _ ->
+
+                try {
+
+                    browserBookmarks.clear()
+                    persistBrowserBookmarks()
+
+                    Toast.makeText(
+                        this,
+                        "Bookmarks cleared",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (_: Throwable) {}
+            }
+            .setNegativeButton(
+                "CLOSE",
+                null
+            )
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "BROWSER_BOOKMARKS",
+            "dialog failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Bookmarks failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// COPY TEXT TO CLIPBOARD
+// =====================================
+
+private fun copyTextToClipboard(
+    label: String,
+    text: String,
+    toast: String
+) {
+
+    try {
+
+        val clipboard =
+            getSystemService(
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                label,
+                text
+            )
+        )
+
+        Toast.makeText(
+            this,
+            toast,
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "CLIPBOARD",
+            "copy failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Copy failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// SHARE TEXT
+// =====================================
+
+private fun shareText(
+    title: String,
+    text: String
+) {
+
+    try {
+
+        if (text.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "Nothing to share",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val intent =
+            Intent(
+                Intent.ACTION_SEND
+            ).apply {
+
+                type =
+                    "text/plain"
+
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    text
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                title
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "SHARE_TEXT",
+            "share failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Share failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// COLLECT PLAYABLE STREAM URLS FOR MENU
+// =====================================
+
+private fun collectPlayableStreamUrls(): List<String> {
+
+    val sortedStreams =
+        mutableListOf<String>()
+
+    try {
+
+        sortedStreams.addAll(
+            detectedStreams
+        )
+
+        sortedStreams.addAll(
+            detectedVideos
+        )
+
+        sortedStreams.addAll(
+            detectedAudio
+        )
+
+        sortedStreams.addAll(
+            streamInfoSnapshots.keys
+        )
+
+        sortedStreams.addAll(
+            streamSources.keys
+        )
+
+        sortedStreams.addAll(
+            streamValidation.keys
+        )
+
+        sortedStreams.addAll(
+            streamScores.keys
+        )
+
+        sortedStreams.addAll(
+            streamTokens.keys
+        )
+
+        if (bestStreamUrl.isNotBlank()) {
+            sortedStreams.add(bestStreamUrl)
+        }
+
+        if (bestLiveUrl.isNotBlank()) {
+            sortedStreams.add(bestLiveUrl)
+        }
+
+        if (youtubeWatchUrl.isNotBlank()) {
+            sortedStreams.add(youtubeWatchUrl)
+        }
+
+        if (youtubeDashVideoUrl.isNotBlank()) {
+            sortedStreams.add(youtubeDashVideoUrl)
+        }
+
+        if (youtubeDashAudioUrl.isNotBlank()) {
+            sortedStreams.add(youtubeDashAudioUrl)
+        }
+
+        val resultText =
+            binding.contentMain.result
+                .text
+                ?.toString()
+                .orEmpty()
+
+        val regex =
+            "(https?://[^\\s\"'<>]+)"
+                .toRegex()
+
+        regex.findAll(resultText)
+            .forEach { match ->
+
+                val found =
+                    match.value
+                        .trim()
+                        .trimEnd(',')
+                        .trimEnd(';')
+                        .trimEnd(')')
+                        .trimEnd(']')
+                        .trimEnd('}')
+
+                if (found.isNotBlank()) {
+                    sortedStreams.add(found)
+                }
+            }
+
+    } catch (_: Throwable) {}
+
+    return sortedStreams
+        .map { url ->
+
+            url
+                .replace("\\u0026", "&")
+                .replace("\\/", "/")
+                .replace("&amp;", "&")
+                .trim()
+        }
+        .filter { url ->
+
+            url.isNotBlank() &&
+                url.startsWith(
+                    "http",
+                    true
+                ) &&
+                isExportableStream(
+                    url
+                )
+        }
+        .map { url ->
+
+            val key =
+                try {
+
+                    val lower =
+                        url.lowercase()
+
+                    if (
+                        lower.contains("googlevideo.com") ||
+                        lower.contains("videoplayback")
+                    ) {
+
+                        val uri =
+                            Uri.parse(url)
+
+                        val id =
+                            uri.getQueryParameter("id")
+                                ?.substringBefore(".")
+                                .orEmpty()
+
+                        val itag =
+                            uri.getQueryParameter("itag")
+                                .orEmpty()
+
+                        val mime =
+                            uri.getQueryParameter("mime")
+                                .orEmpty()
+
+                        val source =
+                            uri.getQueryParameter("source")
+                                .orEmpty()
+
+                        "googlevideo://$id/$itag/$mime/$source"
+
+                    } else if (
+                        lower.contains("youtube.com/watch") ||
+                        lower.contains("youtu.be/") ||
+                        lower.contains("youtube.com/live") ||
+                        lower.contains("youtube.com/c/")
+                    ) {
+
+                        val uri =
+                            Uri.parse(url)
+
+                        val v =
+                            uri.getQueryParameter("v")
+                                .orEmpty()
+
+                        if (v.isNotBlank()) {
+                            "youtube://watch/$v"
+                        } else {
+                            url.substringBefore("#").trim()
+                        }
+
+                    } else {
+
+                        url.substringBefore("#").trim()
+                    }
+
+                } catch (_: Throwable) {
+
+                    url
+                }
+
+            key to url
+        }
+        .distinctBy { pair ->
+
+            pair.first
+        }
+        .map { pair ->
+
+            pair.second
+        }
+}
+
+// =====================================
+// SHOW DETECTED STREAMS DIALOG
+// =====================================
+
+private fun showDetectedStreamsDialog() {
+
+    try {
+
+        val streamList =
+            collectPlayableStreamUrls()
+
+        if (streamList.isEmpty()) {
+
+            Toast.makeText(
+                this,
+                "No detected streams",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val items =
+            streamList.toTypedArray()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Detected Streams")
+            .setItems(items) { _, which ->
+
+                try {
+
+                    val url =
+                        items[which]
+
+                    lastSelectedUrl =
+                        url
+
+                    copyTextToClipboard(
+                        "detected_stream",
+                        url,
+                        "Stream copied"
+                    )
+
+                } catch (_: Throwable) {}
+            }
+            .setPositiveButton(
+                "COPY ALL"
+            ) { _, _ ->
+
+                copyDetectedStreamsToClipboard()
+            }
+            .setNegativeButton(
+                "CLOSE",
+                null
+            )
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "DETECTED_STREAMS_DIALOG",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Detected streams failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// COPY DETECTED STREAMS
+// =====================================
+
+private fun copyDetectedStreamsToClipboard() {
+
+    val streamList =
+        collectPlayableStreamUrls()
+
+    if (streamList.isEmpty()) {
+
+        Toast.makeText(
+            this,
+            "No detected streams",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return
+    }
+
+    copyTextToClipboard(
+        "detected_streams",
+        streamList.joinToString("\n\n"),
+        "Detected streams copied"
+    )
+}
+
+// =====================================
+// SHARE / COPY PAGE URL
+// =====================================
+
+private fun shareCurrentPage() {
+
+    val url =
+        getCurrentPageUrl()
+
+    if (url.isBlank()) {
+
+        Toast.makeText(
+            this,
+            "No page URL",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return
+    }
+
+    shareText(
+        "Share Page",
+        url
+    )
+}
+
+private fun copyCurrentPageUrl() {
+
+    val url =
+        getCurrentPageUrl()
+
+    if (url.isBlank()) {
+
+        Toast.makeText(
+            this,
+            "No page URL",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return
+    }
+
+    copyTextToClipboard(
+        "page_url",
+        url,
+        "Page URL copied"
+    )
+}
+
+// =====================================
+// FIND IN PAGE
+// =====================================
+
+private fun showFindInPageDialog() {
+
+    try {
+
+        val input =
+            android.widget.EditText(this).apply {
+
+                hint =
+                    "Find in page"
+
+                setSingleLine(
+                    true
+                )
+            }
+
+        binding.contentMain.webview.setFindListener { _, numberOfMatches, isDoneCounting ->
+
+            if (isDoneCounting) {
+
+                Toast.makeText(
+                    this,
+                    "Matches: $numberOfMatches",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Find in Page")
+            .setView(input)
+            .setPositiveButton(
+                "FIND"
+            ) { _, _ ->
+
+                try {
+
+                    val query =
+                        input.text
+                            ?.toString()
+                            ?.trim()
+                            .orEmpty()
+
+                    if (query.isBlank()) {
+                        return@setPositiveButton
+                    }
+
+                    binding.contentMain.webview.findAllAsync(
+                        query
+                    )
+
+                } catch (_: Throwable) {}
+            }
+            .setNeutralButton(
+                "NEXT"
+            ) { _, _ ->
+
+                try {
+
+                    binding.contentMain.webview.findNext(
+                        true
+                    )
+
+                } catch (_: Throwable) {}
+            }
+            .setNegativeButton(
+                "CLEAR"
+            ) { _, _ ->
+
+                try {
+
+                    binding.contentMain.webview.clearMatches()
+
+                } catch (_: Throwable) {}
+            }
+            .show()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "FIND_IN_PAGE",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Find failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// OPEN CURRENT PAGE IN EXTERNAL BROWSER
+// =====================================
+
+private fun openCurrentPageInExternalBrowser() {
+
+    try {
+
+        val url =
+            getCurrentPageUrl()
+
+        if (url.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "No page URL",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse(url)
+            ).apply {
+
+                addCategory(
+                    Intent.CATEGORY_BROWSABLE
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open With Browser"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "OPEN_EXTERNAL_BROWSER",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Cannot open browser",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// RELOAD / STOP / USER AGENT MODES
+// =====================================
+
+private fun reloadCurrentPage() {
+
+    try {
+
+        binding.contentMain.webview.reload()
+
+    } catch (_: Throwable) {}
+}
+
+private fun stopCurrentPageLoading() {
+
+    try {
+
+        binding.contentMain.webview.stopLoading()
+
+        Toast.makeText(
+            this,
+            "Loading stopped",
+            Toast.LENGTH_SHORT
+        ).show()
+
+    } catch (_: Throwable) {}
+}
+
+private fun setWebViewUserAgentAndReload(
+    desktop: Boolean
+) {
+
+    try {
+
+        binding.contentMain.webview.settings.userAgentString =
+            if (desktop) {
+                desktopUserAgent
+            } else {
+                mobileUserAgent
+            }
+
+        popupWebView?.settings?.userAgentString =
+            binding.contentMain.webview.settings.userAgentString
+
+        Toast.makeText(
+            this,
+            if (desktop) {
+                "Desktop mode"
+            } else {
+                "Mobile mode"
+            },
+            Toast.LENGTH_SHORT
+        ).show()
+
+        binding.contentMain.webview.reload()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "USER_AGENT_MODE",
+            "failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// CLEAR BROWSER DATA
+// =====================================
+
+private fun clearBrowserData() {
+
+    try {
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Clear Browser Data")
+            .setMessage("Clear WebView cache, cookies, form data and app browser history?")
+            .setPositiveButton(
+                "CLEAR"
+            ) { _, _ ->
+
+                try {
+
+                    binding.contentMain.webview.clearCache(true)
+                    binding.contentMain.webview.clearFormData()
+                    binding.contentMain.webview.clearHistory()
+
+                    popupWebView?.clearCache(true)
+                    popupWebView?.clearFormData()
+                    popupWebView?.clearHistory()
+
+                    try {
+
+                        CookieManager.getInstance()
+                            .removeAllCookies(null)
+
+                        CookieManager.getInstance()
+                            .flush()
+
+                    } catch (_: Throwable) {}
+
+                    try {
+
+                        android.webkit.WebStorage.getInstance()
+                            .deleteAllData()
+
+                    } catch (_: Throwable) {}
+
+                    browserHistory.clear()
+                    persistBrowserHistory()
+
+                    Toast.makeText(
+                        this,
+                        "Browser data cleared",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } catch (t: Throwable) {
+
+                    Log.e(
+                        "CLEAR_BROWSER_DATA",
+                        "failed",
+                        t
+                    )
+
+                    Toast.makeText(
+                        this,
+                        "Clear failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .setNegativeButton(
+                "CANCEL",
+                null
+            )
+            .show()
+
+    } catch (_: Throwable) {}
+}
+
 // =====================================  
 // MENU  
 // =====================================
 
-override fun onCreateOptionsMenu(  
-    menu: Menu  
-): Boolean {  
+override fun onCreateOptionsMenu(
+    menu: Menu
+): Boolean {
 
-    menuInflater.inflate(  
-        R.menu.menu_main,  
-        menu  
-    )  
+    menuInflater.inflate(
+        R.menu.menu_main,
+        menu
+    )
 
-    return true  
-}  
+    try {
 
-override fun onOptionsItemSelected(  
-    item: MenuItem  
-): Boolean {  
+        menu.add(Menu.NONE, menuHistoryId, Menu.NONE, "History")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-    return when (item.itemId) {  
+        menu.add(Menu.NONE, menuBookmarksId, Menu.NONE, "Bookmarks")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-        R.id.action_settings ->  
-            true  
+        menu.add(Menu.NONE, menuAddBookmarkId, Menu.NONE, "Add Bookmark")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-        else ->  
-            super.onOptionsItemSelected(  
-                item  
-            )  
-    }  
-}  
+        menu.add(Menu.NONE, menuSavedChannelsId, Menu.NONE, "Saved Channels")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuDetectedStreamsId, Menu.NONE, "Detected Streams")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuCopyDetectedStreamsId, Menu.NONE, "Copy Detected Streams")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuExportM3uId, Menu.NONE, "Export M3U")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuSharePageId, Menu.NONE, "Share Page")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuCopyPageUrlId, Menu.NONE, "Copy Page URL")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuFindInPageId, Menu.NONE, "Find in Page")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuReloadId, Menu.NONE, "Reload")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuStopLoadingId, Menu.NONE, "Stop Loading")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuOpenChromeId, Menu.NONE, "Open in Browser")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuDesktopModeId, Menu.NONE, "Desktop Mode")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuMobileModeId, Menu.NONE, "Mobile Mode")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuClearBrowserDataId, Menu.NONE, "Clear Browser Data")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+    } catch (_: Throwable) {}
+
+    return true
+}
+
+override fun onOptionsItemSelected(
+    item: MenuItem
+): Boolean {
+
+    return when (item.itemId) {
+
+        menuHistoryId -> {
+            showBrowserHistoryDialog()
+            true
+        }
+
+        menuBookmarksId -> {
+            showBrowserBookmarksDialog()
+            true
+        }
+
+        menuAddBookmarkId -> {
+            addCurrentPageBookmark()
+            true
+        }
+
+        menuSavedChannelsId -> {
+            showSavedChannelsDialog()
+            true
+        }
+
+        menuDetectedStreamsId -> {
+            showDetectedStreamsDialog()
+            true
+        }
+
+        menuCopyDetectedStreamsId -> {
+            copyDetectedStreamsToClipboard()
+            true
+        }
+
+        menuExportM3uId -> {
+            binding.contentMain.exportM3u.performClick()
+            true
+        }
+
+        menuSharePageId -> {
+            shareCurrentPage()
+            true
+        }
+
+        menuCopyPageUrlId -> {
+            copyCurrentPageUrl()
+            true
+        }
+
+        menuFindInPageId -> {
+            showFindInPageDialog()
+            true
+        }
+
+        menuReloadId -> {
+            reloadCurrentPage()
+            true
+        }
+
+        menuStopLoadingId -> {
+            stopCurrentPageLoading()
+            true
+        }
+
+        menuOpenChromeId -> {
+            openCurrentPageInExternalBrowser()
+            true
+        }
+
+        menuDesktopModeId -> {
+            setWebViewUserAgentAndReload(true)
+            true
+        }
+
+        menuMobileModeId -> {
+            setWebViewUserAgentAndReload(false)
+            true
+        }
+
+        menuClearBrowserDataId -> {
+            clearBrowserData()
+            true
+        }
+
+        R.id.action_settings ->
+            true
+
+        else ->
+            super.onOptionsItemSelected(item)
+    }
+}
 
 // =====================================  
 // TEST REQUESTS  
