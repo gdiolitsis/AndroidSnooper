@@ -1190,6 +1190,321 @@ try {
         return builder.build()  
     }  
 
+
+
+// =====================================
+// PREVIEW IMAGE IN APP
+// Shows image large without opening source page
+// =====================================
+
+private fun showImagePreviewDialog(
+    imageUrl: String
+) {
+
+    try {
+
+        val cleanUrl =
+            imageUrl
+                .trim()
+
+        if (cleanUrl.isBlank()) {
+
+            Toast.makeText(
+                this,
+                "No image URL",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val safeUrl =
+            cleanUrl
+                .replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+
+        val previewWebView =
+            WebView(this)
+
+        previewWebView.settings.apply {
+
+            javaScriptEnabled =
+                false
+
+            domStorageEnabled =
+                true
+
+            loadsImagesAutomatically =
+                true
+
+            blockNetworkImage =
+                false
+
+            blockNetworkLoads =
+                false
+
+            useWideViewPort =
+                true
+
+            loadWithOverviewMode =
+                true
+
+            setSupportZoom(
+                true
+            )
+
+            builtInZoomControls =
+                true
+
+            displayZoomControls =
+                false
+
+            mixedContentMode =
+                WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        }
+
+        previewWebView.setBackgroundColor(
+            android.graphics.Color.BLACK
+        )
+
+        val html =
+            """
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    overflow: auto;
+}
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+</style>
+</head>
+<body>
+<img src="$safeUrl" />
+</body>
+</html>
+            """.trimIndent()
+
+        previewWebView.loadDataWithBaseURL(
+            cleanUrl,
+            html,
+            "text/html",
+            "UTF-8",
+            null
+        )
+
+        val root =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.VERTICAL
+
+                setBackgroundColor(
+                    android.graphics.Color.BLACK
+                )
+            }
+
+        root.addView(
+            previewWebView,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        val buttonRow =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.HORIZONTAL
+
+                setPadding(
+                    10,
+                    10,
+                    10,
+                    10
+                )
+            }
+
+        val copyButton =
+            Button(this).apply {
+
+                text =
+                    "COPY URL"
+
+                layoutParams =
+                    LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    ).apply {
+
+                        setMargins(
+                            0,
+                            0,
+                            6,
+                            0
+                        )
+                    }
+            }
+
+        val openButton =
+            Button(this).apply {
+
+                text =
+                    "OPEN"
+
+                layoutParams =
+                    LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f
+                    ).apply {
+
+                        setMargins(
+                            6,
+                            0,
+                            0,
+                            0
+                        )
+                    }
+            }
+
+        buttonRow.addView(
+            copyButton
+        )
+
+        buttonRow.addView(
+            openButton
+        )
+
+        root.addView(
+            buttonRow
+        )
+
+        val dialog =
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Image Preview")
+                .setView(root)
+                .setNegativeButton(
+                    "CLOSE",
+                    null
+                )
+                .create()
+
+        copyButton.setOnClickListener {
+
+            try {
+
+                val clipboard =
+                    getSystemService(
+                        CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText(
+                        "image_url",
+                        cleanUrl
+                    )
+                )
+
+                Toast.makeText(
+                    this,
+                    "Image URL copied",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            } catch (_: Throwable) {}
+        }
+
+        openButton.setOnClickListener {
+
+            try {
+
+                val intent =
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(cleanUrl)
+                    ).apply {
+
+                        addCategory(
+                            Intent.CATEGORY_BROWSABLE
+                        )
+                    }
+
+                startActivity(
+                    Intent.createChooser(
+                        intent,
+                        "Open Image With"
+                    )
+                )
+
+            } catch (_: Throwable) {
+
+                Toast.makeText(
+                    this,
+                    "Cannot open image",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        dialog.setOnDismissListener {
+
+            try {
+
+                previewWebView.stopLoading()
+                previewWebView.loadUrl("about:blank")
+                previewWebView.destroy()
+
+            } catch (_: Throwable) {}
+        }
+
+        dialog.show()
+
+        try {
+
+            dialog.window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.96f).toInt(),
+                (resources.displayMetrics.heightPixels * 0.88f).toInt()
+            )
+
+        } catch (_: Throwable) {}
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "IMAGE_PREVIEW",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Image preview failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
 // =====================================  
 // ON CREATE  
 // =====================================  
@@ -1601,6 +1916,10 @@ binding.contentMain.webview.setOnLongClickListener { view ->
         )
 
         popup.menu.add(
+            "PREVIEW IMAGE"
+        )
+
+        popup.menu.add(
             "OPEN IMAGE"
         )
 
@@ -1635,6 +1954,26 @@ binding.contentMain.webview.setOnLongClickListener { view ->
                         ).show()
 
                     } catch (_: Throwable) {}
+
+                    true
+                }
+
+                "PREVIEW IMAGE" -> {
+
+                    try {
+
+                        showImagePreviewDialog(
+                            imageUrl
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Image preview failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
 
                     true
                 }
