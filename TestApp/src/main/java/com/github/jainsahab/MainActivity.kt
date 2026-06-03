@@ -6718,6 +6718,29 @@ private fun enablePageTextSelection(
 
     try {
 
+        val currentUrl =
+            view?.url
+                ?: ""
+
+        // Do not inject global text-selection CSS on interactive
+        // streaming/player pages. It can interfere with taps.
+        if (
+            currentUrl.contains(
+                "rakuten.tv",
+                true
+            ) ||
+            currentUrl.contains(
+                "amagi.tv",
+                true
+            ) ||
+            currentUrl.contains(
+                "playouts.now",
+                true
+            )
+        ) {
+            return
+        }
+
         view?.evaluateJavascript(
             """
 
@@ -7047,6 +7070,42 @@ private fun runDeepMediaScan(
         if (view == null) {
             return
         }
+
+        // =====================================
+        // INTERACTIVE PLAYER GUARD
+        // Rakuten and similar FAST pages must remain touchable.
+        // Once a best stream has been found, stop hammering the page
+        // with JS rescans. The network interceptor will still catch
+        // new media requests passively.
+        // =====================================
+
+        try {
+
+            val currentUrl =
+                view.url
+                    ?: ""
+
+            if (
+                bestStreamUrl.isNotBlank() &&
+                (
+                    currentUrl.contains(
+                        "rakuten.tv",
+                        true
+                    ) ||
+                    currentUrl.contains(
+                        "amagi.tv",
+                        true
+                    ) ||
+                    currentUrl.contains(
+                        "playouts.now",
+                        true
+                    )
+                )
+            ) {
+                return
+            }
+
+        } catch (_: Throwable) {}
 
         // =====================================
         // ANR GUARD
@@ -17706,7 +17765,10 @@ return JSON.stringify(
                         } catch (_: Throwable) {}
 
                         // =====================================
-                        // FORCE PLAYBACK / PLAYER WAKEUP
+                        // SAFE PLAYBACK OBSERVER
+                        // Do NOT auto-click page buttons.
+                        // Auto-clicking breaks interactive players
+                        // such as Rakuten TV and can freeze the WebView.
                         // =====================================
 
                         try {
@@ -17725,26 +17787,6 @@ try {
             try {
 
                 v.muted = true;
-
-                const p =
-                    v.play();
-
-                if (p) {
-                    p.catch(function(){});
-                }
-
-            } catch(e) {}
-        });
-
-    document
-        .querySelectorAll(
-            "button, .play, .play-button, .vjs-big-play-button"
-        )
-        .forEach(function(el) {
-
-            try {
-
-                el.click();
 
             } catch(e) {}
         });
