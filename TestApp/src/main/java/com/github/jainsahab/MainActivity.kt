@@ -5881,7 +5881,7 @@ androidx.appcompat.app.AlertDialog.Builder(this)
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        return@setOnMenuItemClickListener true
+                        return@setItems
                     }
 
                     val intent =
@@ -5935,7 +5935,7 @@ androidx.appcompat.app.AlertDialog.Builder(this)
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        return@setOnMenuItemClickListener true
+                        return@setItems
                     }
 
                     val clipboard =
