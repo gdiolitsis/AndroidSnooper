@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -142,6 +143,17 @@ private val mobileUserAgent =
     "Mozilla/5.0 (Linux; Android 13) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
         "Chrome/137.0.0.0 Mobile Safari/537.36"
+
+// =====================================
+// AUTOMATIC COOKIE CONSENT RECOVERY
+// OneTrust / cookie banner safe reload
+// =====================================
+
+private val cookieConsentReloadedUrls =
+    mutableSetOf<String>()
+
+private var cookieConsentReloadInProgress =
+    false
 
 data class BrowserHistoryEntry(
     val title: String,
@@ -1558,6 +1570,337 @@ img {
     }
 }
 
+
+// =====================================
+// COOKIE CONSENT URL KEY
+// =====================================
+
+private fun buildCookieConsentUrlKey(
+    rawUrl: String
+): String {
+
+    return try {
+
+        val uri =
+            Uri.parse(
+                rawUrl
+            )
+
+        val scheme =
+            uri.scheme
+                ?: "https"
+
+        val host =
+            uri.host
+                ?: rawUrl
+
+        val path =
+            uri.path
+                ?: ""
+
+        "$scheme://$host$path"
+
+    } catch (_: Throwable) {
+
+        rawUrl.substringBefore("?")
+    }
+}
+
+// =====================================
+// COOKIE CONSENT BRIDGE
+// Called from WebView JavaScript after user clicks
+// Allow / Reject / Confirm / Save choices
+// =====================================
+
+inner class CookieConsentBridge {
+
+    @JavascriptInterface
+    fun onCookieConsentAction(
+        pageUrl: String?
+    ) {
+
+        try {
+
+            handleCookieConsentAction(
+                pageUrl.orEmpty()
+            )
+
+        } catch (_: Throwable) {}
+    }
+}
+
+// =====================================
+// HANDLE COOKIE CONSENT ACTION
+// Flush cookies and reload current page once
+// =====================================
+
+private fun handleCookieConsentAction(
+    pageUrl: String
+) {
+
+    try {
+
+        runOnUiThread {
+
+            try {
+
+                val activeWebView =
+                    popupWebView
+                        ?: binding.contentMain.webview
+
+                val currentUrl =
+                    pageUrl
+                        .takeIf { it.isNotBlank() }
+                        ?: activeWebView.url.orEmpty()
+
+                if (currentUrl.isBlank()) {
+                    return@runOnUiThread
+                }
+
+                val key =
+                    buildCookieConsentUrlKey(
+                        currentUrl
+                    )
+
+                if (
+                    cookieConsentReloadInProgress ||
+                    cookieConsentReloadedUrls.contains(key)
+                ) {
+                    return@runOnUiThread
+                }
+
+                cookieConsentReloadInProgress =
+                    true
+
+                cookieConsentReloadedUrls.add(
+                    key
+                )
+
+                webUserInteracting =
+                    true
+
+                try {
+
+                    CookieManager
+                        .getInstance()
+                        .flush()
+
+                } catch (_: Throwable) {}
+
+                activeWebView.postDelayed(
+                    {
+
+                        try {
+
+                            activeWebView.stopLoading()
+                            activeWebView.reload()
+
+                        } catch (_: Throwable) {}
+
+                        activeWebView.postDelayed(
+                            {
+
+                                cookieConsentReloadInProgress =
+                                    false
+
+                                webUserInteracting =
+                                    false
+                            },
+                            1800
+                        )
+                    },
+                    700
+                )
+
+            } catch (_: Throwable) {
+
+                cookieConsentReloadInProgress =
+                    false
+
+                webUserInteracting =
+                    false
+            }
+        }
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
+// INSTALL COOKIE CONSENT WATCHER
+// Detect user clicks on cookie banners without auto-clicking
+// =====================================
+
+private fun installCookieConsentWatcher(
+    view: WebView?,
+    url: String?
+) {
+
+    try {
+
+        if (
+            view == null ||
+            url.isNullOrBlank() ||
+            url.equals(
+                "about:blank",
+                true
+            )
+        ) {
+            return
+        }
+
+        view.evaluateJavascript(
+            """
+(function() {
+
+    try {
+
+        if (window.__gelCookieConsentWatcherInstalled) {
+            return "already-installed";
+        }
+
+        window.__gelCookieConsentWatcherInstalled = true;
+
+        function gelTextOf(el) {
+
+            try {
+
+                if (!el) {
+                    return "";
+                }
+
+                var text = "";
+
+                text += " " + (el.id || "");
+                text += " " + (el.className || "");
+                text += " " + (el.name || "");
+                text += " " + (el.value || "");
+                text += " " + (el.getAttribute("aria-label") || "");
+                text += " " + (el.getAttribute("title") || "");
+                text += " " + (el.innerText || "");
+                text += " " + (el.textContent || "");
+
+                return String(text).toLowerCase();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function gelIsCookieConsentElement(el) {
+
+            try {
+
+                var node = el;
+                var depth = 0;
+
+                while (node && depth < 6) {
+
+                    var t = gelTextOf(node);
+
+                    var hasCookieSystem =
+                        t.indexOf("onetrust") >= 0 ||
+                        t.indexOf("ot-sdk") >= 0 ||
+                        t.indexOf("cookie") >= 0 ||
+                        t.indexOf("privacy") >= 0 ||
+                        t.indexOf("consent") >= 0 ||
+                        t.indexOf("gdpr") >= 0 ||
+                        t.indexOf("cmp") >= 0;
+
+                    var hasAction =
+                        t.indexOf("allow all") >= 0 ||
+                        t.indexOf("accept all") >= 0 ||
+                        t.indexOf("reject all") >= 0 ||
+                        t.indexOf("confirm my choices") >= 0 ||
+                        t.indexOf("confirm choices") >= 0 ||
+                        t.indexOf("save choices") >= 0 ||
+                        t.indexOf("save preference") >= 0 ||
+                        t.indexOf("accept recommended") >= 0 ||
+                        t.indexOf("agree") >= 0 ||
+                        t.indexOf("i accept") >= 0 ||
+                        t.indexOf("got it") >= 0;
+
+                    if (hasCookieSystem && hasAction) {
+                        return true;
+                    }
+
+                    if (
+                        t.indexOf("onetrust-accept-btn-handler") >= 0 ||
+                        t.indexOf("onetrust-reject-all-handler") >= 0 ||
+                        t.indexOf("accept-recommended-btn-handler") >= 0 ||
+                        t.indexOf("save-preference-btn-handler") >= 0 ||
+                        t.indexOf("ot-pc-refuse-all-handler") >= 0
+                    ) {
+                        return true;
+                    }
+
+                    node = node.parentElement;
+                    depth++;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        document.addEventListener(
+            "click",
+            function(ev) {
+
+                try {
+
+                    var target = ev.target;
+
+                    if (!target) {
+                        return;
+                    }
+
+                    if (!gelIsCookieConsentElement(target)) {
+                        return;
+                    }
+
+                    setTimeout(
+                        function() {
+
+                            try {
+
+                                if (
+                                    window.GELCookieBridge &&
+                                    window.GELCookieBridge.onCookieConsentAction
+                                ) {
+
+                                    window.GELCookieBridge.onCookieConsentAction(
+                                        window.location.href || ""
+                                    );
+                                }
+
+                            } catch(e) {}
+                        },
+                        350
+                    );
+
+                } catch(e) {}
+            },
+            true
+        );
+
+        return "installed";
+
+    } catch(e) {
+
+        return "cookie-watcher-error:" + e;
+    }
+})();
+            """.trimIndent(),
+            null
+        )
+
+    } catch (_: Throwable) {}
+}
+
 // =====================================  
 // ON CREATE  
 // =====================================  
@@ -1856,6 +2199,20 @@ try {
     )
 
     cookieManager.flush()
+
+} catch (_: Throwable) {}
+
+// =====================================
+// COOKIE CONSENT JAVASCRIPT BRIDGE
+// Automatic cookie banner recovery
+// =====================================
+
+try {
+
+    binding.contentMain.webview.addJavascriptInterface(
+        CookieConsentBridge(),
+        "GELCookieBridge"
+    )
 
 } catch (_: Throwable) {}
 
@@ -2221,6 +2578,20 @@ override fun onPageFinished(
                 addBrowserHistory(
                     url,
                     view?.title
+                )
+
+            } catch (_: Throwable) {}
+
+            // =====================================
+            // COOKIE CONSENT WATCHER
+            // Auto reload after user confirms/rejects cookies
+            // =====================================
+
+            try {
+
+                installCookieConsentWatcher(
+                    view,
+                    url
                 )
 
             } catch (_: Throwable) {}
@@ -2785,6 +3156,15 @@ binding.contentMain.webview.webChromeClient =
 
         } catch (_: Throwable) {}
 
+        try {
+
+            childWebView.addJavascriptInterface(
+                CookieConsentBridge(),
+                "GELCookieBridge"
+            )
+
+        } catch (_: Throwable) {}
+
         childWebView.webViewClient =
             object : WebViewClient() {
 
@@ -2888,6 +3268,15 @@ binding.contentMain.webview.webChromeClient =
                                 addBrowserHistory(
                                     url,
                                     view?.title
+                                )
+
+                            } catch (_: Throwable) {}
+
+                            try {
+
+                                installCookieConsentWatcher(
+                                    view,
+                                    url
                                 )
 
                             } catch (_: Throwable) {}
