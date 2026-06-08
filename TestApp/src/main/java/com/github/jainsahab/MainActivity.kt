@@ -176,6 +176,11 @@ data class AutoScanCandidate(
     val href: String
 )
 
+data class AutoScanPage(
+    val title: String,
+    val href: String
+)
+
 private var autoScanRunning =
     false
 
@@ -6783,6 +6788,255 @@ if (
 }
 
 // =====================================
+// COLLECT COUNTRY PAGINATION PAGES
+// Teleon-style: same country, page=2/page=3...
+// Does NOT scan other countries
+// =====================================
+
+private fun collectCountryPaginationPages(
+    onReady: (List<AutoScanPage>) -> Unit
+) {
+
+    try {
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        activeWebView.evaluateJavascript(
+            """
+
+(function() {
+
+    try {
+
+        var pages =
+            [];
+
+        var seen =
+            {};
+
+        var currentUrl =
+            window.location.href || "";
+
+        var current =
+            new URL(currentUrl);
+
+        var currentHost =
+            current.host || "";
+
+        var currentPath =
+            current.pathname || "";
+
+        function cleanText(value) {
+
+            try {
+
+                return String(value || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function addPage(title, href) {
+
+            try {
+
+                if (!href) {
+                    return;
+                }
+
+                var u =
+                    new URL(href, currentUrl);
+
+                if ((u.host || "") !== currentHost) {
+                    return;
+                }
+
+                if ((u.pathname || "") !== currentPath) {
+                    return;
+                }
+
+                var pageValue =
+                    u.searchParams.get("page") || "";
+
+                if (!pageValue) {
+                    return;
+                }
+
+                if (!/^[0-9]+$/.test(pageValue)) {
+                    return;
+                }
+
+                var key =
+                    u.href.toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                pages.push({
+                    title: title || ("PAGE " + pageValue),
+                    href: u.href
+                });
+
+            } catch(e) {}
+        }
+
+        document
+            .querySelectorAll("a[href]")
+            .forEach(function(a) {
+
+                try {
+
+                    var href =
+                        a.href || "";
+
+                    var text =
+                        cleanText(
+                            a.innerText ||
+                            a.textContent ||
+                            a.getAttribute("aria-label") ||
+                            a.getAttribute("title") ||
+                            ""
+                        );
+
+                    addPage(text, href);
+
+                } catch(e) {}
+            });
+
+        addPage("CURRENT PAGE", currentUrl);
+
+        pages.sort(function(a, b) {
+
+            try {
+
+                var pa =
+                    parseInt(
+                        new URL(a.href).searchParams.get("page") || "1",
+                        10
+                    );
+
+                var pb =
+                    parseInt(
+                        new URL(b.href).searchParams.get("page") || "1",
+                        10
+                    );
+
+                return pa - pb;
+
+            } catch(e) {
+
+                return 0;
+            }
+        });
+
+        return JSON.stringify(
+            pages.slice(0, 25)
+        );
+
+    } catch(e) {
+
+        return JSON.stringify([]);
+    }
+
+})();
+            """.trimIndent()
+        ) { jsResult ->
+
+            try {
+
+                val cleaned =
+                    jsResult
+                        .removePrefix("\"")
+                        .removeSuffix("\"")
+                        .replace("\\\\", "\\")
+                        .replace("\\\"", "\"")
+                        .replace("\\n", "\n")
+                        .trim()
+
+                val array =
+                    org.json.JSONArray(
+                        cleaned
+                    )
+
+                val pages =
+                    mutableListOf<AutoScanPage>()
+
+                for (i in 0 until array.length()) {
+
+                    val obj =
+                        array.optJSONObject(i)
+                            ?: continue
+
+                    val title =
+                        obj.optString(
+                            "title",
+                            "PAGE ${i + 1}"
+                        ).trim()
+
+                    val href =
+                        obj.optString(
+                            "href",
+                            ""
+                        ).trim()
+
+                    if (
+                        href.isBlank() ||
+                        !href.startsWith("http", true)
+                    ) {
+                        continue
+                    }
+
+                    pages.add(
+                        AutoScanPage(
+                            title = title,
+                            href = href
+                        )
+                    )
+                }
+
+                onReady(
+                    pages.distinctBy { it.href.lowercase() }
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "AUTO_SCAN_PAGES",
+                    "parse failed",
+                    t
+                )
+
+                onReady(
+                    emptyList()
+                )
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "AUTO_SCAN_PAGES",
+            "failed",
+            t
+        )
+
+        onReady(
+            emptyList()
+        )
+    }
+}
+
+// =====================================
 // COLLECT CHANNEL CANDIDATES FOR AUTO SCAN
 // Safe: only collects href/title, does not click
 // =====================================
@@ -7308,6 +7562,7 @@ private fun collectCurrentPlayableStreamsForAutoScan(): List<String> {
 
 // =====================================
 // START AUTO CHANNEL SCAN
+// With country pagination support
 // =====================================
 
 private fun startAutoScanChannels() {
@@ -7340,18 +7595,106 @@ private fun startAutoScanChannels() {
             """
 
 AUTO CHANNEL SCAN:
-Collecting candidates...
+Collecting country pages...
 
 ────────────────────
 
             """.trimIndent()
         )
 
-        collectAutoScanCandidates { candidates ->
+        collectCountryPaginationPages { pages ->
 
             runOnUiThread {
 
-                if (candidates.isEmpty()) {
+                val pageList =
+                    if (pages.isNotEmpty()) {
+                        pages
+                    } else {
+                        listOf(
+                            AutoScanPage(
+                                title = "CURRENT PAGE",
+                                href = binding.contentMain.webview.url.orEmpty()
+                            )
+                        )
+                    }
+
+                binding.contentMain.result.append(
+                    """
+
+AUTO CHANNEL SCAN:
+Country pages found:
+${pageList.size}
+
+${pageList.joinToString("\n") { it.href }}
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+                collectCandidatesFromCountryPages(
+                    pageList
+                )
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        autoScanRunning =
+            false
+
+        Log.e(
+            "AUTO_SCAN",
+            "start failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// COLLECT CANDIDATES FROM ALL COUNTRY PAGES
+// Opens each pagination page, collects /channel/ links,
+// then starts normal auto scan.
+// =====================================
+
+private fun collectCandidatesFromCountryPages(
+    pages: List<AutoScanPage>
+) {
+
+    try {
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        val allCandidates =
+            mutableListOf<AutoScanCandidate>()
+
+        fun scanPageAt(
+            index: Int
+        ) {
+
+            if (index >= pages.size) {
+
+                val finalCandidates =
+                    allCandidates
+                        .distinctBy { it.href.lowercase() }
+                        .take(
+                            autoScanMaxCandidates
+                        )
+
+                if (finalCandidates.isEmpty()) {
+
+                    binding.contentMain.result.append(
+                        """
+
+AUTO CHANNEL SCAN:
+No channel candidates found across country pages.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
 
                     Toast.makeText(
                         this,
@@ -7359,23 +7702,12 @@ Collecting candidates...
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    binding.contentMain.result.append(
-                        """
-
-AUTO CHANNEL SCAN:
-No candidates found.
-
-────────────────────
-
-                        """.trimIndent()
-                    )
-
-                    return@runOnUiThread
+                    return
                 }
 
                 autoScanCandidates.clear()
                 autoScanCandidates.addAll(
-                    candidates
+                    finalCandidates
                 )
 
                 autoScanResults.clear()
@@ -7390,7 +7722,10 @@ No candidates found.
                     """
 
 AUTO CHANNEL SCAN STARTED:
-Candidates:
+Country pages:
+${pages.size}
+
+Channel candidates:
 ${autoScanCandidates.size}
 
 ────────────────────
@@ -7399,8 +7734,83 @@ ${autoScanCandidates.size}
                 )
 
                 scanNextAutoChannel()
+                return
             }
+
+            val page =
+                pages[index]
+
+            binding.contentMain.result.append(
+                """
+
+SCAN COUNTRY PAGE:
+${index + 1}/${pages.size}
+${page.href}
+
+────────────────────
+
+                """.trimIndent()
+            )
+
+            try {
+
+                activeWebView.stopLoading()
+
+                activeWebView.loadUrl(
+                    page.href,
+                    mapOf(
+                        "Cache-Control" to "no-cache",
+                        "Pragma" to "no-cache"
+                    )
+                )
+
+            } catch (_: Throwable) {
+
+                scanPageAt(
+                    index + 1
+                )
+
+                return
+            }
+
+            binding.contentMain.webview.postDelayed(
+                {
+
+                    collectAutoScanCandidates { candidates ->
+
+                        runOnUiThread {
+
+                            allCandidates.addAll(
+                                candidates
+                            )
+
+                            binding.contentMain.result.append(
+                                """
+
+COUNTRY PAGE CANDIDATES:
+${candidates.size}
+
+TOTAL SO FAR:
+${allCandidates.distinctBy { it.href.lowercase() }.size}
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            scanPageAt(
+                                index + 1
+                            )
+                        }
+                    }
+                },
+                3500
+            )
         }
+
+        scanPageAt(
+            0
+        )
 
     } catch (t: Throwable) {
 
@@ -7409,7 +7819,7 @@ ${autoScanCandidates.size}
 
         Log.e(
             "AUTO_SCAN",
-            "start failed",
+            "collect pages failed",
             t
         )
     }
