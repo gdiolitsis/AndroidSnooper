@@ -139,6 +139,9 @@ private val menuOpenPlayerId =
     
 private val menuScanChannelCandidatesId =
     91022
+    
+private val menuAutoScanChannelsId =
+    91023
 
 private val desktopUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
@@ -164,6 +167,40 @@ private val resultsPanelCollapsedHeightDp =
 private val resultsPanelNormalHeightDp =
     90
 
+// =====================================
+// CHANNEL CANDIDATE STATE
+// Used to suppress false protected warning
+// =====================================
+
+private var lastChannelCandidateCount =
+    0
+    
+// =====================================
+// AUTO CHANNEL SCANNER STATE
+// =====================================
+
+data class AutoScanCandidate(
+    val title: String,
+    val href: String
+)
+
+private var autoScanRunning =
+    false
+
+private var autoScanIndex =
+    0
+
+private val autoScanCandidates =
+    mutableListOf<AutoScanCandidate>()
+
+private val autoScanResults =
+    linkedMapOf<String, MutableList<String>>()
+
+private val autoScanKnownBefore =
+    mutableSetOf<String>()
+
+private val autoScanMaxCandidates =
+    80
 
 // =====================================
 // AUTOMATIC COOKIE CONSENT RECOVERY
@@ -215,6 +252,14 @@ private var currentBrowserTabIndex =
 
 private var refererRetryDone =
     false
+
+// =====================================
+// CHANNEL CANDIDATE STATE
+// Used to suppress false protected warning
+// =====================================
+
+private var lastChannelCandidateCount =
+    0
     
 private var popupWebView: WebView? =
     null
@@ -3635,6 +3680,7 @@ streamBandwidth.clear()
 streamCodec.clear()
 streamInfoSnapshots.clear()
 streamHitCounter.clear()
+hlsVerdicts.clear()
 
 blobRelations.clear()
 manifestRelations.clear()
@@ -3696,6 +3742,21 @@ protectedFallbackShown =
 
 refererRetryDone =
     false
+    
+lastChannelCandidateCount =
+    0
+    
+autoScanRunning =
+    false
+
+autoScanIndex =
+    0
+
+autoScanCandidates.clear()
+
+autoScanResults.clear()
+
+autoScanKnownBefore.clear()
 
     // =====================================
     // READ CURRENT INPUT DIRECTLY
@@ -6593,6 +6654,9 @@ private fun scanChannelCandidatesOnly() {
                     org.json.JSONArray(
                         cleaned
                     )
+                    
+                lastChannelCandidateCount =
+    array.length()
 
                 val builder =
                     StringBuilder()
@@ -6700,6 +6764,1011 @@ private fun scanChannelCandidatesOnly() {
             "Candidate scan failed",
             Toast.LENGTH_SHORT
         ).show()
+    }
+}
+
+// =====================================
+// COLLECT CHANNEL CANDIDATES FOR AUTO SCAN
+// Safe: only collects href/title, does not click
+// =====================================
+
+private fun collectAutoScanCandidates(
+    onReady: (List<AutoScanCandidate>) -> Unit
+) {
+
+    try {
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        activeWebView.evaluateJavascript(
+            """
+
+(function() {
+
+    try {
+
+        var badWords =
+            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|menu|home|contact|terms|policy|advert|ads|close|next|prev|previous/i;
+
+        var candidates =
+            [];
+
+        var seen =
+            {};
+
+        function cleanText(value) {
+
+            try {
+
+                return String(value || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function isVisible(el) {
+
+            try {
+
+                if (!el) {
+                    return false;
+                }
+
+                var style =
+                    window.getComputedStyle(el);
+
+                if (
+                    style.display === "none" ||
+                    style.visibility === "hidden" ||
+                    style.opacity === "0"
+                ) {
+                    return false;
+                }
+
+                var rect =
+                    el.getBoundingClientRect();
+
+                if (
+                    rect.width < 20 ||
+                    rect.height < 12
+                ) {
+                    return false;
+                }
+
+                return true;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        function getText(el) {
+
+            try {
+
+                var text =
+                    "";
+
+                text += " " + (el.innerText || "");
+                text += " " + (el.textContent || "");
+                text += " " + (el.getAttribute("title") || "");
+                text += " " + (el.getAttribute("aria-label") || "");
+                text += " " + (el.getAttribute("data-title") || "");
+                text += " " + (el.getAttribute("data-name") || "");
+                text += " " + (el.getAttribute("alt") || "");
+
+                return cleanText(text);
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function getHref(el) {
+
+            try {
+
+                if (el.href) {
+                    return String(el.href || "").trim();
+                }
+
+                var a =
+                    el.closest("a[href]");
+
+                if (a && a.href) {
+                    return String(a.href || "").trim();
+                }
+
+                var dataUrl =
+                    el.getAttribute("data-url") ||
+                    el.getAttribute("data-href") ||
+                    el.getAttribute("data-src") ||
+                    el.getAttribute("data-stream") ||
+                    "";
+
+                return String(dataUrl || "").trim();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function looksLikeChannel(el, text, href) {
+
+            try {
+
+                var cls =
+                    String(el.className || "").toLowerCase();
+
+                var id =
+                    String(el.id || "").toLowerCase();
+
+                var role =
+                    String(el.getAttribute("role") || "").toLowerCase();
+
+                var combined =
+                    (text + " " + href + " " + cls + " " + id + " " + role)
+                        .toLowerCase();
+
+                if (badWords.test(combined)) {
+                    return false;
+                }
+
+                if (
+                    href.indexOf("facebook.com") >= 0 ||
+                    href.indexOf("twitter.com") >= 0 ||
+                    href.indexOf("instagram.com") >= 0 ||
+                    href.indexOf("wa.me") >= 0 ||
+                    href.indexOf("mailto:") >= 0 ||
+                    href.indexOf("tel:") >= 0
+                ) {
+                    return false;
+                }
+
+                if (
+                    combined.indexOf("channel") >= 0 ||
+                    combined.indexOf("live") >= 0 ||
+                    combined.indexOf("tv") >= 0 ||
+                    combined.indexOf("stream") >= 0 ||
+                    combined.indexOf("player") >= 0 ||
+                    combined.indexOf("watch") >= 0 ||
+                    combined.indexOf("play") >= 0 ||
+                    combined.indexOf("card") >= 0 ||
+                    combined.indexOf("station") >= 0 ||
+                    combined.indexOf("canal") >= 0 ||
+                    combined.indexOf("kanal") >= 0
+                ) {
+                    return true;
+                }
+
+                if (
+                    href &&
+                    href !== "#" &&
+                    text.length >= 2 &&
+                    text.length <= 120
+                ) {
+                    return true;
+                }
+
+                if (
+                    role === "button" &&
+                    text.length >= 2 &&
+                    text.length <= 120
+                ) {
+                    return true;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        var nodes =
+            Array.prototype.slice.call(
+                document.querySelectorAll(
+                    [
+                        "a[href]",
+                        "button",
+                        "[role='button']",
+                        "[onclick]",
+                        "[data-url]",
+                        "[data-href]",
+                        "[data-stream]",
+                        ".channel",
+                        ".tv-channel",
+                        ".station",
+                        ".card",
+                        ".item",
+                        "li"
+                    ].join(",")
+                )
+            );
+
+        nodes.forEach(function(el) {
+
+            try {
+
+                if (!isVisible(el)) {
+                    return;
+                }
+
+                var text =
+                    getText(el);
+
+                var href =
+                    getHref(el);
+
+                if (
+                    text.length < 2 &&
+                    href.length < 5
+                ) {
+                    return;
+                }
+
+                if (!looksLikeChannel(el, text, href)) {
+                    return;
+                }
+
+                var key =
+                    (text + "|" + href)
+                        .toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                candidates.push({
+                    title: text.substring(0, 120),
+                    href: href.substring(0, 500)
+                });
+
+            } catch(e) {}
+        });
+
+        return JSON.stringify(
+            candidates.slice(0, 250)
+        );
+
+    } catch(e) {
+
+        return JSON.stringify([]);
+    }
+
+})();
+            """.trimIndent()
+        ) { jsResult ->
+
+            try {
+
+                val cleaned =
+                    jsResult
+                        .removePrefix("\"")
+                        .removeSuffix("\"")
+                        .replace("\\\\", "\\")
+                        .replace("\\\"", "\"")
+                        .replace("\\n", "\n")
+                        .trim()
+
+                val array =
+                    org.json.JSONArray(
+                        cleaned
+                    )
+
+                val parsed =
+                    mutableListOf<AutoScanCandidate>()
+
+                for (i in 0 until array.length()) {
+
+                    val obj =
+                        array.optJSONObject(i)
+                            ?: continue
+
+                    val title =
+                        obj.optString(
+                            "title",
+                            ""
+                        )
+                            .trim()
+                            .ifBlank {
+                                "CHANNEL ${i + 1}"
+                            }
+
+                    val href =
+                        obj.optString(
+                            "href",
+                            ""
+                        ).trim()
+
+                    if (
+                        href.isBlank() ||
+                        !href.startsWith("http", true)
+                    ) {
+                        continue
+                    }
+
+                    parsed.add(
+                        AutoScanCandidate(
+                            title = title,
+                            href = href
+                        )
+                    )
+                }
+
+                // =====================================
+                // Prefer real channel pages.
+                // Avoid country/category pages when possible.
+                // =====================================
+
+                val channelLike =
+                    parsed.filter { item ->
+
+                        val lower =
+                            item.href.lowercase()
+
+                        (
+                            lower.contains("/channel/") ||
+                                lower.contains("/watch/") ||
+                                lower.contains("/live/") ||
+                                lower.contains("/tv/") ||
+                                lower.contains("/player/")
+                            ) &&
+                            !lower.contains("/country/")
+                    }
+
+                val finalList =
+                    if (channelLike.isNotEmpty()) {
+                        channelLike
+                    } else {
+                        parsed
+                    }
+                        .distinctBy { item ->
+                            item.href.lowercase()
+                        }
+                        .take(
+                            autoScanMaxCandidates
+                        )
+
+                onReady(
+                    finalList
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "AUTO_SCAN",
+                    "candidate parse failed",
+                    t
+                )
+
+                onReady(
+                    emptyList()
+                )
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "AUTO_SCAN",
+            "candidate collect failed",
+            t
+        )
+
+        onReady(
+            emptyList()
+        )
+    }
+}
+
+// =====================================
+// COLLECT CURRENT PLAYABLE STREAMS
+// For auto scan result comparison
+// =====================================
+
+private fun collectCurrentPlayableStreamsForAutoScan(): List<String> {
+
+    val all =
+        mutableListOf<String>()
+
+    try {
+
+        all.addAll(
+            detectedStreams
+        )
+
+        all.addAll(
+            detectedVideos
+        )
+
+        all.addAll(
+            detectedAudio
+        )
+
+        all.addAll(
+            detectedMasterStreams
+        )
+
+        all.addAll(
+            streamInfoSnapshots.keys
+        )
+
+        all.addAll(
+            streamSources.keys
+        )
+
+        all.addAll(
+            streamValidation.keys
+        )
+
+        if (bestStreamUrl.isNotBlank()) {
+            all.add(
+                bestStreamUrl
+            )
+        }
+
+        if (bestLiveUrl.isNotBlank()) {
+            all.add(
+                bestLiveUrl
+            )
+        }
+
+        if (youtubeWatchUrl.isNotBlank()) {
+            all.add(
+                youtubeWatchUrl
+            )
+        }
+
+        if (youtubeDashVideoUrl.isNotBlank()) {
+            all.add(
+                youtubeDashVideoUrl
+            )
+        }
+
+        if (youtubeDashAudioUrl.isNotBlank()) {
+            all.add(
+                youtubeDashAudioUrl
+            )
+        }
+
+    } catch (_: Throwable) {}
+
+    return all
+        .map { item ->
+            cleanDetectedUrl(
+                item
+            )
+        }
+        .filter { item ->
+
+            item.isNotBlank() &&
+                item.startsWith(
+                    "http",
+                    true
+                ) &&
+                isExportableStream(
+                    item
+                )
+        }
+        .distinctBy { item ->
+            item.lowercase()
+        }
+}
+
+// =====================================
+// START AUTO CHANNEL SCAN
+// =====================================
+
+private fun startAutoScanChannels() {
+
+    try {
+
+        if (autoScanRunning) {
+
+            Toast.makeText(
+                this,
+                "Auto scan already running",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        if (cloudflareChallengeActive) {
+
+            Toast.makeText(
+                this,
+                "Wait for verification first",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        binding.contentMain.result.append(
+            """
+
+AUTO CHANNEL SCAN:
+Collecting candidates...
+
+────────────────────
+
+            """.trimIndent()
+        )
+
+        collectAutoScanCandidates { candidates ->
+
+            runOnUiThread {
+
+                if (candidates.isEmpty()) {
+
+                    Toast.makeText(
+                        this,
+                        "No channel candidates found",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    binding.contentMain.result.append(
+                        """
+
+AUTO CHANNEL SCAN:
+No candidates found.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                    return@runOnUiThread
+                }
+
+                autoScanCandidates.clear()
+                autoScanCandidates.addAll(
+                    candidates
+                )
+
+                autoScanResults.clear()
+
+                autoScanIndex =
+                    0
+
+                autoScanRunning =
+                    true
+
+                binding.contentMain.result.append(
+                    """
+
+AUTO CHANNEL SCAN STARTED:
+Candidates:
+${autoScanCandidates.size}
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+                scanNextAutoChannel()
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        autoScanRunning =
+            false
+
+        Log.e(
+            "AUTO_SCAN",
+            "start failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// SCAN NEXT CHANNEL CANDIDATE
+// Opens each candidate URL and waits for stream detection
+// =====================================
+
+private fun scanNextAutoChannel() {
+
+    try {
+
+        if (!autoScanRunning) {
+            return
+        }
+
+        if (autoScanIndex >= autoScanCandidates.size) {
+
+            finishAutoScanChannels()
+            return
+        }
+
+        val candidate =
+            autoScanCandidates[autoScanIndex]
+
+        autoScanKnownBefore.clear()
+
+        autoScanKnownBefore.addAll(
+            collectCurrentPlayableStreamsForAutoScan()
+                .map { item ->
+                    item.lowercase()
+                }
+        )
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        binding.contentMain.result.append(
+            """
+
+AUTO SCAN:
+${autoScanIndex + 1}/${autoScanCandidates.size}
+${candidate.title}
+${candidate.href}
+
+────────────────────
+
+            """.trimIndent()
+        )
+
+        try {
+
+            binding.contentMain.urlInput.setText(
+                candidate.href
+            )
+
+            binding.contentMain.urlInput.setSelection(
+                0
+            )
+
+            liveUrlInputText =
+                candidate.href
+
+        } catch (_: Throwable) {}
+
+        try {
+
+            activeWebView.stopLoading()
+
+            activeWebView.loadUrl(
+                candidate.href,
+                mapOf(
+                    "Cache-Control" to "no-cache",
+                    "Pragma" to "no-cache"
+                )
+            )
+
+        } catch (_: Throwable) {
+
+            autoScanIndex++
+
+            binding.contentMain.webview.postDelayed(
+                {
+                    scanNextAutoChannel()
+                },
+                1200
+            )
+
+            return
+        }
+
+        binding.contentMain.webview.postDelayed(
+            {
+
+                try {
+
+                    if (
+                        autoScanRunning &&
+                        !cloudflareChallengeActive
+                    ) {
+
+                        runDeepMediaScan(
+                            activeWebView
+                        )
+                    }
+
+                } catch (_: Throwable) {}
+
+                binding.contentMain.webview.postDelayed(
+                    {
+
+                        finalizeCurrentAutoChannel(
+                            candidate
+                        )
+
+                        autoScanIndex++
+
+                        binding.contentMain.webview.postDelayed(
+                            {
+                                scanNextAutoChannel()
+                            },
+                            1200
+                        )
+                    },
+                    2500
+                )
+            },
+            5200
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "AUTO_SCAN",
+            "scan next failed",
+            t
+        )
+
+        autoScanIndex++
+
+        binding.contentMain.webview.postDelayed(
+            {
+                scanNextAutoChannel()
+            },
+            1500
+        )
+    }
+}
+
+// =====================================
+// FINALIZE ONE AUTO-SCANNED CHANNEL
+// Stores only streams discovered after opening candidate
+// =====================================
+
+private fun finalizeCurrentAutoChannel(
+    candidate: AutoScanCandidate
+) {
+
+    try {
+
+        val allNow =
+            collectCurrentPlayableStreamsForAutoScan()
+
+        val newStreams =
+            allNow.filter { stream ->
+
+                !autoScanKnownBefore.contains(
+                    stream.lowercase()
+                )
+            }
+
+        val preferred =
+            newStreams.filter { stream ->
+
+                isPlaylistUrl(
+                    stream
+                )
+            }
+
+        val finalStreams =
+            if (preferred.isNotEmpty()) {
+                preferred
+            } else {
+                newStreams
+            }
+                .distinctBy { stream ->
+                    stream.lowercase()
+                }
+
+        if (finalStreams.isNotEmpty()) {
+
+            val list =
+                autoScanResults.getOrPut(
+                    candidate.title
+                ) {
+                    mutableListOf()
+                }
+
+            finalStreams.forEach { stream ->
+
+                if (!list.contains(stream)) {
+                    list.add(
+                        stream
+                    )
+                }
+            }
+
+            binding.contentMain.result.append(
+                """
+
+AUTO SCAN FOUND:
+${candidate.title}
+
+Streams:
+${finalStreams.size}
+
+${finalStreams.joinToString("\n")}
+
+────────────────────
+
+                """.trimIndent()
+            )
+
+        } else {
+
+            binding.contentMain.result.append(
+                """
+
+AUTO SCAN NO STREAM:
+${candidate.title}
+
+────────────────────
+
+                """.trimIndent()
+            )
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "AUTO_SCAN",
+            "finalize failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// FINISH AUTO CHANNEL SCAN
+// Creates M3U from collected results
+// =====================================
+
+private fun finishAutoScanChannels() {
+
+    try {
+
+        autoScanRunning =
+            false
+
+        val totalStreams =
+            autoScanResults.values.sumOf { list ->
+                list.size
+            }
+
+        if (totalStreams <= 0) {
+
+            binding.contentMain.result.append(
+                """
+
+AUTO CHANNEL SCAN DONE:
+No streams collected.
+
+────────────────────
+
+                """.trimIndent()
+            )
+
+            Toast.makeText(
+                this,
+                "Auto scan done: no streams",
+                Toast.LENGTH_LONG
+            ).show()
+
+            return
+        }
+
+        val pageHost =
+            try {
+
+                Uri.parse(
+                    binding.contentMain.webview.url.orEmpty()
+                )
+                    .host
+                    ?.replace(".", "_")
+                    ?.uppercase()
+                    ?: "PAGE"
+
+            } catch (_: Throwable) {
+
+                "PAGE"
+            }
+
+        val fileName =
+            "GEL_AUTOSCAN_${pageHost}.m3u"
+
+        val builder =
+            StringBuilder()
+
+        builder.append(
+            "#EXTM3U\n"
+        )
+
+        autoScanResults.forEach { entry ->
+
+            val channelName =
+                entry.key
+                    .replace(
+                        Regex("\\s+"),
+                        " "
+                    )
+                    .trim()
+                    .uppercase()
+                    .ifBlank {
+                        "UNKNOWN CHANNEL"
+                    }
+
+            entry.value.forEach { stream ->
+
+                builder.append(
+                    "#EXTINF:-1 tvg-id=\"\" tvg-logo=\"noimage.png\" group-title=\"AUTO SCAN\", AUTO: "
+                )
+
+                builder.append(
+                    channelName
+                )
+
+                builder.append(
+                    " autoscan\n"
+                )
+
+                builder.append(
+                    stream
+                )
+
+                builder.append(
+                    "\n\n"
+                )
+            }
+        }
+
+        val savedPath =
+            saveM3uTextToDownloads(
+                fileName,
+                builder.toString()
+            )
+
+        binding.contentMain.result.append(
+            """
+
+AUTO CHANNEL SCAN DONE:
+Channels:
+${autoScanResults.size}
+
+Streams:
+$totalStreams
+
+Saved:
+$fileName
+
+Path:
+$savedPath
+
+────────────────────
+
+            """.trimIndent()
+        )
+
+        Toast.makeText(
+            this,
+            "Auto scan saved: $fileName",
+            Toast.LENGTH_LONG
+        ).show()
+
+    } catch (t: Throwable) {
+
+        autoScanRunning =
+            false
+
+        Log.e(
+            "AUTO_SCAN",
+            "finish failed",
+            t
+        )
     }
 }
 
@@ -7353,6 +8422,7 @@ private fun showProtectedPageFallback(
                 youtubeWatchUrl.isNotBlank() ||
                 youtubeDashVideoUrl.isNotBlank() ||
                 youtubeDashAudioUrl.isNotBlank()
+                lastChannelCandidateCount > 0
 
         if (alreadyDetectedPlayable) {
 
@@ -23070,6 +24140,10 @@ override fun onCreateOptionsMenu(
 
     try {
 
+        // =====================================
+        // TABS / HISTORY / BOOKMARKS
+        // =====================================
+
         menu.add(Menu.NONE, menuOpenNewTabId, Menu.NONE, "Open New Tab")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
@@ -23088,17 +24162,9 @@ override fun onCreateOptionsMenu(
         menu.add(Menu.NONE, menuAddToHomeScreenId, Menu.NONE, "Add to Home Screen")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
-        menu.add(Menu.NONE, menuSavedChannelsId, Menu.NONE, "Saved Channels")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-
-        menu.add(Menu.NONE, menuDetectedStreamsId, Menu.NONE, "Detected Streams")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-
-        menu.add(Menu.NONE, menuOpenPlayerId, Menu.NONE, "Open Player")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-
-        menu.add(Menu.NONE, menuExportM3uId, Menu.NONE, "Export M3U")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        // =====================================
+        // PAGE / URL TOOLS
+        // =====================================
 
         menu.add(Menu.NONE, menuSharePageId, Menu.NONE, "Share Page")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
@@ -23121,6 +24187,32 @@ override fun onCreateOptionsMenu(
         menu.add(Menu.NONE, menuOpenChromeId, Menu.NONE, "Open in Browser")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
+        // =====================================
+        // STREAM / ANALYZER TOOLS
+        // =====================================
+
+        menu.add(Menu.NONE, menuSavedChannelsId, Menu.NONE, "Saved Channels")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuDetectedStreamsId, Menu.NONE, "Detected Streams")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuOpenPlayerId, Menu.NONE, "Open Player")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuExportM3uId, Menu.NONE, "Export M3U")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuScanChannelCandidatesId, Menu.NONE, "Scan Channel Candidates")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        menu.add(Menu.NONE, menuAutoScanChannelsId, Menu.NONE, "Auto Scan Channels")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+
+        // =====================================
+        // VIEW / DATA
+        // =====================================
+
         menu.add(Menu.NONE, menuDesktopModeId, Menu.NONE, "Desktop Mode")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
@@ -23131,24 +24223,10 @@ override fun onCreateOptionsMenu(
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
     } catch (_: Throwable) {}
-    
-try {
-
-    menu.add(
-        Menu.NONE,
-        menuScanChannelCandidatesId,
-        Menu.NONE,
-        "Scan Channel Candidates"
-    )
-        .setShowAsAction(
-            MenuItem.SHOW_AS_ACTION_NEVER
-        )
-
-} catch (_: Throwable) {}
 
     return true
 }
-
+    
 override fun onOptionsItemSelected(
     item: MenuItem
 ): Boolean {
@@ -23182,6 +24260,18 @@ override fun onOptionsItemSelected(
 
         menuAddToHomeScreenId -> {
             addCurrentPageToHomeScreen()
+            true
+        }
+        
+        menuScanChannelCandidatesId -> {
+
+            scanChannelCandidatesOnly()
+            true
+        }
+
+        menuAutoScanChannelsId -> {
+
+            startAutoScanChannels()
             true
         }
 
@@ -23253,13 +24343,7 @@ override fun onOptionsItemSelected(
         menuClearBrowserDataId -> {
             clearBrowserData()
             true
-        }
-        
-        menuScanChannelCandidatesId -> {
-
-    scanChannelCandidatesOnly()
-    true
-}
+        }       
 
         R.id.action_settings ->
             true
