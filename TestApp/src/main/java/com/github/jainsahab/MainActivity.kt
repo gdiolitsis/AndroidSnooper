@@ -16248,13 +16248,16 @@ val streamPriority =
     }
 
 // =====================================
-// LOW PRIORITY FILTER
-// Do NOT cut playable audio/video/live streams
+// LOW PRIORITY FILTER — CLEAN MODE
+// Do not cut accepted clean media types
 // =====================================
 
 if (
     streamPriority < 20 &&
-    !isPlayableMediaCandidate
+    !isPlaylist &&
+    !isM3uList &&
+    !isTsFallback &&
+    !isDirectMedia
 ) {
     return
 }
