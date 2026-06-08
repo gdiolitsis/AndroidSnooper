@@ -6498,47 +6498,70 @@ private fun scanChannelCandidatesOnly() {
                 ) {
                     return false;
                 }
+                
+// =====================================
+// HARD REJECT — COUNTRY / PAGINATION
+// =====================================
+
+if (
+    href.indexOf("/country/") >= 0 ||
+    href.indexOf("/countries/") >= 0 ||
+    href.indexOf("?page=") >= 0 ||
+    href.indexOf("&page=") >= 0 ||
+    href.indexOf("per-page=") >= 0 ||
+    combined.indexOf("last") >= 0 ||
+    combined.indexOf("next") >= 0 ||
+    combined.indexOf("previous") >= 0
+) {
+    return false;
+}
 
                 if (
-                    combined.indexOf("channel") >= 0 ||
-                    combined.indexOf("live") >= 0 ||
-                    combined.indexOf("tv") >= 0 ||
-                    combined.indexOf("stream") >= 0 ||
-                    combined.indexOf("player") >= 0 ||
-                    combined.indexOf("watch") >= 0 ||
-                    combined.indexOf("play") >= 0 ||
-                    combined.indexOf("card") >= 0 ||
-                    combined.indexOf("station") >= 0 ||
-                    combined.indexOf("canal") >= 0 ||
-                    combined.indexOf("kanal") >= 0
-                ) {
-                    return true;
-                }
+    href &&
+    href !== "#" &&
+    href.indexOf("/channel/") >= 0 &&
+    text.length >= 2 &&
+    text.length <= 160
+) {
+    return true;
+}
 
-                if (
-                    href &&
-                    href !== "#" &&
-                    text.length >= 2 &&
-                    text.length <= 80
-                ) {
-                    return true;
-                }
+if (
+    href &&
+    href !== "#" &&
+    href.indexOf("/channel/") >= 0 &&
+    (
+        combined.indexOf("channel") >= 0 ||
+        combined.indexOf("live") >= 0 ||
+        combined.indexOf("tv") >= 0 ||
+        combined.indexOf("stream") >= 0 ||
+        combined.indexOf("player") >= 0 ||
+        combined.indexOf("watch") >= 0 ||
+        combined.indexOf("play") >= 0 ||
+        combined.indexOf("station") >= 0 ||
+        combined.indexOf("canal") >= 0 ||
+        combined.indexOf("kanal") >= 0
+    )
+) {
+    return true;
+}
 
                 if (
                     role === "button" &&
                     text.length >= 2 &&
-                    text.length <= 80
+                    text.length <= 120
                 ) {
                     return true;
                 }
 
                 if (
-                    el.onclick &&
-                    text.length >= 2 &&
-                    text.length <= 80
-                ) {
-                    return true;
-                }
+    !href &&
+    el.onclick &&
+    text.length >= 2 &&
+    text.length <= 120
+) {
+    return true;
+}
 
                 return false;
 
@@ -6925,31 +6948,53 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
+                
+// =====================================
+// HARD REJECT — COUNTRY / PAGINATION
+// =====================================
+
+if (
+    href.indexOf("/country/") >= 0 ||
+    href.indexOf("/countries/") >= 0 ||
+    href.indexOf("?page=") >= 0 ||
+    href.indexOf("&page=") >= 0 ||
+    href.indexOf("per-page=") >= 0 ||
+    combined.indexOf("last") >= 0 ||
+    combined.indexOf("next") >= 0 ||
+    combined.indexOf("previous") >= 0
+) {
+    return false;
+}
 
                 if (
-                    combined.indexOf("channel") >= 0 ||
-                    combined.indexOf("live") >= 0 ||
-                    combined.indexOf("tv") >= 0 ||
-                    combined.indexOf("stream") >= 0 ||
-                    combined.indexOf("player") >= 0 ||
-                    combined.indexOf("watch") >= 0 ||
-                    combined.indexOf("play") >= 0 ||
-                    combined.indexOf("card") >= 0 ||
-                    combined.indexOf("station") >= 0 ||
-                    combined.indexOf("canal") >= 0 ||
-                    combined.indexOf("kanal") >= 0
-                ) {
-                    return true;
-                }
+    href &&
+    href !== "#" &&
+    href.indexOf("/channel/") >= 0 &&
+    text.length >= 2 &&
+    text.length <= 160
+) {
+    return true;
+}
 
-                if (
-                    href &&
-                    href !== "#" &&
-                    text.length >= 2 &&
-                    text.length <= 120
-                ) {
-                    return true;
-                }
+if (
+    href &&
+    href !== "#" &&
+    href.indexOf("/channel/") >= 0 &&
+    (
+        combined.indexOf("channel") >= 0 ||
+        combined.indexOf("live") >= 0 ||
+        combined.indexOf("tv") >= 0 ||
+        combined.indexOf("stream") >= 0 ||
+        combined.indexOf("player") >= 0 ||
+        combined.indexOf("watch") >= 0 ||
+        combined.indexOf("play") >= 0 ||
+        combined.indexOf("station") >= 0 ||
+        combined.indexOf("canal") >= 0 ||
+        combined.indexOf("kanal") >= 0
+    )
+) {
+    return true;
+}
 
                 if (
                     role === "button" &&
