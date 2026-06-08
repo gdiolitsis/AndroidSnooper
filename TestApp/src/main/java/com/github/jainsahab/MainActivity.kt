@@ -136,6 +136,9 @@ private val menuAddToHomeScreenId =
 
 private val menuOpenPlayerId =
     91021
+    
+private val menuScanChannelCandidatesId =
+    91022
 
 private val desktopUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
@@ -224,6 +227,28 @@ private var webUserInteracting =
     false
     
 // =====================================
+// CLEAN STREAM FILTER STATE
+// .ts appears only when no playlist exists
+// =====================================
+
+private var pagePlaylistFound =
+    false
+
+private val pendingTsFallback =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
+
+// =====================================
+// CLOUDFLARE / HUMAN VERIFY GUARD
+// Pauses heavy scanners during browser verification
+// =====================================
+
+private var cloudflareChallengeActive =
+    false
+
+private var lastCloudflareChallengeTime =
+    0L
+    
+// =====================================
 // CLEAR WEB INTERACTION FLAG
 // =====================================
 
@@ -261,11 +286,19 @@ private val streamHeaders =
         String,
         MutableMap<String, String>
     >()
+    
+// =====================================
+// DETECTED M3U LISTS
+// Country/channel list files, not HLS streams
+// =====================================
+
+private val detectedM3uLists =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
   
 private var lastSelectedUrl =
     ""
     
-    private val hlsVerdicts =
+private val hlsVerdicts =
     mutableMapOf<String, String>()
     
 // =====================================
@@ -2861,31 +2894,73 @@ override fun onPageFinished(
                 .replace("\\n", "\n")
                 .replace("\\\"", "\"")
 
-                        val isBlockedPage =
-                            cleanResult.contains(
-                                "BLANK / BLOCKED / PROTECTED PAGE",
-                                true
-                            ) ||
-                            cleanResult.contains(
-                                "PROTECTED / DRM / GEO",
-                                true
-                            )
+val isCloudflarePage =
+    isCloudflareLikePage(
+        url,
+        cleanResult
+    )
 
-                        if (isBlockedPage) {
+if (isCloudflarePage) {
 
-                            val retried =
-                                retryWithRefererOnce(
-                                    url
-                                )
+    setCloudflareChallengeMode(
+        true
+    )
 
-                            if (!retried) {
+    Log.e(
+        "CLOUDFLARE_GUARD",
+        "Challenge detected -> scanner paused"
+    )
 
-                                showProtectedPageFallback(
-                                    url,
-                                    cleanResult
-                                )
-                            }
-                        }
+    return@evaluateJavascript
+}
+
+val isBlockedPage =
+    cleanResult.contains(
+        "BLANK / BLOCKED / PROTECTED PAGE",
+        true
+    ) ||
+        cleanResult.contains(
+            "PROTECTED / DRM / GEO",
+            true
+        )
+
+if (isBlockedPage) {
+
+    val alreadyDetectedPlayable =
+        detectedStreams.isNotEmpty() ||
+            detectedVideos.isNotEmpty() ||
+            detectedAudio.isNotEmpty() ||
+            detectedMasterStreams.isNotEmpty() ||
+            streamInfoSnapshots.isNotEmpty() ||
+            bestStreamUrl.isNotBlank() ||
+            bestLiveUrl.isNotBlank() ||
+            youtubeWatchUrl.isNotBlank() ||
+            youtubeDashVideoUrl.isNotBlank() ||
+            youtubeDashAudioUrl.isNotBlank()
+
+    if (alreadyDetectedPlayable) {
+
+        Log.e(
+            "PROTECTED_SKIPPED",
+            "Streams already detected, fallback suppressed"
+        )
+
+        return@evaluateJavascript
+    }
+
+    val retried =
+        retryWithRefererOnce(
+            url
+        )
+
+    if (!retried) {
+
+        showProtectedPageFallback(
+            url,
+            cleanResult
+        )
+    }
+}
 
                     } catch (_: Throwable) {}
                 }
@@ -2917,12 +2992,15 @@ override fun onPageFinished(
             // DEEP MEDIA SCAN
             // =====================================
 
-            if (!webUserInteracting) {
+           if (
+    !webUserInteracting &&
+    !cloudflareChallengeActive
+) {
 
-                                runDeepMediaScan(
-                                    view
-                                )
-                            }
+    runDeepMediaScan(
+        view
+    )
+}
 
             // =====================================
             // DELAYED RESCAN 1
@@ -2941,12 +3019,15 @@ override fun onPageFinished(
                             lastDeepScanTime =
                                 0L
 
-                            if (!webUserInteracting) {
+                            if (
+    !webUserInteracting &&
+    !cloudflareChallengeActive
+) {
 
-                                runDeepMediaScan(
-                                    view
-                                )
-                            }
+    runDeepMediaScan(
+        view
+    )
+}
                         }
 
                     } catch (_: Throwable) {}
@@ -2968,12 +3049,15 @@ override fun onPageFinished(
                             !isDestroyed
                         ) {
 
-                            if (!webUserInteracting) {
+                            if (
+    !webUserInteracting &&
+    !cloudflareChallengeActive
+) {
 
-                                runDeepMediaScan(
-                                    view
-                                )
-                            }
+    runDeepMediaScan(
+        view
+    )
+}
                         }
 
                     } catch (_: Throwable) {}
@@ -3387,12 +3471,15 @@ binding.contentMain.webview.webChromeClient =
                                 url
                             )
 
-                            if (!webUserInteracting) {
+                            if (
+    !webUserInteracting &&
+    !cloudflareChallengeActive
+) {
 
-                                runDeepMediaScan(
-                                    view
-                                )
-                            }
+    runDeepMediaScan(
+        view
+    )
+}
                         }
 
                     } catch (_: Throwable) {}
@@ -3525,6 +3612,18 @@ detectedImages.clear()
 detectedAudio.clear()
 detectedMasterStreams.clear()
 detectedChannels.clear()
+detectedM3uLists.clear()
+
+pagePlaylistFound =
+    false
+
+pendingTsFallback.clear()
+
+cloudflareChallengeActive =
+    false
+
+lastCloudflareChallengeTime =
+    0L
 
 streamScores.clear()
 streamValidation.clear()
@@ -6172,6 +6271,910 @@ true
 } // END onCreate()
 
 // =====================================
+// SCAN CHANNEL CANDIDATES ONLY
+// Safe mode: does NOT click anything
+// =====================================
+
+private fun scanChannelCandidatesOnly() {
+
+    try {
+
+        if (cloudflareChallengeActive) {
+
+            Toast.makeText(
+                this,
+                "Wait for page verification first",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        activeWebView.evaluateJavascript(
+            """
+
+(function() {
+
+    try {
+
+        var badWords =
+            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|menu|home|contact|terms|policy|advert|ads|close|next|prev|previous/i;
+
+        var candidates =
+            [];
+
+        var seen =
+            {};
+
+        function cleanText(value) {
+
+            try {
+
+                return String(value || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function isVisible(el) {
+
+            try {
+
+                if (!el) {
+                    return false;
+                }
+
+                var style =
+                    window.getComputedStyle(el);
+
+                if (
+                    style.display === "none" ||
+                    style.visibility === "hidden" ||
+                    style.opacity === "0"
+                ) {
+                    return false;
+                }
+
+                var rect =
+                    el.getBoundingClientRect();
+
+                if (
+                    rect.width < 20 ||
+                    rect.height < 12
+                ) {
+                    return false;
+                }
+
+                return true;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        function getText(el) {
+
+            try {
+
+                var text =
+                    "";
+
+                text += " " + (el.innerText || "");
+                text += " " + (el.textContent || "");
+                text += " " + (el.getAttribute("title") || "");
+                text += " " + (el.getAttribute("aria-label") || "");
+                text += " " + (el.getAttribute("data-title") || "");
+                text += " " + (el.getAttribute("data-name") || "");
+                text += " " + (el.getAttribute("alt") || "");
+
+                return cleanText(text);
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function getHref(el) {
+
+            try {
+
+                if (el.href) {
+                    return String(el.href || "").trim();
+                }
+
+                var a =
+                    el.closest("a[href]");
+
+                if (a && a.href) {
+                    return String(a.href || "").trim();
+                }
+
+                var dataUrl =
+                    el.getAttribute("data-url") ||
+                    el.getAttribute("data-href") ||
+                    el.getAttribute("data-src") ||
+                    el.getAttribute("data-stream") ||
+                    "";
+
+                return String(dataUrl || "").trim();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function looksLikeChannel(el, text, href) {
+
+            try {
+
+                var cls =
+                    String(el.className || "").toLowerCase();
+
+                var id =
+                    String(el.id || "").toLowerCase();
+
+                var role =
+                    String(el.getAttribute("role") || "").toLowerCase();
+
+                var combined =
+                    (text + " " + href + " " + cls + " " + id + " " + role)
+                        .toLowerCase();
+
+                if (badWords.test(combined)) {
+                    return false;
+                }
+
+                if (
+                    href.indexOf("facebook.com") >= 0 ||
+                    href.indexOf("twitter.com") >= 0 ||
+                    href.indexOf("instagram.com") >= 0 ||
+                    href.indexOf("wa.me") >= 0 ||
+                    href.indexOf("mailto:") >= 0 ||
+                    href.indexOf("tel:") >= 0
+                ) {
+                    return false;
+                }
+
+                if (
+                    combined.indexOf("channel") >= 0 ||
+                    combined.indexOf("live") >= 0 ||
+                    combined.indexOf("tv") >= 0 ||
+                    combined.indexOf("stream") >= 0 ||
+                    combined.indexOf("player") >= 0 ||
+                    combined.indexOf("watch") >= 0 ||
+                    combined.indexOf("play") >= 0 ||
+                    combined.indexOf("card") >= 0 ||
+                    combined.indexOf("station") >= 0 ||
+                    combined.indexOf("canal") >= 0 ||
+                    combined.indexOf("kanal") >= 0
+                ) {
+                    return true;
+                }
+
+                if (
+                    href &&
+                    href !== "#" &&
+                    text.length >= 2 &&
+                    text.length <= 80
+                ) {
+                    return true;
+                }
+
+                if (
+                    role === "button" &&
+                    text.length >= 2 &&
+                    text.length <= 80
+                ) {
+                    return true;
+                }
+
+                if (
+                    el.onclick &&
+                    text.length >= 2 &&
+                    text.length <= 80
+                ) {
+                    return true;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        var nodes =
+            Array.prototype.slice.call(
+                document.querySelectorAll(
+                    [
+                        "a[href]",
+                        "button",
+                        "[role='button']",
+                        "[onclick]",
+                        "[data-url]",
+                        "[data-href]",
+                        "[data-stream]",
+                        ".channel",
+                        ".tv-channel",
+                        ".station",
+                        ".card",
+                        ".item",
+                        "li"
+                    ].join(",")
+                )
+            );
+
+        nodes.forEach(function(el) {
+
+            try {
+
+                if (!isVisible(el)) {
+                    return;
+                }
+
+                var text =
+                    getText(el);
+
+                var href =
+                    getHref(el);
+
+                if (
+                    text.length < 2 &&
+                    href.length < 5
+                ) {
+                    return;
+                }
+
+                if (!looksLikeChannel(el, text, href)) {
+                    return;
+                }
+
+                var key =
+                    (text + "|" + href)
+                        .toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                candidates.push({
+                    title: text.substring(0, 120),
+                    href: href.substring(0, 300)
+                });
+
+            } catch(e) {}
+        });
+
+        return JSON.stringify(
+            candidates.slice(0, 150)
+        );
+
+    } catch(e) {
+
+        return JSON.stringify([
+            {
+                title: "SCAN ERROR: " + e,
+                href: ""
+            }
+        ]);
+    }
+
+})();
+            """.trimIndent()
+        ) { jsResult ->
+
+            try {
+
+                val cleaned =
+                    jsResult
+                        .removePrefix("\"")
+                        .removeSuffix("\"")
+                        .replace("\\\\", "\\")
+                        .replace("\\\"", "\"")
+                        .replace("\\n", "\n")
+                        .trim()
+
+                val array =
+                    org.json.JSONArray(
+                        cleaned
+                    )
+
+                val builder =
+                    StringBuilder()
+
+                builder.append(
+                    "\nCHANNEL CANDIDATES FOUND:\n"
+                )
+
+                builder.append(
+                    array.length()
+                )
+
+                builder.append(
+                    "\n\n"
+                )
+
+                for (i in 0 until array.length()) {
+
+                    val obj =
+                        array.optJSONObject(i)
+                            ?: continue
+
+                    val title =
+                        obj.optString(
+                            "title",
+                            ""
+                        ).trim()
+
+                    val href =
+                        obj.optString(
+                            "href",
+                            ""
+                        ).trim()
+
+                    builder.append(
+                        i + 1
+                    )
+
+                    builder.append(
+                        ". "
+                    )
+
+                    builder.append(
+                        title.ifBlank {
+                            "NO TITLE"
+                        }
+                    )
+
+                    if (href.isNotBlank()) {
+
+                        builder.append(
+                            "\n"
+                        )
+
+                        builder.append(
+                            href
+                        )
+                    }
+
+                    builder.append(
+                        "\n\n"
+                    )
+                }
+
+                builder.append(
+                    "────────────────────\n"
+                )
+
+                binding.contentMain.result.append(
+                    builder.toString()
+                )
+
+                Toast.makeText(
+                    this,
+                    "Candidates: ${array.length()}",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "CHANNEL_CANDIDATE_SCAN",
+                    "parse failed",
+                    t
+                )
+
+                Toast.makeText(
+                    this,
+                    "Candidate scan failed",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "CHANNEL_CANDIDATE_SCAN",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Candidate scan failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// M3U LIST DETECTION
+// Detect country/channel playlist files
+// Not HLS .m3u8 streams
+// =====================================
+
+private fun isM3uListUrl(
+    url: String
+): Boolean {
+
+    val clean =
+        cleanDetectedUrl(
+            url
+        )
+            .substringBefore("?")
+            .substringBefore("#")
+            .lowercase()
+
+    return (
+        clean.endsWith(".m3u") &&
+            !clean.endsWith(".m3u8")
+    )
+}
+
+// =====================================
+// BUILD SAFE M3U FILE NAME
+// Example:
+// https://site.com/GREECE.m3u
+// -> GEL_DETECTED_GREECE.m3u
+// =====================================
+
+private fun buildDetectedM3uFileName(
+    m3uUrl: String
+): String {
+
+    return try {
+
+        val uri =
+            Uri.parse(
+                m3uUrl
+            )
+
+        val lastSegment =
+            uri.lastPathSegment
+                ?.substringBefore("?")
+                ?.substringBefore("#")
+                ?.removeSuffix(".m3u")
+                ?.trim()
+                .orEmpty()
+
+        val hostFallback =
+            uri.host
+                ?.replace(".", "_")
+                ?.trim()
+                .orEmpty()
+
+        val base =
+            when {
+
+                lastSegment.isNotBlank() ->
+                    lastSegment
+
+                hostFallback.isNotBlank() ->
+                    hostFallback
+
+                else ->
+                    "M3U_LIST"
+            }
+
+        val cleanBase =
+            base
+                .uppercase()
+                .replace(
+                    Regex("[^A-Z0-9_ -]"),
+                    "_"
+                )
+                .replace(
+                    Regex("\\s+"),
+                    "_"
+                )
+                .replace(
+                    Regex("_+"),
+                    "_"
+                )
+                .trim('_')
+                .ifBlank {
+                    "M3U_LIST"
+                }
+
+        "GEL_DETECTED_${cleanBase}.m3u"
+
+    } catch (_: Throwable) {
+
+        "GEL_DETECTED_M3U_LIST.m3u"
+    }
+}
+
+// =====================================
+// SAVE TEXT FILE TO DOWNLOADS
+// Android 10+ uses MediaStore
+// Older Android uses public Downloads folder
+// =====================================
+
+private fun saveM3uTextToDownloads(
+    fileName: String,
+    content: String
+): String {
+
+    return try {
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.Q
+        ) {
+
+            val values =
+                android.content.ContentValues().apply {
+
+                    put(
+                        android.provider.MediaStore.Downloads.DISPLAY_NAME,
+                        fileName
+                    )
+
+                    put(
+                        android.provider.MediaStore.Downloads.MIME_TYPE,
+                        "audio/x-mpegurl"
+                    )
+
+                    put(
+                        android.provider.MediaStore.Downloads.RELATIVE_PATH,
+                        "Download/GEL_DETECTED_M3U"
+                    )
+
+                    put(
+                        android.provider.MediaStore.Downloads.IS_PENDING,
+                        1
+                    )
+                }
+
+            val resolver =
+                contentResolver
+
+            val uri =
+                resolver.insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    values
+                ) ?: return ""
+
+            resolver.openOutputStream(
+                uri
+            )?.use { output ->
+
+                output.write(
+                    content.toByteArray(
+                        Charsets.UTF_8
+                    )
+                )
+
+                output.flush()
+            }
+
+            values.clear()
+
+            values.put(
+                android.provider.MediaStore.Downloads.IS_PENDING,
+                0
+            )
+
+            resolver.update(
+                uri,
+                values,
+                null,
+                null
+            )
+
+            "Downloads/GEL_DETECTED_M3U/$fileName"
+
+        } else {
+
+            val dir =
+                java.io.File(
+                    android.os.Environment
+                        .getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_DOWNLOADS
+                        ),
+                    "GEL_DETECTED_M3U"
+                )
+
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+
+            val file =
+                java.io.File(
+                    dir,
+                    fileName
+                )
+
+            file.writeText(
+                content,
+                Charsets.UTF_8
+            )
+
+            file.absolutePath
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "M3U_SAVE",
+            "save failed",
+            t
+        )
+
+        ""
+    }
+}
+
+// =====================================
+// DOWNLOAD + SAVE DETECTED M3U LIST
+// =====================================
+
+private fun downloadAndSaveDetectedM3uList(
+    m3uUrl: String
+) {
+
+    try {
+
+        val cleanUrl =
+            cleanDetectedUrl(
+                m3uUrl
+            )
+
+        if (
+            cleanUrl.isBlank() ||
+            !isM3uListUrl(
+                cleanUrl
+            )
+        ) {
+            return
+        }
+
+        if (
+            detectedM3uLists.contains(
+                cleanUrl
+            )
+        ) {
+            return
+        }
+
+        detectedM3uLists.add(
+            cleanUrl
+        )
+
+        runOnUiThread {
+
+            try {
+
+                binding.contentMain.result.append(
+                    """
+
+M3U LIST FOUND:
+$cleanUrl
+
+Downloading...
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+            } catch (_: Throwable) {}
+        }
+
+        val request =
+            Request.Builder()
+                .url(
+                    cleanUrl
+                )
+                .header(
+                    "User-Agent",
+                    binding.contentMain.webview.settings.userAgentString
+                        ?: desktopUserAgent
+                )
+                .header(
+                    "Accept",
+                    "*/*"
+                )
+                .header(
+                    "Referer",
+                    binding.contentMain.webview.url
+                        ?: cleanUrl
+                )
+                .build()
+
+        OkHttpClient()
+            .newCall(
+                request
+            )
+            .enqueue(
+                object : Callback {
+
+                    override fun onFailure(
+                        call: Call,
+                        e: IOException
+                    ) {
+
+                        Log.e(
+                            "M3U_DOWNLOAD",
+                            "failed: $cleanUrl",
+                            e
+                        )
+
+                        runOnUiThread {
+
+                            try {
+
+                                binding.contentMain.result.append(
+                                    """
+
+M3U DOWNLOAD FAILED:
+$cleanUrl
+
+${e.message ?: "Unknown error"}
+
+────────────────────
+
+                                    """.trimIndent()
+                                )
+
+                            } catch (_: Throwable) {}
+                        }
+                    }
+
+                    override fun onResponse(
+                        call: Call,
+                        response: Response
+                    ) {
+
+                        try {
+
+                            val body =
+                                response.body
+                                    ?.string()
+                                    .orEmpty()
+
+                            if (
+                                !response.isSuccessful ||
+                                body.isBlank()
+                            ) {
+
+                                runOnUiThread {
+
+                                    binding.contentMain.result.append(
+                                        """
+
+M3U DOWNLOAD FAILED:
+$cleanUrl
+
+HTTP:
+${response.code}
+
+────────────────────
+
+                                        """.trimIndent()
+                                    )
+                                }
+
+                                return
+                            }
+
+                            val looksLikeM3u =
+                                body.contains(
+                                    "#EXTM3U",
+                                    true
+                                ) ||
+                                    body.contains(
+                                        "#EXTINF",
+                                        true
+                                    )
+
+                            if (!looksLikeM3u) {
+
+                                runOnUiThread {
+
+                                    binding.contentMain.result.append(
+                                        """
+
+M3U REJECTED:
+$cleanUrl
+
+Reason:
+Downloaded file is not valid M3U.
+
+────────────────────
+
+                                        """.trimIndent()
+                                    )
+                                }
+
+                                return
+                            }
+
+                            val fileName =
+                                buildDetectedM3uFileName(
+                                    cleanUrl
+                                )
+
+                            val savedPath =
+                                saveM3uTextToDownloads(
+                                    fileName,
+                                    body
+                                )
+
+                            runOnUiThread {
+
+                                try {
+
+                                    binding.contentMain.result.append(
+                                        """
+
+M3U LIST SAVED:
+$fileName
+
+SOURCE:
+$cleanUrl
+
+PATH:
+$savedPath
+
+────────────────────
+
+                                        """.trimIndent()
+                                    )
+
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "M3U saved: $fileName",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+
+                                } catch (_: Throwable) {}
+                            }
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "M3U_DOWNLOAD",
+                                "response failed",
+                                t
+                            )
+                        } finally {
+
+                            try {
+                                response.close()
+                            } catch (_: Throwable) {}
+                        }
+                    }
+                }
+            )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "M3U_DOWNLOAD",
+            "start failed",
+            t
+        )
+    }
+}
+
+// =====================================
 // CLOSE POPUP WEBVIEW
 // =====================================
 
@@ -6334,6 +7337,33 @@ private fun showProtectedPageFallback(
             return
         }
 
+        // =====================================
+        // DO NOT SHOW BLOCKED WARNING
+        // IF STREAMS WERE ALREADY DETECTED
+        // =====================================
+
+        val alreadyDetectedPlayable =
+            detectedStreams.isNotEmpty() ||
+                detectedVideos.isNotEmpty() ||
+                detectedAudio.isNotEmpty() ||
+                detectedMasterStreams.isNotEmpty() ||
+                streamInfoSnapshots.isNotEmpty() ||
+                bestStreamUrl.isNotBlank() ||
+                bestLiveUrl.isNotBlank() ||
+                youtubeWatchUrl.isNotBlank() ||
+                youtubeDashVideoUrl.isNotBlank() ||
+                youtubeDashAudioUrl.isNotBlank()
+
+        if (alreadyDetectedPlayable) {
+
+            Log.e(
+                "PROTECTED_SKIPPED",
+                "Streams already detected, fallback suppressed"
+            )
+
+            return
+        }
+
         if (protectedFallbackShown) {
             return
         }
@@ -6351,7 +7381,7 @@ The page loaded, but returned no readable media DOM.
 This source may block Android WebView, require protected playback, geo/session access, browser verification, or external browser cookies.
 
 ACTION:
-Open With Browser.
+Open With Browser..
 
 ────────────────────
 
@@ -6818,6 +7848,302 @@ private fun enablePageTextSelection(
 }
 
 // =====================================
+// CLEAN URL NORMALIZER
+// =====================================
+
+private fun cleanDetectedUrl(
+    rawUrl: String
+): String {
+
+    return rawUrl
+        .replace("\\u0026", "&")
+        .replace("\\u003d", "=")
+        .replace("\\u003f", "?")
+        .replace("\\u002f", "/")
+        .replace("\\/", "/")
+        .replace("&amp;", "&")
+        .trim()
+}
+
+// =====================================
+// PLAYLIST DETECTION
+// =====================================
+
+private fun isPlaylistUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.contains(".m3u8") ||
+            lower.contains(".mpd") ||
+            lower.contains("master.m3u8") ||
+            lower.contains("playlist.m3u8") ||
+            lower.contains("index.m3u8") ||
+            lower.contains("live.m3u8") ||
+            lower.contains("manifest/hls") ||
+            lower.contains("hls_playlist") ||
+            lower.contains("hlsmanifesturl") ||
+            lower.contains("application/vnd.apple.mpegurl") ||
+            lower.contains("application/x-mpegurl")
+        )
+}
+
+// =====================================
+// TS FALLBACK DETECTION
+// Allowed only if no playlist was found
+// =====================================
+
+private fun isTsFallbackUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.endsWith(".ts") ||
+            lower.contains(".ts?")
+        )
+}
+
+// =====================================
+// HARD NOISE FILTER
+// Never useful as final stream
+// =====================================
+
+private fun isHardNoiseUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.endsWith(".gif") ||
+            lower.contains(".gif?") ||
+            lower.endsWith(".png") ||
+            lower.contains(".png?") ||
+            lower.endsWith(".jpg") ||
+            lower.contains(".jpg?") ||
+            lower.endsWith(".jpeg") ||
+            lower.contains(".jpeg?") ||
+            lower.endsWith(".webp") ||
+            lower.contains(".webp?") ||
+            lower.endsWith(".svg") ||
+            lower.contains(".svg?") ||
+            lower.endsWith(".ico") ||
+            lower.contains(".ico?") ||
+            lower.endsWith(".css") ||
+            lower.contains(".css?") ||
+            lower.endsWith(".js") ||
+            lower.contains(".js?") ||
+            lower.endsWith(".vtt") ||
+            lower.contains(".vtt?") ||
+            lower.endsWith(".m4s") ||
+            lower.contains(".m4s?") ||
+            lower.contains("doubleclick") ||
+            lower.contains("googleads") ||
+            lower.contains("googletag") ||
+            lower.contains("analytics") ||
+            lower.contains("/stats/") ||
+            lower.contains("ptracking") ||
+            lower.contains("api/stats") ||
+            lower.contains("playback/stats") ||
+            lower.contains("generate_204") ||
+            lower.contains("pagead") ||
+            lower.contains("collect?") ||
+            lower.contains("favicon") ||
+            lower.contains("/logo") ||
+            lower.contains("banner") ||
+            lower.contains("pixel") ||
+            lower.contains("recaptcha")
+        )
+}
+
+// =====================================
+// EXPORTABLE NON-PLAYLIST MEDIA
+// Keep only real media, not fragments
+// =====================================
+
+private fun isDirectMediaUrl(
+    url: String
+): Boolean {
+
+    val lower =
+        url.lowercase()
+
+    return (
+        lower.contains(".mp4") ||
+            lower.contains(".webm") ||
+            lower.contains(".mkv") ||
+            lower.contains(".mov") ||
+            lower.contains(".avi") ||
+            lower.contains(".3gp") ||
+            lower.contains(".mp3") ||
+            lower.contains(".m4a") ||
+            lower.contains(".aac") ||
+            lower.contains(".opus") ||
+            lower.contains(".wav") ||
+            lower.contains(".ogg") ||
+            lower.contains(".flac") ||
+            lower.contains("youtube.com/watch") ||
+            lower.contains("youtu.be/") ||
+            (
+                lower.contains("googlevideo.com") &&
+                    lower.contains("videoplayback")
+            )
+        )
+}
+
+// =====================================
+// FINAL NETWORK CANDIDATE FILTER
+// =====================================
+
+private fun shouldAcceptDetectedNetworkUrl(
+    rawUrl: String
+): Boolean {
+
+    val cleanUrl =
+        cleanDetectedUrl(
+            rawUrl
+        )
+
+    if (cleanUrl.isBlank()) {
+        return false
+    }
+
+    if (
+        !cleanUrl.startsWith("http://", true) &&
+        !cleanUrl.startsWith("https://", true)
+    ) {
+        return false
+    }
+
+    if (isHardNoiseUrl(cleanUrl)) {
+        return false
+    }
+    
+    if (
+    isM3uListUrl(
+        cleanUrl
+    )
+) {
+    return true
+}
+
+    if (isPlaylistUrl(cleanUrl)) {
+        return true
+    }
+
+    if (isTsFallbackUrl(cleanUrl)) {
+
+        // .ts is useful only before playlist discovery.
+        return !pagePlaylistFound
+    }
+
+    if (isDirectMediaUrl(cleanUrl)) {
+        return true
+    }
+
+    return false
+}
+
+// =====================================
+// CLEAR TS FALLBACK WHEN PLAYLIST EXISTS
+// =====================================
+
+private fun clearTsFallbackBecausePlaylistFound() {
+
+    try {
+
+        if (pendingTsFallback.isEmpty()) {
+            return
+        }
+
+        pendingTsFallback.forEach { tsUrl ->
+
+            detectedStreams.remove(tsUrl)
+            detectedVideos.remove(tsUrl)
+            streamScores.remove(tsUrl)
+            streamValidation.remove(tsUrl)
+            streamSources.remove(tsUrl)
+            streamHeaders.remove(tsUrl)
+            streamTokens.remove(tsUrl)
+            streamInfoSnapshots.remove(tsUrl)
+        }
+
+        pendingTsFallback.clear()
+
+    } catch (_: Throwable) {}
+}
+
+// =====================================
+// CLOUDFLARE / VERIFY PAGE DETECTOR
+// =====================================
+
+private fun isCloudflareLikePage(
+    url: String?,
+    diagnosticText: String = ""
+): Boolean {
+
+    val combined =
+        (
+            url.orEmpty() +
+                " " +
+                diagnosticText
+            ).lowercase()
+
+    return (
+        combined.contains("cloudflare") ||
+            combined.contains("cf-chl") ||
+            combined.contains("cf_clearance") ||
+            combined.contains("checking your browser") ||
+            combined.contains("verify you are human") ||
+            combined.contains("verification") ||
+            combined.contains("just a moment") ||
+            combined.contains("challenge-platform") ||
+            combined.contains("turnstile")
+        )
+}
+
+private fun setCloudflareChallengeMode(
+    active: Boolean
+) {
+
+    cloudflareChallengeActive =
+        active
+
+    if (active) {
+
+        lastCloudflareChallengeTime =
+            System.currentTimeMillis()
+
+        webUserInteracting =
+            true
+
+        binding.contentMain.webview.removeCallbacks(
+            clearWebInteractionRunnable
+        )
+
+        binding.contentMain.webview.postDelayed(
+            {
+
+                cloudflareChallengeActive =
+                    false
+
+                webUserInteracting =
+                    false
+
+            },
+            12000
+        )
+    }
+}
+
+// =====================================
 // HANDLE INTERCEPTED MEDIA URL
 // =====================================
 
@@ -6904,68 +8230,59 @@ if (
     )
 }
 
-        // =====================================
-        // NETWORK MEDIA DETECTION
-        // =====================================
+// =====================================
+// NETWORK MEDIA DETECTION — CLEAN MODE
+// .m3u8 / .mpd first, .ts only fallback
+// =====================================
 
-        if (
-            lower.contains(".m3u8") ||
-            lower.contains(".mpd") ||
-            lower.contains(".ts") ||
-            lower.contains(".m4s") ||
-            lower.contains(".mp4") ||
+if (
+    shouldAcceptDetectedNetworkUrl(
+        url
+    )
+) {
+
+    Log.e(
+        "NETWORK_MEDIA_CLEAN",
+        url
+    )
+
+    markStreamSource(
+        url,
+        "INTERCEPT"
+    )
+
+    detectAndSaveUrl(
+        url
+    )
+}
+
+// =====================================
+// API / PLAYER / JSON DETECTION — CLEAN MODE
+// Do not save assets / ads / stats / images
+// =====================================
+
+if (
+    !isHardNoiseUrl(url) &&
+    (
+        lower.contains("playlist") ||
             lower.contains("manifest") ||
-            lower.contains("playlist") ||
-            lower.contains("chunklist") ||
-            lower.contains("live") ||
-            lower.contains("dash") ||
             lower.contains("hls") ||
+            lower.contains("dash") ||
+            lower.contains("m3u8") ||
+            lower.contains("mpd") ||
             lower.contains("videoplayback")
-        ) {
+    )
+) {
 
-            Log.e(
-                "NETWORK_MEDIA",
-                url
-            )
+    Log.e(
+        "API_MEDIA_HINT_CLEAN",
+        url
+    )
 
-            markStreamSource(
-                url,
-                "INTERCEPT"
-            )
-
-            detectAndSaveUrl(
-                url
-            )
-        }
-
-        // =====================================
-        // API / PLAYER / JSON DETECTION
-        // =====================================
-
-        if (
-            lower.contains("api") ||
-            lower.contains("player") ||
-            lower.contains("media") ||
-            lower.contains("stream") ||
-            lower.contains("video") ||
-            lower.contains("playback") ||
-            lower.contains("config") ||
-            lower.contains("playlist") ||
-            lower.contains("manifest") ||
-            lower.contains("token") ||
-            lower.contains("license") ||
-            lower.contains("session")
-        ) {
-
-            Log.e(
-                "API_MEDIA_HINT",
-                url
-            )
-
-            detectAndSaveUrl(
-                url
-            )
-        }
+    detectAndSaveUrl(
+        url
+    )
+}
 
         // =====================================
         // YOUTUBE LIVE DETECTOR
@@ -7153,6 +8470,31 @@ private fun runDeepMediaScan(
         if (view == null) {
             return
         }
+        
+        if (cloudflareChallengeActive) {
+    return
+}
+
+try {
+
+    val currentUrl =
+        view.url
+            ?: ""
+
+    if (
+        isCloudflareLikePage(
+            currentUrl
+        )
+    ) {
+
+        setCloudflareChallengeMode(
+            true
+        )
+
+        return
+    }
+
+} catch (_: Throwable) {}
 
         // =====================================
         // INTERACTIVE PLAYER GUARD
@@ -7251,7 +8593,7 @@ function gelPush(url) {
 try {
 
     document
-        .querySelectorAll("video, audio, source, img, iframe")
+        .querySelectorAll("video, audio, source, iframe")
         .forEach(function(el) {
 
             try {
@@ -7418,7 +8760,7 @@ try {
                 try {
 
                     doc
-                        .querySelectorAll("video, audio, source, img, script, a")
+                        .querySelectorAll("video, audio, source, a")
                         .forEach(function(el) {
 
                             try {
@@ -13524,151 +14866,193 @@ private fun detectAndSaveUrl(
     url: String
 ) {
 
-// =====================================
-// URL FILTER — KEEP ALL PLAYABLE MEDIA
-// =====================================
+    val cleanedUrl =
+        cleanDetectedUrl(
+            url
+        )
 
-val filterLower =
-    url.lowercase()
+    val filterLower =
+        cleanedUrl.lowercase()
 
-// =====================================
-// PLAYABLE MEDIA CANDIDATES
-// Do NOT cut these, even if low quality
-// =====================================
-
-val isPlayableMediaCandidate =
-    filterLower.contains(".m3u8") ||
-        filterLower.contains(".mpd") ||
-        filterLower.contains(".mp4") ||
-        filterLower.contains(".webm") ||
-        filterLower.contains(".mkv") ||
-        filterLower.contains(".ts") ||
-        filterLower.contains(".m4s") ||
-        filterLower.contains(".mp3") ||
-        filterLower.contains(".m4a") ||
-        filterLower.contains(".aac") ||
-        filterLower.contains(".opus") ||
-        filterLower.contains(".wav") ||
-        filterLower.contains(".ogg") ||
-        filterLower.contains(".flac") ||
-        filterLower.contains("manifest/hls") ||
-        filterLower.contains("hls_playlist") ||
-        filterLower.contains("hlsmanifesturl") ||
-        filterLower.contains("playlist") ||
-        filterLower.contains("chunklist") ||
-        filterLower.contains("live.m3u8") ||
-        filterLower.contains("master.m3u8") ||
-        filterLower.contains("videoplayback") ||
-        filterLower.contains("googlevideo.com") ||
-        filterLower.contains("youtube.com/watch") ||
-        filterLower.contains("youtu.be/")
-
-// =====================================
-// IMAGE CANDIDATES — NOT NEEDED
-// =====================================
-
-val isImageCandidate =
-    filterLower.contains(".jpg") ||
-        filterLower.contains(".jpeg") ||
-        filterLower.contains(".png") ||
-        filterLower.contains(".webp") ||
-        filterLower.contains(".gif") ||
-        filterLower.contains(".svg") ||
-        filterLower.contains(".ico")
-
-if (
-    isImageCandidate &&
-    !isPlayableMediaCandidate
-) {
-    return
-}
-
-// =====================================
-// GARBAGE / ADS / TRACKING
-// Only cut if NOT playable media
-// =====================================
-
-if (
-    !isPlayableMediaCandidate &&
-    (
-        filterLower.contains("doubleclick") ||
-            filterLower.contains("googleads") ||
-            filterLower.contains("analytics") ||
-            filterLower.contains("/stats/") ||
-            filterLower.contains("ptracking") ||
-            filterLower.contains("api/stats") ||
-            filterLower.contains("pagead") ||
-            filterLower.contains("collect?") ||
-            filterLower.contains("html-load.com") ||
-            filterLower.contains("ad-delivery") ||
-            filterLower.contains("moat") ||
-            filterLower.contains("feed/iu1") ||
-            filterLower.contains("favicon") ||
-            filterLower.contains("logo") ||
-            filterLower.contains("banner")
-    )
-) {
-    return
-}
-
-// =====================================
-// WRAPPER / TRACKER EARLY CLEANUP
-// Do not show Google/Facebook/analytics wrapper URLs in logs/results.
-// Extract the real playable stream and process only that.
-// =====================================
-
-try {
-
-    if (
-        isWrapperOrTrackerUrl(url)
-    ) {
-
-        val extractedStreams =
-            expandDetectedStreamCandidate(
-                url
-            )
-                .filter { candidate ->
-
-                    candidate.isNotBlank() &&
-                        candidate.startsWith(
-                            "http",
-                            true
-                        ) &&
-                        !isWrapperOrTrackerUrl(
-                            candidate
-                        ) &&
-                        isProbablyPlayableMediaUrl(
-                            candidate
-                        )
-                }
-                .distinct()
-
-        extractedStreams.forEach { candidate ->
-
-            try {
-
-                detectAndSaveUrl(
-                    candidate
-                )
-
-            } catch (_: Throwable) {}
-        }
-
+    if (cleanedUrl.isBlank()) {
         return
     }
 
-} catch (_: Throwable) {}
+    if (
+        !cleanedUrl.startsWith("http://", true) &&
+        !cleanedUrl.startsWith("https://", true)
+    ) {
+        return
+    }
 
-Log.e(
-    "MEDIA_DETECT",
-    url
-)
+    // =====================================
+    // HARD NOISE REJECT
+    // Images / ads / analytics / fragments
+    // =====================================
 
-val cleanedUrl =
-    url
-        .replace("\\u0026", "&")
-        .replace("\\/", "/")
-        .trim()
+    if (isHardNoiseUrl(cleanedUrl)) {
+        return
+    }
+
+    // =====================================
+    // WRAPPER / TRACKER EARLY CLEANUP
+    // Extract real playable stream if wrapper contains one
+    // =====================================
+
+    try {
+
+        if (
+            isWrapperOrTrackerUrl(
+                cleanedUrl
+            )
+        ) {
+
+            val extractedStreams =
+                expandDetectedStreamCandidate(
+                    cleanedUrl
+                )
+                    .filter { candidate ->
+
+                        val cleanCandidate =
+                            cleanDetectedUrl(
+                                candidate
+                            )
+
+                        cleanCandidate.isNotBlank() &&
+                            cleanCandidate.startsWith(
+                                "http",
+                                true
+                            ) &&
+                            !isWrapperOrTrackerUrl(
+                                cleanCandidate
+                            ) &&
+                            shouldAcceptDetectedNetworkUrl(
+                                cleanCandidate
+                            )
+                    }
+                    .distinct()
+
+            extractedStreams.forEach { candidate ->
+
+                try {
+
+                    detectAndSaveUrl(
+                        candidate
+                    )
+
+                } catch (_: Throwable) {}
+            }
+
+            return
+        }
+
+    } catch (_: Throwable) {}
+
+    val isPlaylist =
+        isPlaylistUrl(
+            cleanedUrl
+        )
+        
+    val isM3uList =
+    isM3uListUrl(
+        cleanedUrl
+    )
+
+    val isTsFallback =
+        isTsFallbackUrl(
+            cleanedUrl
+        )
+
+    val isDirectMedia =
+        isDirectMediaUrl(
+            cleanedUrl
+        )
+
+    // =====================================
+    // PLAYLIST FIRST
+    // If .m3u8/.mpd appears, remove pending .ts
+    // =====================================
+
+    if (isPlaylist) {
+
+        pagePlaylistFound =
+            true
+
+        clearTsFallbackBecausePlaylistFound()
+    }
+
+    // =====================================
+    // TS FALLBACK ONLY
+    // .ts appears only if no playlist exists
+    // =====================================
+
+    if (isTsFallback) {
+
+        if (pagePlaylistFound) {
+            return
+        }
+
+        pendingTsFallback.add(
+            cleanedUrl
+        )
+    }
+    
+// =====================================
+// M3U COUNTRY/CHANNEL LIST
+// Download and save separately.
+// Do not treat as live stream.
+// =====================================
+
+if (isM3uList) {
+
+    Log.e(
+        "M3U_LIST_DETECTED",
+        cleanedUrl
+    )
+
+    downloadAndSaveDetectedM3uList(
+        cleanedUrl
+    )
+
+    return
+}
+
+    // =====================================
+    // FINAL ACCEPT CHECK
+    // =====================================
+
+    if (
+    !isM3uList &&
+    !isPlaylist &&
+    !isTsFallback &&
+    !isDirectMedia
+) {
+    return
+}
+
+if (isM3uList) {
+
+    Log.e(
+        "M3U_LIST_DETECTED",
+        cleanedUrl
+    )
+
+    binding.contentMain.result.append(
+        """
+
+M3U LIST DETECTED:
+$cleanedUrl
+
+────────────────────
+
+        """.trimIndent()
+    )
+}
+
+    Log.e(
+        "MEDIA_DETECT_CLEAN",
+        cleanedUrl
+    )
         
 // =====================================
 // EARLY YOUTUBE WATCH SAVE
@@ -15001,26 +16385,26 @@ val isGarbage =
     lower.contains("gstatic")  
     
 // =====================================
-// SEGMENT FILES
-// Keep possible playable TS/M4S, ignore only obvious tiny chunks
+// SEGMENT FILES — CLEAN RULE
+// .m4s never shown.
+// .ts only if no playlist exists.
 // =====================================
 
 if (
-    isSegmentTs &&
-    !lower.contains(".m3u8") &&
-    !lower.contains(".mpd") &&
-    !lower.contains("playlist") &&
-    !lower.contains("manifest") &&
-    !lower.contains("live")
+    lower.endsWith(".m4s") ||
+    lower.contains(".m4s?")
 ) {
+    return
+}
 
-    Log.e(
-        "SEGMENT_LOW_PRIORITY",
-        cleanedUrl
-    )
-
-    // Do not return.
-    // We keep it as evidence/playable candidate.
+if (
+    (
+        lower.endsWith(".ts") ||
+            lower.contains(".ts?")
+    ) &&
+    pagePlaylistFound
+) {
+    return
 }
 
 // =====================================
@@ -16379,237 +17763,156 @@ private fun isRealYouTubeWatchUrl(
 
 // =====================================
 // IS EXPORTABLE STREAM
+// Clean export rules:
+// - playlist always
+// - .ts only fallback if no playlist found
+// - no images / ads / fragments
 // =====================================
 
 private fun isExportableStream(
     url: String
 ): Boolean {
 
-val lower =
-    url.lowercase()
-    
-// =====================================
-// FAKE YOUTUBE WATCH URL FILTER
-// Blocks googlevideo temporary IDs converted to watch?v=...
-// =====================================
+    val cleanUrl =
+        cleanDetectedUrl(
+            url
+        )
 
-if (
-    (
-        lower.contains("youtube.com/watch") ||
-            lower.contains("youtu.be/")
-    ) &&
-    !isRealYouTubeWatchUrl(url)
-) {
-    return false
-}
+    val lower =
+        cleanUrl.lowercase()
 
-val validation =
-    streamValidation[url]
-        ?: ""
-
-// =====================================
-// VALIDATION ERROR FILTER
-// Keep real playable media even if validator failed
-// =====================================
-
-val isDirectPlayableUrl =
-    lower.contains(".m3u8") ||
-        lower.contains(".mpd") ||
-        lower.contains(".mp4") ||
-        lower.contains(".webm") ||
-        lower.contains(".mkv") ||
-        lower.contains(".mov") ||
-        lower.contains(".avi") ||
-        lower.contains(".3gp") ||
-        lower.contains(".ts") ||
-        lower.contains(".mp3") ||
-        lower.contains(".m4a") ||
-        lower.contains(".aac") ||
-        lower.contains(".opus") ||
-        lower.contains(".wav") ||
-        lower.contains(".ogg") ||
-        lower.contains(".flac") ||
-        lower.contains("manifest/hls") ||
-        lower.contains("hls_playlist") ||
-        lower.contains("hlsmanifesturl") ||
-        lower.contains("youtube.com/watch") ||
-        lower.contains("youtu.be/") ||
-        lower.contains("googlevideo.com") ||
-        lower.contains("videoplayback")
-
-if (
-    validation.contains("ERROR") &&
-    !isDirectPlayableUrl
-) {
-    return false
-}
-
-    // =====================================
-    // DEAD
-    // =====================================
+    if (cleanUrl.isBlank()) {
+        return false
+    }
 
     if (
-        validation.contains("DEAD")
+        !cleanUrl.startsWith("http://", true) &&
+        !cleanUrl.startsWith("https://", true)
     ) {
         return false
     }
 
     // =====================================
-    // IMAGES — NOT NEEDED
-    // =====================================
-
-    if (
-        lower.contains(".jpg") ||
-        lower.contains(".jpeg") ||
-        lower.contains(".png") ||
-        lower.contains(".webp") ||
-        lower.contains(".gif") ||
-        lower.contains(".bmp") ||
-        lower.contains(".svg") ||
-        lower.contains(".ico")
-    ) {
-        return false
-    }
-
-    // =====================================
-    // ADS / TRACKERS — NOT PLAYABLE MEDIA
-    // =====================================
-
-    if (
-        lower.contains("facebook.com/tr") ||
-        lower.contains("/tr/?") ||
-        lower.contains("translate.goog") ||
-        lower.contains("translate.google") ||
-        lower.contains("google.com/translate") ||
-        lower.contains("doubleclick") ||
-        lower.contains("googleads") ||
-        lower.contains("googlesyndication") ||
-        lower.contains("analytics") ||
-        lower.contains("/stats/") ||
-        lower.contains("ptracking") ||
-        lower.contains("api/stats") ||
-        lower.contains("pagead") ||
-        lower.contains("collect?") ||
-        lower.contains("html-load.com") ||
-        lower.contains("ad-delivery") ||
-        lower.contains("moat") ||
-        lower.contains("feed/iu1") ||
-        lower.contains("favicon") ||
-        lower.contains("logo") ||
-        lower.contains("banner")
-    ) {
-        return false
-    }
-
-    // =====================================
-    // OBVIOUS FRAGMENTS / NON-STANDALONE CHUNKS
+    // FAKE YOUTUBE WATCH URL FILTER
     // =====================================
 
     if (
         (
-            lower.endsWith(".m4s") ||
-            lower.contains(".m4s?")
+            lower.contains("youtube.com/watch") ||
+                lower.contains("youtu.be/")
         ) &&
-        !lower.contains("googlevideo.com")
+        !isRealYouTubeWatchUrl(cleanUrl)
     ) {
         return false
     }
 
+    // =====================================
+    // GOOGLEVIDEO / TRACKING NOISE
+    // =====================================
+
     if (
-        (
-            lower.endsWith(".ts") ||
-            lower.contains(".ts?")
-        ) &&
-        (
-            lower.contains("segment") ||
-            lower.contains("segments") ||
-            lower.contains("frag") ||
-            lower.contains("fragments") ||
-            lower.contains("sq=") ||
-            lower.contains("range=")
+        lower.contains("generate_204") ||
+        lower.contains("/ptracking") ||
+        lower.contains("/api/stats") ||
+        lower.contains("playback/stats")
+    ) {
+        return false
+    }
+
+    // =====================================
+    // HARD NOISE
+    // =====================================
+
+    if (isHardNoiseUrl(cleanUrl)) {
+        return false
+    }
+
+    // =====================================
+    // VALIDATION
+    // =====================================
+
+    val validation =
+        streamValidation[cleanUrl]
+            ?: streamValidation[url]
+            ?: ""
+
+    if (
+        validation.contains("DEAD", true)
+    ) {
+        return false
+    }
+
+    // =====================================
+    // PLAYLISTS — BEST RESULT
+    // =====================================
+
+    if (
+        isPlaylistUrl(
+            cleanUrl
         )
     ) {
-        return false
-    }
-
-    // =====================================
-    // LIVE STREAMS
-    // =====================================
-
-    if (
-        lower.contains(".m3u8") ||
-        lower.contains(".mpd") ||
-        lower.contains("manifest/hls") ||
-        lower.contains("hls_playlist") ||
-        lower.contains("hlsmanifesturl") ||
-        lower.contains("master.m3u8") ||
-        lower.contains("live.m3u8") ||
-        lower.contains("playlist.m3u8") ||
-        lower.contains("chunklist.m3u8")
-    ) {
         return true
     }
 
     // =====================================
-    // STATIC VIDEOS
+    // TS FALLBACK ONLY
+    // .ts allowed only when no playlist exists
+    // =====================================
+
+    if (
+        isTsFallbackUrl(
+            cleanUrl
+        )
+    ) {
+
+        return !pagePlaylistFound
+    }
+
+    // =====================================
+    // STATIC VIDEO
     // =====================================
 
     if (
         lower.contains(".mp4") ||
-        lower.contains(".webm") ||
-        lower.contains(".mkv") ||
-        lower.contains(".mov") ||
-        lower.contains(".avi") ||
-        lower.contains(".3gp") ||
-        lower.endsWith(".ts") ||
-        lower.contains(".ts?")
+            lower.contains(".webm") ||
+            lower.contains(".mkv") ||
+            lower.contains(".mov") ||
+            lower.contains(".avi") ||
+            lower.contains(".3gp")
     ) {
         return true
     }
 
     // =====================================
-    // AUDIO / SONGS
+    // AUDIO
     // =====================================
 
     if (
         lower.contains(".mp3") ||
-        lower.contains(".m4a") ||
-        lower.contains(".aac") ||
-        lower.contains(".opus") ||
-        lower.contains(".wav") ||
-        lower.contains(".ogg") ||
-        lower.contains(".flac")
+            lower.contains(".m4a") ||
+            lower.contains(".aac") ||
+            lower.contains(".opus") ||
+            lower.contains(".wav") ||
+            lower.contains(".ogg") ||
+            lower.contains(".flac")
     ) {
         return true
     }
-    
-// =====================================
-// GOOGLEVIDEO PING / TRACKING — NOT PLAYABLE
-// =====================================
-
-if (
-    lower.contains("generate_204") ||
-    lower.contains("/ptracking") ||
-    lower.contains("/api/stats") ||
-    lower.contains("playback/stats")
-) {
-    return false
-}
 
     // =====================================
-    // YOUTUBE / GOOGLEVIDEO PLAYABLE EVIDENCE
+    // YOUTUBE / GOOGLEVIDEO PLAYABLE
     // =====================================
 
-  if (
-    lower.contains("youtube.com/watch") ||
-    lower.contains("youtu.be/") ||
-    (
-        lower.contains("googlevideo.com") &&
-        lower.contains("videoplayback")
-    )
-) {
-    return true
-}
+    if (
+        lower.contains("youtube.com/watch") ||
+            lower.contains("youtu.be/") ||
+            (
+                lower.contains("googlevideo.com") &&
+                    lower.contains("videoplayback")
+            )
+    ) {
+        return true
+    }
 
     return false
 }
@@ -17009,18 +18312,28 @@ val sorted =
                 !lower.contains("original.mp4") ->
                     700
 
-                lower.contains(".m4s") ||
-                lower.contains(".ts") ->
-                    300
+                lower.contains(".m4s") ->
+    -2000
+
+lower.contains(".ts") ->
+    if (pagePlaylistFound) {
+        -2000
+    } else {
+        300
+    }
 
                 lower.contains(".mp3") ||
                 lower.contains(".aac") ->
                     250
 
                 lower.contains(".jpg") ||
-                lower.contains(".png") ||
-                lower.contains(".webp") ->
-                    50
+lower.contains(".jpeg") ||
+lower.contains(".png") ||
+lower.contains(".webp") ||
+lower.contains(".gif") ||
+lower.contains(".svg") ||
+lower.contains(".ico") ->
+    -3000
 
                 lower.contains("/vod/") ->
                     20
@@ -17212,6 +18525,20 @@ private fun startStreamMonitor() {
 
             return
         }
+        
+// =====================================
+// PAUSE SCANNER DURING CLOUDFLARE VERIFY
+// =====================================
+
+if (cloudflareChallengeActive) {
+
+    binding.contentMain.webview.postDelayed(
+        this,
+        4000
+    )
+
+    return
+}
 
                     val js =
                         """
@@ -21801,6 +23128,20 @@ override fun onCreateOptionsMenu(
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
     } catch (_: Throwable) {}
+    
+try {
+
+    menu.add(
+        Menu.NONE,
+        menuScanChannelCandidatesId,
+        Menu.NONE,
+        "Scan Channel Candidates"
+    )
+        .setShowAsAction(
+            MenuItem.SHOW_AS_ACTION_NEVER
+        )
+
+} catch (_: Throwable) {}
 
     return true
 }
@@ -21910,6 +23251,12 @@ override fun onOptionsItemSelected(
             clearBrowserData()
             true
         }
+        
+        menuScanChannelCandidatesId -> {
+
+    scanChannelCandidatesOnly()
+    true
+}
 
         R.id.action_settings ->
             true
