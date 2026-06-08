@@ -7037,6 +7037,151 @@ private fun collectCountryPaginationPages(
 }
 
 // =====================================
+// CLICK WATCH / PLAY BUTTON IF PRESENT
+// Teleon-style channel pages need second click
+// =====================================
+
+private fun clickWatchOrPlayButtonIfPresent(
+    view: WebView?
+) {
+
+    try {
+
+        if (view == null) {
+            return
+        }
+
+        view.evaluateJavascript(
+            """
+(function() {
+
+    try {
+
+        var words =
+            /\b(play|watch|start|live|stream)\b/i;
+
+       var badWords =
+           /cookie|privacy|accept|reject|login|sign in|subscribe|share|facebook|twitter|instagram|youtube|menu|home|contact|terms|policy|close|back|next|previous|search|language|settings|download|app/i;
+
+        function visible(el) {
+
+            try {
+
+                var s =
+                    window.getComputedStyle(el);
+
+                var r =
+                    el.getBoundingClientRect();
+
+                return (
+                    s.display !== "none" &&
+                    s.visibility !== "hidden" &&
+                    s.opacity !== "0" &&
+                    r.width > 30 &&
+                    r.height > 15
+                );
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        function textOf(el) {
+
+            try {
+
+                return String(
+                    (el.innerText || "") + " " +
+                    (el.textContent || "") + " " +
+                    (el.getAttribute("aria-label") || "") + " " +
+                    (el.getAttribute("title") || "")
+                )
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        var nodes =
+            Array.prototype.slice.call(
+                document.querySelectorAll(
+                    "button, a[href], [role='button'], [onclick]"
+                )
+            );
+
+        for (var i = 0; i < nodes.length; i++) {
+
+            var el =
+                nodes[i];
+
+            if (!visible(el)) {
+                continue;
+            }
+
+            var txt =
+                textOf(el);
+
+            var lower =
+                txt.toLowerCase();
+
+            if (!words.test(lower)) {
+                continue;
+            }
+
+            if (badWords.test(lower)) {
+                continue;
+            }
+
+            try {
+
+                el.scrollIntoView({
+                    block: "center",
+                    inline: "center"
+                });
+
+            } catch(e) {}
+
+            try {
+
+                el.click();
+
+                return "CLICKED: " + txt.substring(0, 80);
+
+            } catch(e) {}
+        }
+
+        return "NO WATCH BUTTON";
+
+    } catch(e) {
+
+        return "ERROR: " + e;
+    }
+
+})();
+            """.trimIndent()
+        ) { result ->
+
+            Log.e(
+                "AUTO_SCAN_PLAY_CLICK",
+                result ?: ""
+            )
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "AUTO_SCAN_PLAY_CLICK",
+            "failed",
+            t
+        )
+    }
+}
+
+// =====================================
 // COLLECT CHANNEL CANDIDATES FOR AUTO SCAN
 // Safe: only collects href/title, does not click
 // =====================================
@@ -7920,14 +8065,29 @@ ${candidate.href}
                 try {
 
                     if (
-                        autoScanRunning &&
-                        !cloudflareChallengeActive
-                    ) {
+    autoScanRunning &&
+    !cloudflareChallengeActive
+) {
 
-                        runDeepMediaScan(
-                            activeWebView
-                        )
-                    }
+    val beforeClickStreams =
+        collectCurrentPlayableStreamsForAutoScan()
+
+    if (beforeClickStreams.isEmpty()) {
+
+        clickWatchOrPlayButtonIfPresent(
+            activeWebView
+        )
+    }
+
+    binding.contentMain.webview.postDelayed(
+        {
+            runDeepMediaScan(
+                activeWebView
+            )
+        },
+        2500
+    )
+}
 
                 } catch (_: Throwable) {}
 
