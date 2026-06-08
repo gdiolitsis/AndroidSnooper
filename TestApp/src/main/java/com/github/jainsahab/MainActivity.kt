@@ -124,6 +124,9 @@ private val menuClearBrowserDataId =
 
 private val menuOpenNewTabId =
     91017
+    
+private val menuGoForwardId =
+    91024
 
 private val menuTabsId =
     91018
@@ -2997,10 +3000,58 @@ if (isBlockedPage) {
 
     if (!retried) {
 
-        showProtectedPageFallback(
-            url,
-            cleanResult
-        )
+        binding.contentMain.webview.postDelayed(
+    {
+
+        try {
+
+            val hasUsefulEvidence =
+                detectedStreams.isNotEmpty() ||
+                    detectedVideos.isNotEmpty() ||
+                    detectedAudio.isNotEmpty() ||
+                    detectedMasterStreams.isNotEmpty() ||
+                    streamInfoSnapshots.isNotEmpty() ||
+                    lastChannelCandidateCount > 0 ||
+                    bestStreamUrl.isNotBlank() ||
+                    bestLiveUrl.isNotBlank()
+
+            if (hasUsefulEvidence) {
+                return@postDelayed
+            }
+
+            runDeepMediaScan(
+                view
+            )
+
+            binding.contentMain.webview.postDelayed(
+                {
+
+                    val hasLateEvidence =
+                        detectedStreams.isNotEmpty() ||
+                            detectedVideos.isNotEmpty() ||
+                            detectedAudio.isNotEmpty() ||
+                            detectedMasterStreams.isNotEmpty() ||
+                            streamInfoSnapshots.isNotEmpty() ||
+                            lastChannelCandidateCount > 0 ||
+                            bestStreamUrl.isNotBlank() ||
+                            bestLiveUrl.isNotBlank()
+
+                    if (!hasLateEvidence) {
+
+                        showProtectedPageFallback(
+                            url,
+                            cleanResult
+                        )
+                    }
+
+                },
+                2500
+            )
+
+        } catch (_: Throwable) {}
+    },
+    3500
+)
     }
 }
 
@@ -6331,6 +6382,7 @@ true
 // =====================================
 // SCAN CHANNEL CANDIDATES ONLY
 // Safe mode: does NOT click anything
+// Uses pagination pages when available
 // =====================================
 
 private fun scanChannelCandidatesOnly() {
@@ -6348,161 +6400,243 @@ private fun scanChannelCandidatesOnly() {
             return
         }
 
+        binding.contentMain.result.append(
+            """
+
+CHANNEL CANDIDATE SCAN:
+Collecting pages...
+
+────────────────────
+
+            """.trimIndent()
+        )
+
+        collectCountryPaginationPages { pages ->
+
+            runOnUiThread {
+
+                val pageList =
+                    if (pages.isNotEmpty()) {
+                        pages
+                    } else {
+                        listOf(
+                            AutoScanPage(
+                                title = "CURRENT PAGE",
+                                href = binding.contentMain.webview.url.orEmpty()
+                            )
+                        )
+                    }
+
+                binding.contentMain.result.append(
+                    """
+
+CHANNEL CANDIDATE SCAN:
+Pages found:
+${pageList.size}
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+                collectCandidatesPreviewFromPages(
+                    pageList
+                )
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "CHANNEL_CANDIDATE_SCAN",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Candidate scan failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+// =====================================
+// COLLECT CANDIDATES PREVIEW FROM PAGES
+// Opens pagination pages and lists only /channel/ candidates
+// Does NOT click channel pages
+// =====================================
+
+private fun collectCandidatesPreviewFromPages(
+    pages: List<AutoScanPage>
+) {
+
+    try {
+
         val activeWebView =
             popupWebView
                 ?: binding.contentMain.webview
 
-        activeWebView.evaluateJavascript(
-            """
+        val allCandidates =
+            mutableListOf<AutoScanCandidate>()
 
-(function() {
+        fun scanPageAt(
+            index: Int
+        ) {
 
-    try {
+            if (index >= pages.size) {
 
-        var badWords =
-            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|menu|home|contact|terms|policy|advert|ads|close|next|prev|previous/i;
+                val finalCandidates =
+                    allCandidates
+                        .distinctBy { item ->
+                            item.href.lowercase()
+                        }
 
-        var candidates =
-            [];
+                lastChannelCandidateCount =
+                    finalCandidates.size
 
-        var seen =
-            {};
+                val builder =
+                    StringBuilder()
 
-        function cleanText(value) {
+                builder.append(
+                    "\nCHANNEL CANDIDATES FOUND:\n"
+                )
+
+                builder.append(
+                    finalCandidates.size
+                )
+
+                builder.append(
+                    "\n\n"
+                )
+
+                finalCandidates.forEachIndexed { i, item ->
+
+                    builder.append(
+                        i + 1
+                    )
+
+                    builder.append(
+                        ". "
+                    )
+
+                    builder.append(
+                        item.title.ifBlank {
+                            "NO TITLE"
+                        }
+                    )
+
+                    builder.append(
+                        "\n"
+                    )
+
+                    builder.append(
+                        item.href
+                    )
+
+                    builder.append(
+                        "\n\n"
+                    )
+                }
+
+                builder.append(
+                    "────────────────────\n"
+                )
+
+                binding.contentMain.result.append(
+                    builder.toString()
+                )
+
+                Toast.makeText(
+                    this,
+                    "Candidates: ${finalCandidates.size}",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return
+            }
+
+            val page =
+                pages[index]
 
             try {
 
-                return String(value || "")
-                    .replace(/\s+/g, " ")
-                    .trim();
+                activeWebView.stopLoading()
 
-            } catch(e) {
+                activeWebView.loadUrl(
+                    page.href,
+                    mapOf(
+                        "Cache-Control" to "no-cache",
+                        "Pragma" to "no-cache"
+                    )
+                )
 
-                return "";
+            } catch (_: Throwable) {
+
+                scanPageAt(
+                    index + 1
+                )
+
+                return
             }
+
+            binding.contentMain.webview.postDelayed(
+                {
+
+                    collectAutoScanCandidates { candidates ->
+
+                        runOnUiThread {
+
+                            allCandidates.addAll(
+                                candidates
+                            )
+
+                            binding.contentMain.result.append(
+                                """
+
+CANDIDATE PAGE:
+${index + 1}/${pages.size}
+
+Found:
+${candidates.size}
+
+Total:
+${allCandidates.distinctBy { it.href.lowercase() }.size}
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            scanPageAt(
+                                index + 1
+                            )
+                        }
+                    }
+                },
+                2500
+            )
         }
 
-        function isVisible(el) {
+        scanPageAt(
+            0
+        )
 
-            try {
+    } catch (t: Throwable) {
 
-                if (!el) {
-                    return false;
-                }
+        Log.e(
+            "CHANNEL_CANDIDATE_SCAN",
+            "page preview failed",
+            t
+        )
 
-                var style =
-                    window.getComputedStyle(el);
-
-                if (
-                    style.display === "none" ||
-                    style.visibility === "hidden" ||
-                    style.opacity === "0"
-                ) {
-                    return false;
-                }
-
-                var rect =
-                    el.getBoundingClientRect();
-
-                if (
-                    rect.width < 20 ||
-                    rect.height < 12
-                ) {
-                    return false;
-                }
-
-                return true;
-
-            } catch(e) {
-
-                return false;
-            }
-        }
-
-        function getText(el) {
-
-            try {
-
-                var text =
-                    "";
-
-                text += " " + (el.innerText || "");
-                text += " " + (el.textContent || "");
-                text += " " + (el.getAttribute("title") || "");
-                text += " " + (el.getAttribute("aria-label") || "");
-                text += " " + (el.getAttribute("data-title") || "");
-                text += " " + (el.getAttribute("data-name") || "");
-                text += " " + (el.getAttribute("alt") || "");
-
-                return cleanText(text);
-
-            } catch(e) {
-
-                return "";
-            }
-        }
-
-        function getHref(el) {
-
-            try {
-
-                if (el.href) {
-                    return String(el.href || "").trim();
-                }
-
-                var a =
-                    el.closest("a[href]");
-
-                if (a && a.href) {
-                    return String(a.href || "").trim();
-                }
-
-                var dataUrl =
-                    el.getAttribute("data-url") ||
-                    el.getAttribute("data-href") ||
-                    el.getAttribute("data-src") ||
-                    el.getAttribute("data-stream") ||
-                    "";
-
-                return String(dataUrl || "").trim();
-
-            } catch(e) {
-
-                return "";
-            }
-        }
-
-        function looksLikeChannel(el, text, href) {
-
-            try {
-
-                var cls =
-                    String(el.className || "").toLowerCase();
-
-                var id =
-                    String(el.id || "").toLowerCase();
-
-                var role =
-                    String(el.getAttribute("role") || "").toLowerCase();
-
-                var combined =
-                    (text + " " + href + " " + cls + " " + id + " " + role)
-                        .toLowerCase();
-
-                if (badWords.test(combined)) {
-                    return false;
-                }
-
-                if (
-                    href.indexOf("facebook.com") >= 0 ||
-                    href.indexOf("twitter.com") >= 0 ||
-                    href.indexOf("instagram.com") >= 0 ||
-                    href.indexOf("wa.me") >= 0 ||
-                    href.indexOf("mailto:") >= 0 ||
-                    href.indexOf("tel:") >= 0
-                ) {
-                    return false;
-                }
+        Toast.makeText(
+            this,
+            "Candidate scan failed",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
                 
 // =====================================
 // HARD REJECT — COUNTRY / PAGINATION
@@ -6915,33 +7049,159 @@ private fun collectCountryPaginationPages(
 
         addPage("CURRENT PAGE", currentUrl);
 
-        pages.sort(function(a, b) {
+// =====================================
+// EXPAND PAGINATION WINDOW TO FULL RANGE
+// Detect last page from >> / » / rel=last / aria-label
+// Example: page 1 shows 1,2,3,4,>> where >> = page 19
+// Build page 1..19 manually.
+// =====================================
+
+try {
+
+    var maxPage =
+        1;
+
+    document
+        .querySelectorAll("a[href]")
+        .forEach(function(a) {
 
             try {
 
-                var pa =
+                var href =
+                    a.href || "";
+
+                var text =
+                    cleanText(
+                        a.innerText ||
+                        a.textContent ||
+                        a.getAttribute("aria-label") ||
+                        a.getAttribute("title") ||
+                        a.getAttribute("rel") ||
+                        ""
+                    ).toLowerCase();
+
+                var rel =
+                    String(
+                        a.getAttribute("rel") || ""
+                    ).toLowerCase();
+
+                var u =
+                    new URL(
+                        href,
+                        currentUrl
+                    );
+
+                if ((u.host || "") !== currentHost) {
+                    return;
+                }
+
+                if ((u.pathname || "") !== currentPath) {
+                    return;
+                }
+
+                var pageValue =
                     parseInt(
-                        new URL(a.href).searchParams.get("page") || "1",
+                        u.searchParams.get("page") || "1",
                         10
                     );
 
-                var pb =
-                    parseInt(
-                        new URL(b.href).searchParams.get("page") || "1",
-                        10
-                    );
+                if (
+                    isNaN(pageValue) ||
+                    pageValue < 1
+                ) {
+                    return;
+                }
 
-                return pa - pb;
+                var looksLast =
+                    rel.indexOf("last") >= 0 ||
+                    text.indexOf("last") >= 0 ||
+                    text.indexOf(">>") >= 0 ||
+                    text.indexOf("»") >= 0 ||
+                    text.indexOf("next last") >= 0 ||
+                    text.indexOf("go to last") >= 0;
+                    text.indexOf("»»") >= 0 ||
+                    text.indexOf("≫") >= 0 ||
+                    text.indexOf("last page") >= 0 ||
+                    text.indexOf("end") >= 0
 
-            } catch(e) {
+                if (looksLast) {
 
-                return 0;
-            }
+                    if (pageValue > maxPage) {
+                        maxPage =
+                            pageValue;
+                    }
+                }
+
+                // fallback: any visible page link with bigger page number
+                if (pageValue > maxPage) {
+                    maxPage =
+                        pageValue;
+                }
+
+            } catch(e) {}
         });
 
-        return JSON.stringify(
-            pages.slice(0, 25)
-        );
+    if (maxPage > 1) {
+
+        var expanded =
+            [];
+
+        var base =
+            new URL(
+                currentUrl
+            );
+
+        for (var i = 1; i <= maxPage; i++) {
+
+            var u =
+                new URL(
+                    base.href
+                );
+
+            u.searchParams.set(
+                "page",
+                String(i)
+            );
+            
+            expanded.push({
+                title: "PAGE " + i,
+                href: u.href
+            });
+        }
+
+        pages =
+            expanded;
+    }
+
+} catch(e) {}
+
+pages.sort(function(a, b) {
+
+    try {
+
+        var pa =
+            parseInt(
+                new URL(a.href).searchParams.get("page") || "1",
+                10
+            );
+
+        var pb =
+            parseInt(
+                new URL(b.href).searchParams.get("page") || "1",
+                10
+            );
+
+        return pa - pb;
+
+    } catch(e) {
+
+        return 0;
+    }
+});
+
+return JSON.stringify(
+    pages.slice(0, 100)
+);
 
     } catch(e) {
 
@@ -7038,16 +7298,18 @@ private fun collectCountryPaginationPages(
 
 // =====================================
 // CLICK WATCH / PLAY BUTTON IF PRESENT
-// Teleon-style channel pages need second click
+// Returns true only if a real button was clicked
 // =====================================
 
 private fun clickWatchOrPlayButtonIfPresent(
-    view: WebView?
+    view: WebView?,
+    onDone: (Boolean) -> Unit
 ) {
 
     try {
 
         if (view == null) {
+            onDone(false)
             return
         }
 
@@ -7060,8 +7322,8 @@ private fun clickWatchOrPlayButtonIfPresent(
         var words =
             /\b(play|watch|start|live|stream)\b/i;
 
-       var badWords =
-           /cookie|privacy|accept|reject|login|sign in|subscribe|share|facebook|twitter|instagram|youtube|menu|home|contact|terms|policy|close|back|next|previous|search|language|settings|download|app/i;
+        var badWords =
+            /cookie|privacy|accept|reject|login|sign in|subscribe|share|facebook|twitter|instagram|youtube|menu|home|contact|terms|policy|close|back|next|previous|search|language|settings|download|app/i;
 
         function visible(el) {
 
@@ -7154,7 +7416,7 @@ private fun clickWatchOrPlayButtonIfPresent(
             } catch(e) {}
         }
 
-        return "NO WATCH BUTTON";
+        return "NO_BUTTON";
 
     } catch(e) {
 
@@ -7165,10 +7427,19 @@ private fun clickWatchOrPlayButtonIfPresent(
             """.trimIndent()
         ) { result ->
 
+            val clicked =
+                result
+                    ?.contains(
+                        "CLICKED:",
+                        true
+                    ) == true
+
             Log.e(
                 "AUTO_SCAN_PLAY_CLICK",
                 result ?: ""
             )
+
+            onDone(clicked)
         }
 
     } catch (t: Throwable) {
@@ -7178,6 +7449,8 @@ private fun clickWatchOrPlayButtonIfPresent(
             "failed",
             t
         )
+
+        onDone(false)
     }
 }
 
@@ -7715,7 +7988,6 @@ private fun startAutoScanChannels() {
     try {
 
         if (autoScanRunning) {
-
             Toast.makeText(
                 this,
                 "Auto scan already running",
@@ -7726,7 +7998,6 @@ private fun startAutoScanChannels() {
         }
 
         if (cloudflareChallengeActive) {
-
             Toast.makeText(
                 this,
                 "Wait for verification first",
@@ -7735,6 +8006,10 @@ private fun startAutoScanChannels() {
 
             return
         }
+
+        window.addFlags(
+    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+)
 
         binding.contentMain.result.append(
             """
@@ -7787,6 +8062,10 @@ ${pageList.joinToString("\n") { it.href }}
 
         autoScanRunning =
             false
+            
+window.clearFlags(
+    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+)
 
         Log.e(
             "AUTO_SCAN",
@@ -8053,7 +8332,7 @@ ${candidate.href}
                 {
                     scanNextAutoChannel()
                 },
-                1200
+                900
             )
 
             return
@@ -8065,52 +8344,141 @@ ${candidate.href}
                 try {
 
                     if (
-    autoScanRunning &&
-    !cloudflareChallengeActive
-) {
+                        !autoScanRunning ||
+                        cloudflareChallengeActive
+                    ) {
+                        return@postDelayed
+                    }
 
-    val beforeClickStreams =
-        collectCurrentPlayableStreamsForAutoScan()
+                    val beforeClickStreams =
+                        collectCurrentPlayableStreamsForAutoScan()
 
-    if (beforeClickStreams.isEmpty()) {
+                    if (beforeClickStreams.isNotEmpty()) {
 
-        clickWatchOrPlayButtonIfPresent(
-            activeWebView
-        )
-    }
-
-    binding.contentMain.webview.postDelayed(
-        {
-            runDeepMediaScan(
-                activeWebView
-            )
-        },
-        2500
-    )
-}
-
-                } catch (_: Throwable) {}
-
-                binding.contentMain.webview.postDelayed(
-                    {
-
-                        finalizeCurrentAutoChannel(
-                            candidate
+                        runDeepMediaScan(
+                            activeWebView
                         )
-
-                        autoScanIndex++
 
                         binding.contentMain.webview.postDelayed(
                             {
-                                scanNextAutoChannel()
+
+                                finalizeCurrentAutoChannel(
+                                    candidate
+                                )
+
+                                autoScanIndex++
+
+                                binding.contentMain.webview.postDelayed(
+                                    {
+                                        scanNextAutoChannel()
+                                    },
+                                    900
+                                )
                             },
-                            1200
+                            2500
                         )
-                    },
-                    2500
-                )
+
+                        return@postDelayed
+                    }
+
+                    clickWatchOrPlayButtonIfPresent(
+                        activeWebView
+                    ) { clicked ->
+
+                        runOnUiThread {
+
+                            if (!clicked) {
+
+                                binding.contentMain.result.append(
+                                    """
+
+AUTO SCAN:
+No play button found.
+Skipping wait.
+
+────────────────────
+
+                                    """.trimIndent()
+                                )
+
+                                finalizeCurrentAutoChannel(
+                                    candidate
+                                )
+
+                                autoScanIndex++
+
+                                binding.contentMain.webview.postDelayed(
+                                    {
+                                        scanNextAutoChannel()
+                                    },
+                                    700
+                                )
+
+                                return@runOnUiThread
+                            }
+
+                            binding.contentMain.result.append(
+                                """
+
+AUTO SCAN:
+Play button clicked.
+Waiting for stream...
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            // First scan after click
+                            runDeepMediaScan(
+                                activeWebView
+                            )
+
+                            // Second/final scan — not too slow
+                            binding.contentMain.webview.postDelayed(
+                                {
+
+                                    runDeepMediaScan(
+                                        activeWebView
+                                    )
+
+                                    finalizeCurrentAutoChannel(
+                                        candidate
+                                    )
+
+                                    autoScanIndex++
+
+                                    binding.contentMain.webview.postDelayed(
+                                        {
+                                            scanNextAutoChannel()
+                                        },
+                                        900
+                                    )
+                                },
+                                4500
+                            )
+                        }
+                    }
+
+                } catch (t: Throwable) {
+
+                    Log.e(
+                        "AUTO_SCAN",
+                        "channel scan step failed",
+                        t
+                    )
+
+                    autoScanIndex++
+
+                    binding.contentMain.webview.postDelayed(
+                        {
+                            scanNextAutoChannel()
+                        },
+                        900
+                    )
+                }
             },
-            5200
+            4200
         )
 
     } catch (t: Throwable) {
@@ -8127,7 +8495,7 @@ ${candidate.href}
             {
                 scanNextAutoChannel()
             },
-            1500
+            1200
         )
     }
 }
@@ -24787,6 +25155,9 @@ override fun onCreateOptionsMenu(
 
         menu.add(Menu.NONE, menuReloadId, Menu.NONE, "Reload")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            
+        menu.add(Menu.NONE, menuGoForwardId, Menu.NONE, "Go Forward")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
 
         menu.add(Menu.NONE, menuStopLoadingId, Menu.NONE, "Stop Loading")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
@@ -24869,15 +25240,13 @@ override fun onOptionsItemSelected(
             addCurrentPageToHomeScreen()
             true
         }
-        
-        menuScanChannelCandidatesId -> {
 
+        menuScanChannelCandidatesId -> {
             scanChannelCandidatesOnly()
             true
         }
 
         menuAutoScanChannelsId -> {
-
             startAutoScanChannels()
             true
         }
@@ -24927,6 +25296,28 @@ override fun onOptionsItemSelected(
             true
         }
 
+        menuGoForwardId -> {
+
+            val activeWebView =
+                popupWebView
+                    ?: binding.contentMain.webview
+
+            if (activeWebView.canGoForward()) {
+
+                activeWebView.goForward()
+
+            } else {
+
+                Toast.makeText(
+                    this,
+                    "No forward page",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            true
+        }
+
         menuStopLoadingId -> {
             stopCurrentPageLoading()
             true
@@ -24950,7 +25341,7 @@ override fun onOptionsItemSelected(
         menuClearBrowserDataId -> {
             clearBrowserData()
             true
-        }       
+        }
 
         R.id.action_settings ->
             true
