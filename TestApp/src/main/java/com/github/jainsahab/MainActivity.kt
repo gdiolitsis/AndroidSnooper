@@ -168,14 +168,6 @@ private val resultsPanelNormalHeightDp =
     90
 
 // =====================================
-// CHANNEL CANDIDATE STATE
-// Used to suppress false protected warning
-// =====================================
-
-private var lastChannelCandidateCount =
-    0
-    
-// =====================================
 // AUTO CHANNEL SCANNER STATE
 // =====================================
 
