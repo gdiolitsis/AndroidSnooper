@@ -6642,167 +6642,7 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 // HARD REJECT — COUNTRY / PAGINATION
 // =====================================
 
-if (
-    href.indexOf("/country/") >= 0 ||
-    href.indexOf("/countries/") >= 0 ||
-    href.indexOf("?page=") >= 0 ||
-    href.indexOf("&page=") >= 0 ||
-    href.indexOf("per-page=") >= 0 ||
-    combined.indexOf("last") >= 0 ||
-    combined.indexOf("next") >= 0 ||
-    combined.indexOf("previous") >= 0
-) {
-    return false;
-}
-
-// =====================================
-// HARD ACCEPT — CHANNEL LINKS
-// =====================================
-
-if (
-    href &&
-    href !== "#" &&
-    href.indexOf("/channel/") >= 0 &&
-    text.length >= 2 &&
-    text.length <= 160
-) {
-    return true;
-}
-
-// =====================================
-// SOFT ACCEPT — CHANNEL-LIKE LINKS
-// =====================================
-
-if (
-    href &&
-    href !== "#" &&
-    href.indexOf("/channel/") >= 0 &&
-    (
-        combined.indexOf("channel") >= 0 ||
-        combined.indexOf("live") >= 0 ||
-        combined.indexOf("tv") >= 0 ||
-        combined.indexOf("stream") >= 0 ||
-        combined.indexOf("player") >= 0 ||
-        combined.indexOf("watch") >= 0 ||
-        combined.indexOf("play") >= 0 ||
-        combined.indexOf("station") >= 0 ||
-        combined.indexOf("canal") >= 0 ||
-        combined.indexOf("kanal") >= 0
-    )
-) {
-    return true;
-}
-
-// =====================================
-// BUTTON / CLICKABLE FALLBACKS
-// =====================================
-
-if (
-    role === "button" &&
-    text.length >= 2 &&
-    text.length <= 120
-) {
-    return true;
-}
-
-if (
-    !href &&
-    el.onclick &&
-    text.length >= 2 &&
-    text.length <= 120
-) {
-    return true;
-}
-
-return false;
-
-            } catch(e) {
-
-                return false;
-            }
-        }
-
-        var nodes =
-            Array.prototype.slice.call(
-                document.querySelectorAll(
-                    [
-                        "a[href]",
-                        "button",
-                        "[role='button']",
-                        "[onclick]",
-                        "[data-url]",
-                        "[data-href]",
-                        "[data-stream]",
-                        ".channel",
-                        ".tv-channel",
-                        ".station",
-                        ".card",
-                        ".item",
-                        "li"
-                    ].join(",")
-                )
-            );
-
-        nodes.forEach(function(el) {
-
-            try {
-
-                if (!isVisible(el)) {
-                    return;
-                }
-
-                var text =
-                    getText(el);
-
-                var href =
-                    getHref(el);
-
-                if (
-                    text.length < 2 &&
-                    href.length < 5
-                ) {
-                    return;
-                }
-
-                if (!looksLikeChannel(el, text, href)) {
-                    return;
-                }
-
-                var key =
-                    (text + "|" + href)
-                        .toLowerCase();
-
-                if (seen[key]) {
-                    return;
-                }
-
-                seen[key] =
-                    true;
-
-                candidates.push({
-                    title: text.substring(0, 120),
-                    href: href.substring(0, 300)
-                });
-
-            } catch(e) {}
-        });
-
-        return JSON.stringify(
-            candidates.slice(0, 150)
-        );
-
-    } catch(e) {
-
-        return JSON.stringify([
-            {
-                title: "SCAN ERROR: " + e,
-                href: ""
-            }
-        ]);
-    }
-
-})();
-            """.trimIndent()
+""".trimIndent()
         ) { jsResult ->
 
             try {
@@ -7489,7 +7329,7 @@ private fun collectAutoScanCandidates(
     try {
 
         var badWords =
-            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|menu|home|contact|terms|policy|advert|ads|close|next|prev|previous/i;
+            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|menu|home|contact|terms|policy|advert|ads|close/i;
 
         var candidates =
             [];
@@ -7622,6 +7462,10 @@ private fun collectAutoScanCandidates(
                     return false;
                 }
 
+                // =====================================
+                // HARD REJECT — SOCIAL / CONTACT
+                // =====================================
+
                 if (
                     href.indexOf("facebook.com") >= 0 ||
                     href.indexOf("twitter.com") >= 0 ||
@@ -7632,56 +7476,77 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
-                
-// =====================================
-// HARD REJECT — COUNTRY / PAGINATION
-// =====================================
 
-if (
-    href.indexOf("/country/") >= 0 ||
-    href.indexOf("/countries/") >= 0 ||
-    href.indexOf("?page=") >= 0 ||
-    href.indexOf("&page=") >= 0 ||
-    href.indexOf("per-page=") >= 0 ||
-    combined.indexOf("last") >= 0 ||
-    combined.indexOf("next") >= 0 ||
-    combined.indexOf("previous") >= 0
-) {
-    return false;
-}
+                // =====================================
+                // HARD REJECT — COUNTRY / PAGINATION
+                // =====================================
 
                 if (
-    href &&
-    href !== "#" &&
-    href.indexOf("/channel/") >= 0 &&
-    text.length >= 2 &&
-    text.length <= 160
-) {
-    return true;
-}
+                    href.indexOf("/country/") >= 0 ||
+                    href.indexOf("/countries/") >= 0 ||
+                    href.indexOf("?page=") >= 0 ||
+                    href.indexOf("&page=") >= 0 ||
+                    href.indexOf("per-page=") >= 0 ||
+                    combined.indexOf("last") >= 0 ||
+                    combined.indexOf("next") >= 0 ||
+                    combined.indexOf("previous") >= 0
+                ) {
+                    return false;
+                }
 
-if (
-    href &&
-    href !== "#" &&
-    href.indexOf("/channel/") >= 0 &&
-    (
-        combined.indexOf("channel") >= 0 ||
-        combined.indexOf("live") >= 0 ||
-        combined.indexOf("tv") >= 0 ||
-        combined.indexOf("stream") >= 0 ||
-        combined.indexOf("player") >= 0 ||
-        combined.indexOf("watch") >= 0 ||
-        combined.indexOf("play") >= 0 ||
-        combined.indexOf("station") >= 0 ||
-        combined.indexOf("canal") >= 0 ||
-        combined.indexOf("kanal") >= 0
-    )
-) {
-    return true;
-}
+                // =====================================
+                // HARD ACCEPT — CHANNEL LINKS
+                // =====================================
+
+                if (
+                    href &&
+                    href !== "#" &&
+                    href.indexOf("/channel/") >= 0 &&
+                    text.length >= 2 &&
+                    text.length <= 160
+                ) {
+                    return true;
+                }
+
+                // =====================================
+                // SOFT ACCEPT — CHANNEL-LIKE LINKS
+                // =====================================
+
+                if (
+                    href &&
+                    href !== "#" &&
+                    href.indexOf("/channel/") >= 0 &&
+                    (
+                        combined.indexOf("channel") >= 0 ||
+                        combined.indexOf("live") >= 0 ||
+                        combined.indexOf("tv") >= 0 ||
+                        combined.indexOf("stream") >= 0 ||
+                        combined.indexOf("player") >= 0 ||
+                        combined.indexOf("watch") >= 0 ||
+                        combined.indexOf("play") >= 0 ||
+                        combined.indexOf("station") >= 0 ||
+                        combined.indexOf("canal") >= 0 ||
+                        combined.indexOf("kanal") >= 0
+                    )
+                ) {
+                    return true;
+                }
+
+                // =====================================
+                // BUTTON / CLICKABLE FALLBACKS
+                // =====================================
 
                 if (
                     role === "button" &&
+                    text.length >= 2 &&
+                    text.length <= 120
+                ) {
+                    return true;
+                }
+
+                if (
+                    !href &&
+                    el.onclick &&
                     text.length >= 2 &&
                     text.length <= 120
                 ) {
