@@ -6731,25 +6731,33 @@ $title
                 runDeepMediaScan(
                     activeWebView
                 )
+                
+                clickWatchOrPlayButtonIfPresent(
+    activeWebView
+) { }
 
-                binding.contentMain.webview.postDelayed(
-                    {
+binding.contentMain.webview.postDelayed(
+    {
 
-                        runDeepMediaScan(
-                            activeWebView
-                        )
+        clickWatchOrPlayButtonIfPresent(
+            activeWebView
+        ) { }
 
-                        domScanIndex++
+        runDeepMediaScan(
+            activeWebView
+        )
 
-                        binding.contentMain.webview.postDelayed(
-                            {
-                                clickNextDomChannel()
-                            },
-                            700
-                        )
-                    },
-                    3500
-                )
+        domScanIndex++
+
+        binding.contentMain.webview.postDelayed(
+            {
+                clickNextDomChannel()
+            },
+            700
+        )
+    },
+    3500
+)
 
             } catch (t: Throwable) {
 
