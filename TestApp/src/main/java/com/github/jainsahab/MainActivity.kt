@@ -147,8 +147,6 @@ private val menuScanChannelCandidatesId =
 private val menuAutoScanChannelsId =
     91023
     
-private val menuDomScanChannelsId =
-    91026
 
 private val desktopUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
@@ -177,11 +175,6 @@ private val resultsPanelNormalHeightDp =
 private var autoScanStopButton: Button? =
     null
 
-private var domScanRunning =
-    false
-
-private var domScanIndex =
-    0
 
 // =====================================
 // AUTO CHANNEL SCANNER STATE
@@ -1577,55 +1570,6 @@ inner class CookieConsentBridge {
 }
 
 // =====================================
-// CLICK PATH BRIDGE
-// Receives click-path data directly from WebView JavaScript
-// =====================================
-
-inner class ClickPathBridge {
-
-    @JavascriptInterface
-    fun onClickPath(
-        data: String?
-    ) {
-
-        try {
-
-            val clean =
-                data
-                    .orEmpty()
-                    .trim()
-
-            if (clean.isBlank()) {
-                return
-            }
-
-            Log.e(
-                "GEL_CLICK_PATH",
-                clean
-            )
-
-            runOnUiThread {
-
-                try {
-
-                    binding.contentMain.result.append(
-                        """
-
-$clean
-
-────────────────────
-
-                        """.trimIndent()
-                    )
-
-                } catch (_: Throwable) {}
-            }
-
-        } catch (_: Throwable) {}
-    }
-}
-
-// =====================================
 // HANDLE COOKIE CONSENT ACTION
 // Flush cookies and reload current page once
 // =====================================
@@ -2371,11 +2315,11 @@ binding.contentMain.webview.settings.apply {
 }
 
 // =====================================
-// WEBVIEW TOUCH = PAUSE SCANNER + CLICK PATH PROBE
-// Android-side touch probe, no console / no bridge needed
+// WEBVIEW TOUCH = PAUSE SCANNER + SCROLL FIX
+// Prevent ANR while user taps / scrolls / opens images
 // =====================================
 
-binding.contentMain.webview.setOnTouchListener { v, event ->
+binding.contentMain.webview.setOnTouchListener { v, _ ->
 
     try {
 
@@ -2394,186 +2338,6 @@ binding.contentMain.webview.setOnTouchListener { v, event ->
         v.parent?.requestDisallowInterceptTouchEvent(
             true
         )
-
-        if (
-            event != null &&
-            event.action == android.view.MotionEvent.ACTION_UP
-        ) {
-
-            val touchX =
-                event.x
-
-            val touchY =
-                event.y
-
-            val scale =
-                try {
-                    binding.contentMain.webview.scale
-                } catch (_: Throwable) {
-                    1.0f
-                }
-
-            val jsX =
-                if (scale > 0f) {
-                    touchX / scale
-                } else {
-                    touchX
-                }
-
-            val jsY =
-                if (scale > 0f) {
-                    touchY / scale
-                } else {
-                    touchY
-                }
-
-            val js =
-                """
-
-(function() {
-
-    try {
-
-        function describeElement(el) {
-
-            try {
-
-                if (!el) {
-                    return "NULL";
-                }
-
-                var txt =
-                    (
-                        el.innerText ||
-                        el.textContent ||
-                        ""
-                    )
-                    .trim()
-                    .replace(/\s+/g, " ")
-                    .substring(0, 180);
-
-                var out = "";
-
-                out += "TAG: " + (el.tagName || "") + "\n";
-                out += "ID: " + (el.id || "") + "\n";
-                out += "CLASS: " + (el.className || "") + "\n";
-                out += "HREF: " + (el.href || "") + "\n";
-                out += "SRC: " + (el.src || "") + "\n";
-                out += "TEXT: " + txt + "\n";
-
-                return out;
-
-            } catch(e) {
-
-                return "DESCRIBE ERROR: " + e;
-            }
-        }
-
-        var x =
-            $jsX;
-
-        var y =
-            $jsY;
-
-        var output = [];
-
-        output.push("===== GEL TOUCH PATH =====");
-        output.push("ANDROID X/Y: $touchX / $touchY");
-        output.push("JS X/Y: " + x + " / " + y);
-        output.push("PAGE URL: " + (window.location.href || ""));
-        output.push("");
-
-        var el =
-            document.elementFromPoint(
-                x,
-                y
-            );
-
-        output.push("ELEMENT FROM POINT:");
-        output.push(
-            describeElement(
-                el
-            )
-        );
-
-        output.push("PATH:");
-
-        var node =
-            el;
-
-        var index =
-            0;
-
-        while (
-            node &&
-            index < 10
-        ) {
-
-            try {
-
-                output.push(
-                    index +
-                    " | " +
-                    describeElement(
-                        node
-                    ).replace(/\n/g, " | ")
-                );
-
-            } catch(e) {}
-
-            node =
-                node.parentElement;
-
-            index++;
-        }
-
-        return output.join("\n");
-
-    } catch(e) {
-
-        return "GEL_TOUCH_PATH_ERROR: " + e;
-    }
-
-})();
-
-                """.trimIndent()
-
-            binding.contentMain.webview.evaluateJavascript(
-                js
-            ) { result ->
-
-                try {
-
-                    val clean =
-                        result
-                            ?.removePrefix("\"")
-                            ?.removeSuffix("\"")
-                            ?.replace("\\n", "\n")
-                            ?.replace("\\\"", "\"")
-                            ?.replace("\\/", "/")
-                            ?: ""
-
-                    if (clean.isNotBlank()) {
-
-                        Log.e(
-                            "GEL_TOUCH_PATH",
-                            clean
-                        )
-
-                        binding.contentMain.result.append(
-                            """
-
-$clean
-
-────────────────────
-
-                            """.trimIndent()
-                        )
-                    }
-
-                } catch (_: Throwable) {}
-            }
-        }
 
     } catch (_: Throwable) {}
 
@@ -2630,11 +2394,6 @@ try {
         CookieConsentBridge(),
         "GELCookieBridge"
     )
-    
-    binding.contentMain.webview.addJavascriptInterface(
-    ClickPathBridge(),
-    "GELClickBridge"
-)
 
 } catch (_: Throwable) {}
 
@@ -3542,45 +3301,6 @@ ${errorResponse?.reasonPhrase ?: ""}
 binding.contentMain.webview.webChromeClient =
     object : WebChromeClient() {
     
-    override fun onConsoleMessage(
-    consoleMessage: android.webkit.ConsoleMessage?
-): Boolean {
-
-    try {
-
-        val msg =
-            consoleMessage
-                ?.message()
-                .orEmpty()
-
-        if (
-            msg.contains(
-                "GEL CLICK PATH",
-                true
-            ) ||
-            msg.contains(
-                "GEL_CLICK_PATH",
-                true
-            ) ||
-            msg.contains(
-                "GEL_CLICK_PATH_ERROR",
-                true
-            )
-        ) {
-
-            Log.e(
-                "GEL_CLICK_PATH",
-                msg
-            )
-        }
-
-    } catch (_: Throwable) {}
-
-    return super.onConsoleMessage(
-        consoleMessage
-    )
-}
-    
     override fun onProgressChanged(
     view: WebView?,
     newProgress: Int
@@ -3722,11 +3442,6 @@ binding.contentMain.webview.webChromeClient =
                 CookieConsentBridge(),
                 "GELCookieBridge"
             )
-            
-            childWebView.addJavascriptInterface(
-    ClickPathBridge(),
-    "GELClickBridge"
-)
 
         } catch (_: Throwable) {}
 
@@ -3839,23 +3554,17 @@ binding.contentMain.webview.webChromeClient =
 
                             try {
 
-    installCookieConsentWatcher(
-        view,
-        url
-    )
+                                installCookieConsentWatcher(
+                                    view,
+                                    url
+                                )
 
-} catch (_: Throwable) {}
+                            } catch (_: Throwable) {}
 
-try {
-
-    startClickPathScanner()
-
-} catch (_: Throwable) {}
-
-handleInterceptedMediaUrl(
-    url,
-    null
-)
+                            handleInterceptedMediaUrl(
+                                url,
+                                null
+                            )
 
                             detectAndSaveUrl(
                                 url
@@ -6677,437 +6386,6 @@ true
 } // END onCreate()
 
 // =====================================
-// DOM SCAN CHANNELS
-// Clicks visible grid/EPG/channel rows in current page
-// =====================================
-
-private fun startDomScanChannels() {
-
-    try {
-
-        if (domScanRunning) {
-            Toast.makeText(
-                this,
-                "DOM scan already running",
-                Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-
-        domScanRunning =
-            true
-
-        domScanIndex =
-            0
-
-        window.addFlags(
-            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        )
-
-        binding.contentMain.result.append(
-            """
-
-DOM SCAN STARTED
-
-────────────────────
-
-            """.trimIndent()
-        )
-
-        clickNextDomChannel()
-
-    } catch (t: Throwable) {
-
-        domScanRunning =
-            false
-
-        window.clearFlags(
-            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        )
-
-        Log.e(
-            "DOM_SCAN",
-            "start failed",
-            t
-        )
-    }
-}
-
-// =====================================
-// CLICK NEXT DOM CHANNEL ROW
-// =====================================
-
-private fun clickNextDomChannel() {
-
-    try {
-
-        if (!domScanRunning) {
-            return
-        }
-
-        val activeWebView =
-            popupWebView
-                ?: binding.contentMain.webview
-
-        activeWebView.evaluateJavascript(
-            """
-
-(function() {
-
-    try {
-
-        var index =
-            $domScanIndex;
-
-        var badWords =
-            /cookie|privacy|accept|reject|login|sign in|subscribe|share|facebook|twitter|instagram|youtube|menu|home|contact|terms|policy|close|back|next|previous|search|language|settings|download|app/i;
-
-        function cleanText(value) {
-            try {
-                return String(value || "")
-                    .replace(/\s+/g, " ")
-                    .trim();
-            } catch(e) {
-                return "";
-            }
-        }
-
-        function visible(el) {
-            try {
-                var s = window.getComputedStyle(el);
-                var r = el.getBoundingClientRect();
-
-                return (
-                    s.display !== "none" &&
-                    s.visibility !== "hidden" &&
-                    s.opacity !== "0" &&
-                    r.width > 40 &&
-                    r.height > 20
-                );
-            } catch(e) {
-                return false;
-            }
-        }
-
-        function textOf(el) {
-            try {
-                return cleanText(
-                    (el.innerText || "") + " " +
-                    (el.textContent || "") + " " +
-                    (el.getAttribute("aria-label") || "") + " " +
-                    (el.getAttribute("title") || "") + " " +
-                    (el.getAttribute("data-title") || "") + " " +
-                    (el.getAttribute("data-name") || "")
-                );
-            } catch(e) {
-                return "";
-            }
-        }
-
-        var nodes =
-            Array.prototype.slice.call(
-                document.querySelectorAll(
-                    [
-                        ".channel-row",
-                        ".channel-item",
-                        ".channel-list-item",
-                        ".epg-row",
-                        ".guide-row",
-                        ".program-row",
-                        ".live-row",
-                        ".grid-row",
-                        ".list-row",
-                        "[class*='channel']",
-                        "[class*='Channel']",
-                        "[class*='epg']",
-                        "[class*='EPG']",
-                        "[class*='guide']",
-                        "[class*='Guide']",
-                        "[class*='program']",
-                        "[class*='Program']",
-                        "[class*='station']",
-                        "[class*='Station']",
-                        "[class*='live']",
-                        "[class*='Live']",
-                        "[class*='row']",
-                        "[class*='Row']",
-                        "[class*='grid']",
-                        "[class*='Grid']",
-                        "[class*='list']",
-                        "[class*='List']"
-                    ].join(",")
-                )
-            );
-
-        var candidates =
-            [];
-
-        var seen =
-            {};
-
-        nodes.forEach(function(el) {
-
-            try {
-
-                if (!visible(el)) {
-                    return;
-                }
-
-                var text =
-                    textOf(el);
-
-                var combined =
-                    (
-                        text + " " +
-                        String(el.className || "") + " " +
-                        String(el.id || "")
-                    ).toLowerCase();
-
-                if (badWords.test(combined)) {
-                    return;
-                }
-
-                if (text.length < 2 || text.length > 300) {
-    return;
-}
-
-                var rect =
-    el.getBoundingClientRect();
-
-var hasLive =
-    combined.indexOf("live") >= 0;
-
-var isBigContainer =
-    rect.height > 190 ||
-    text.toLowerCase().indexOf("641 channels") >= 0 ||
-    text.toLowerCase().indexOf("channels") === 0 ||
-    text.toLowerCase().indexOf("home »") >= 0 ||
-    text.toLowerCase().indexOf("show more") >= 0;
-
-var looksGridRow =
-    hasLive &&
-    !isBigContainer &&
-    rect.width > 120 &&
-    rect.height >= 35 &&
-    rect.height <= 190 &&
-    text.length >= 2 &&
-    text.length <= 300;
-
-if (!looksGridRow) {
-    return;
-}
-
-                var key =
-                    text.toLowerCase();
-
-                if (seen[key]) {
-                    return;
-                }
-
-                seen[key] =
-                    true;
-
-                candidates.push(el);
-
-            } catch(e) {}
-        });
-
-        if (index >= candidates.length) {
-            return JSON.stringify({
-                done: true,
-                count: candidates.length,
-                title: ""
-            });
-        }
-
-        var target =
-            candidates[index];
-
-        var title =
-            textOf(target).substring(0, 120);
-
-        try {
-            target.scrollIntoView({
-                block: "center",
-                inline: "center"
-            });
-        } catch(e) {}
-
-        try {
-            target.click();
-        } catch(e) {}
-
-        return JSON.stringify({
-            done: false,
-            count: candidates.length,
-            title: title
-        });
-
-    } catch(e) {
-
-        return JSON.stringify({
-            done: true,
-            count: 0,
-            title: "ERROR: " + e
-        });
-    }
-
-})();
-            """.trimIndent()
-        ) { result ->
-
-            try {
-
-                val cleaned =
-                    result
-                        ?.removePrefix("\"")
-                        ?.removeSuffix("\"")
-                        ?.replace("\\\\", "\\")
-                        ?.replace("\\\"", "\"")
-                        ?.replace("\\n", "\n")
-                        ?.trim()
-                        .orEmpty()
-
-                val obj =
-                    org.json.JSONObject(
-                        cleaned
-                    )
-
-                val done =
-                    obj.optBoolean(
-                        "done",
-                        true
-                    )
-
-                val count =
-                    obj.optInt(
-                        "count",
-                        0
-                    )
-
-                val title =
-                    obj.optString(
-                        "title",
-                        ""
-                    )
-
-                if (done) {
-
-                    finishDomScanChannels(
-                        count
-                    )
-
-                    return@evaluateJavascript
-                }
-
-                binding.contentMain.result.append(
-                    """
-
-DOM SCAN:
-${domScanIndex + 1}/$count
-$title
-
-────────────────────
-
-                    """.trimIndent()
-                )
-
-                runDeepMediaScan(
-                    activeWebView
-                )
-                
-                clickWatchOrPlayButtonIfPresent(
-    activeWebView
-) { }
-
-binding.contentMain.webview.postDelayed(
-    {
-
-        clickWatchOrPlayButtonIfPresent(
-            activeWebView
-        ) { }
-
-        runDeepMediaScan(
-            activeWebView
-        )
-
-        domScanIndex++
-
-        binding.contentMain.webview.postDelayed(
-            {
-                clickNextDomChannel()
-            },
-            700
-        )
-    },
-    3500
-)
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "DOM_SCAN",
-                    "parse failed",
-                    t
-                )
-
-                domScanRunning =
-                    false
-            }
-        }
-
-    } catch (t: Throwable) {
-
-        domScanRunning =
-            false
-
-        Log.e(
-            "DOM_SCAN",
-            "click next failed",
-            t
-        )
-    }
-}
-
-// =====================================
-// FINISH DOM SCAN
-// =====================================
-
-private fun finishDomScanChannels(
-    totalCandidates: Int
-) {
-
-    domScanRunning =
-        false
-
-    window.clearFlags(
-        android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-    )
-
-    binding.contentMain.result.append(
-        """
-
-DOM SCAN DONE
-
-Candidates:
-$totalCandidates
-
-Detected streams:
-${collectCurrentPlayableStreamsForAutoScan().size}
-
-────────────────────
-
-        """.trimIndent()
-    )
-
-    Toast.makeText(
-        this,
-        "DOM scan done",
-        Toast.LENGTH_SHORT
-    ).show()
-}
-
-// =====================================
 // FLOATING STOP AUTO SCAN BUTTON
 // =====================================
 
@@ -7496,10 +6774,9 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 }
 
 // =====================================
-// COLLECT COUNTRY / CATEGORY PAGINATION PAGES
-// Supports:
-// 1) normal pagination on list pages
-// 2) single /channel/... pages → resolves parent category from breadcrumb
+// COLLECT COUNTRY PAGINATION PAGES
+// Teleon-style: same country/path, page=2/page=3...
+// Stable mode: no parent category resolver, no guesses, no /channels fallback
 // =====================================
 
 private fun collectCountryPaginationPages(
@@ -7551,40 +6828,7 @@ private fun collectCountryPaginationPages(
             }
         }
 
-        function addAnyPage(title, href) {
-
-            try {
-
-                if (!href) {
-                    return;
-                }
-
-                var u =
-                    new URL(href, currentUrl);
-
-                if ((u.host || "") !== currentHost) {
-                    return;
-                }
-
-                var key =
-                    u.href.toLowerCase();
-
-                if (seen[key]) {
-                    return;
-                }
-
-                seen[key] =
-                    true;
-
-                pages.push({
-                    title: title || "PAGE",
-                    href: u.href
-                });
-
-            } catch(e) {}
-        }
-
-        function addPaginationPage(title, href) {
+        function addPage(title, href) {
 
             try {
 
@@ -7614,251 +6858,23 @@ private fun collectCountryPaginationPages(
                     return;
                 }
 
-                addAnyPage(
-                    title || ("PAGE " + pageValue),
-                    u.href
-                );
+                var key =
+                    u.href.toLowerCase();
 
-            } catch(e) {}
-        }
-
-        // =====================================
-        // SINGLE CHANNEL PAGE → FIND PARENT CATEGORY
-        // Example:
-        // /channel/biztv
-        // breadcrumb:
-        // Home » Channels » News & Politics » BIZTV
-        // =====================================
-
-var isSingleChannelPage =
-    currentPath.indexOf("/channel/") >= 0;
-
-if (isSingleChannelPage) {
-
-    var currentChannelSlug =
-        currentPath
-            .split("/channel/")
-            .pop()
-            .replace(/\//g, "")
-            .toLowerCase();
-
-    function slugify(text) {
-
-        try {
-
-            return String(text || "")
-                .toLowerCase()
-                .replace(/&/g, "and")
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-+|-+$/g, "");
-
-        } catch(e) {
-
-            return "";
-        }
-    }
-
-    function addParentCandidate(title, href) {
-
-        try {
-
-            if (!href) {
-                return;
-            }
-
-            var u =
-                new URL(href, currentUrl);
-
-            if ((u.host || "") !== currentHost) {
-                return;
-            }
-
-            var path =
-                (u.pathname || "").toLowerCase();
-
-            if (!path || path === currentPath.toLowerCase()) {
-                return;
-            }
-
-            if (path.indexOf("/channel/") >= 0) {
-                return;
-            }
-
-            addAnyPage(
-                title || "PARENT PAGE",
-                u.href
-            );
-
-        } catch(e) {}
-    }
-
-    // =====================================
-    // 1) BREADCRUMB / PAGE LINKS
-    // Grab every possible category-like link
-    // =====================================
-
-    document
-        .querySelectorAll("a[href]")
-        .forEach(function(a) {
-
-            try {
-
-                var href =
-                    a.href || "";
-
-                var text =
-                    cleanText(
-                        a.innerText ||
-                        a.textContent ||
-                        a.getAttribute("aria-label") ||
-                        a.getAttribute("title") ||
-                        ""
-                    );
-
-                if (!href || !text) {
+                if (seen[key]) {
                     return;
                 }
 
-                var lowerText =
-                    text.toLowerCase();
+                seen[key] =
+                    true;
 
-                var lowerHref =
-                    href.toLowerCase();
-
-                if (
-                    lowerText === "home" ||
-                    lowerText === "show more" ||
-                    lowerText === currentChannelSlug ||
-                    lowerHref.indexOf("/channel/") >= 0 ||
-                    lowerHref.indexOf("facebook") >= 0 ||
-                    lowerHref.indexOf("twitter") >= 0 ||
-                    lowerHref.indexOf("instagram") >= 0 ||
-                    lowerHref.indexOf("mailto:") >= 0
-                ) {
-                    return;
-                }
-
-                var looksParent =
-                    lowerHref.indexOf("/channels") >= 0 ||
-                    lowerHref.indexOf("/category") >= 0 ||
-                    lowerHref.indexOf("/genre") >= 0 ||
-                    lowerText === "channels" ||
-                    lowerText.indexOf("news") >= 0 ||
-                    lowerText.indexOf("politics") >= 0 ||
-                    lowerText.indexOf("entertainment") >= 0 ||
-                    lowerText.indexOf("sports") >= 0 ||
-                    lowerText.indexOf("movies") >= 0 ||
-                    lowerText.indexOf("music") >= 0 ||
-                    lowerText.indexOf("kids") >= 0 ||
-                    lowerText.indexOf("business") >= 0 ||
-                    lowerText.indexOf("education") >= 0 ||
-                    lowerText.indexOf("documentary") >= 0 ||
-                    lowerText.indexOf("lifestyle") >= 0 ||
-                    lowerText.indexOf("religion") >= 0 ||
-                    lowerText.indexOf("comedy") >= 0;
-
-                if (!looksParent) {
-                    return;
-                }
-
-                addParentCandidate(
-                    "PARENT LINK: " + text,
-                    href
-                );
-
-            } catch(e) {}
-        });
-
-    // =====================================
-    // 2) Breadcrumb text fallback
-    // Example visible text:
-    // Home » Channels » News & Politics » BIZTV
-    // =====================================
-
-    try {
-
-        var bodyText =
-            cleanText(
-                document.body
-                    ? document.body.innerText || ""
-                    : ""
-            );
-
-        var parts =
-            bodyText
-                .split("»")
-                .map(function(x) {
-                    return cleanText(x);
-                })
-                .filter(function(x) {
-                    return x.length > 1;
+                pages.push({
+                    title: title || ("PAGE " + pageValue),
+                    href: u.href
                 });
 
-        parts.forEach(function(part) {
-
-            try {
-
-                var lower =
-                    part.toLowerCase();
-
-                if (
-                    lower === "home" ||
-                    lower === "channels" ||
-                    lower.indexOf(currentChannelSlug) >= 0 ||
-                    lower.indexOf("live " + currentChannelSlug) >= 0
-                ) {
-                    return;
-                }
-
-                var slug =
-                    slugify(part);
-
-                if (!slug) {
-                    return;
-                }
-
-                addParentCandidate(
-                    "GUESSED CATEGORY: " + part,
-                    current.origin + "/channels/" + slug
-                );
-
-                addParentCandidate(
-                    "GUESSED CATEGORY: " + part,
-                    current.origin + "/category/" + slug
-                );
-
-                addParentCandidate(
-                    "GUESSED CATEGORY: " + part,
-                    current.origin + "/channels/category/" + slug
-                );
-
             } catch(e) {}
-        });
-
-    } catch(e) {}
-
-    // =====================================
-    // 3) Safe generic fallbacks
-    // =====================================
-
-    addParentCandidate(
-        "ALL CHANNELS",
-        current.origin + "/channels"
-    );
-
-    addParentCandidate(
-        "CHANNEL LIST",
-        current.origin + "/channels/"
-    );
-
-    return JSON.stringify(
-        pages
-    );
-}
-
-        // =====================================
-        // NORMAL LIST PAGE PAGINATION
-        // =====================================
+        }
 
         document
             .querySelectorAll("a[href]")
@@ -7878,21 +6894,16 @@ if (isSingleChannelPage) {
                             ""
                         );
 
-                    addPaginationPage(
-                        text,
-                        href
-                    );
+                    addPage(text, href);
 
                 } catch(e) {}
             });
 
-        addAnyPage(
-            "CURRENT PAGE",
-            currentUrl
-        );
+        addPage("CURRENT PAGE", currentUrl);
 
         // =====================================
         // EXPAND PAGINATION WINDOW TO FULL RANGE
+        // Same path only. No category guessing.
         // =====================================
 
         try {
@@ -7954,8 +6965,13 @@ if (isSingleChannelPage) {
                         var looksLast =
                             rel.indexOf("last") >= 0 ||
                             text.indexOf("last") >= 0 ||
+                            text.indexOf(">>") >= 0 ||
                             text.indexOf("»") >= 0 ||
-                            text.indexOf(">>") >= 0;
+                            text.indexOf("»»") >= 0 ||
+                            text.indexOf("≫") >= 0 ||
+                            text.indexOf("last page") >= 0 ||
+                            text.indexOf("go to last") >= 0 ||
+                            text.indexOf("end") >= 0;
 
                         if (
                             looksLast ||
@@ -7971,37 +6987,68 @@ if (isSingleChannelPage) {
 
             if (maxPage > 1) {
 
+                var expanded =
+                    [];
+
+                var base =
+                    new URL(
+                        currentUrl
+                    );
+
                 for (
-                    var p = 1;
-                    p <= maxPage && p <= 50;
-                    p++
+                    var i = 1;
+                    i <= maxPage && i <= 100;
+                    i++
                 ) {
 
-                    try {
-
-                        var pageUrl =
-                            new URL(
-                                currentUrl
-                            );
-
-                        pageUrl.searchParams.set(
-                            "page",
-                            String(p)
+                    var u =
+                        new URL(
+                            base.href
                         );
 
-                        addAnyPage(
-                            "PAGE " + p,
-                            pageUrl.href
-                        );
+                    u.searchParams.set(
+                        "page",
+                        String(i)
+                    );
 
-                    } catch(e) {}
+                    expanded.push({
+                        title: "PAGE " + i,
+                        href: u.href
+                    });
                 }
+
+                pages =
+                    expanded;
             }
 
         } catch(e) {}
 
+        pages.sort(function(a, b) {
+
+            try {
+
+                var pa =
+                    parseInt(
+                        new URL(a.href).searchParams.get("page") || "1",
+                        10
+                    );
+
+                var pb =
+                    parseInt(
+                        new URL(b.href).searchParams.get("page") || "1",
+                        10
+                    );
+
+                return pa - pb;
+
+            } catch(e) {
+
+                return 0;
+            }
+        });
+
         return JSON.stringify(
-            pages
+            pages.slice(0, 100)
         );
 
     } catch(e) {
@@ -8010,7 +7057,6 @@ if (isSingleChannelPage) {
     }
 
 })();
-
             """.trimIndent()
         ) { jsResult ->
 
@@ -8031,7 +7077,7 @@ if (isSingleChannelPage) {
                         cleaned
                     )
 
-                val parsed =
+                val pages =
                     mutableListOf<AutoScanPage>()
 
                 for (i in 0 until array.length()) {
@@ -8059,7 +7105,7 @@ if (isSingleChannelPage) {
                         continue
                     }
 
-                    parsed.add(
+                    pages.add(
                         AutoScanPage(
                             title = title,
                             href = href
@@ -8068,7 +7114,7 @@ if (isSingleChannelPage) {
                 }
 
                 onReady(
-                    parsed.distinctBy { page ->
+                    pages.distinctBy { page ->
                         page.href.lowercase()
                     }
                 )
@@ -8076,7 +7122,7 @@ if (isSingleChannelPage) {
             } catch (t: Throwable) {
 
                 Log.e(
-                    "COUNTRY_PAGES",
+                    "AUTO_SCAN_PAGES",
                     "parse failed",
                     t
                 )
@@ -8090,8 +7136,8 @@ if (isSingleChannelPage) {
     } catch (t: Throwable) {
 
         Log.e(
-            "COUNTRY_PAGES",
-            "collect failed",
+            "AUTO_SCAN_PAGES",
+            "failed",
             t
         )
 
@@ -8101,7 +7147,6 @@ if (isSingleChannelPage) {
     }
 }
 
-// =====================================
 // CLICK WATCH / PLAY BUTTON IF PRESENT
 // Returns true only if a real button was clicked
 // =====================================
@@ -8261,7 +7306,7 @@ private fun clickWatchOrPlayButtonIfPresent(
 
 // =====================================
 // COLLECT CHANNEL CANDIDATES FOR AUTO SCAN
-// Safe: collects href/title + row-based candidates
+// Safe: only collects href/title, does not click
 // =====================================
 
 private fun collectAutoScanCandidates(
@@ -8356,17 +7401,6 @@ private fun collectAutoScanCandidates(
                 text += " " + (el.getAttribute("data-name") || "");
                 text += " " + (el.getAttribute("alt") || "");
 
-                var img =
-                    el.querySelector
-                        ? el.querySelector("img")
-                        : null;
-
-                if (img) {
-
-                    text += " " + (img.getAttribute("alt") || "");
-                    text += " " + (img.getAttribute("title") || "");
-                }
-
                 return cleanText(text);
 
             } catch(e) {
@@ -8405,42 +7439,6 @@ private fun collectAutoScanCandidates(
             }
         }
 
-        function addCandidate(title, href) {
-
-            try {
-
-                title =
-                    cleanText(title);
-
-                href =
-                    String(href || "").trim();
-
-                if (
-                    title.length < 2 &&
-                    href.length < 5
-                ) {
-                    return;
-                }
-
-                var key =
-                    (title + "|" + href)
-                        .toLowerCase();
-
-                if (seen[key]) {
-                    return;
-                }
-
-                seen[key] =
-                    true;
-
-                candidates.push({
-                    title: title.substring(0, 140),
-                    href: href.substring(0, 700)
-                });
-
-            } catch(e) {}
-        }
-
         function looksLikeChannel(el, text, href) {
 
             try {
@@ -8462,6 +7460,10 @@ private fun collectAutoScanCandidates(
                     return false;
                 }
 
+                // =====================================
+                // HARD REJECT — SOCIAL / CONTACT
+                // =====================================
+
                 if (
                     href.indexOf("facebook.com") >= 0 ||
                     href.indexOf("twitter.com") >= 0 ||
@@ -8472,6 +7474,10 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
+
+                // =====================================
+                // HARD REJECT — COUNTRY / PAGINATION
+                // =====================================
 
                 if (
                     href.indexOf("/country/") >= 0 ||
@@ -8485,38 +7491,76 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
+                
+// =====================================
+// GRID / EPG ROW ACCEPT
+// For pages with embedded TV guide rows
+// =====================================
+
+if (
+    text.length >= 2 &&
+    text.length <= 220 &&
+    (
+        combined.indexOf("live") >= 0 ||
+        combined.indexOf("channel") >= 0 ||
+        combined.indexOf("channels") >= 0 ||
+        combined.indexOf("epg") >= 0 ||
+        combined.indexOf("guide") >= 0 ||
+        combined.indexOf("program") >= 0 ||
+        combined.indexOf("station") >= 0 ||
+        combined.indexOf("tv") >= 0
+    ) &&
+    !badWords.test(combined)
+) {
+    return true;
+}
+
+                // =====================================
+                // HARD ACCEPT — CHANNEL LINKS
+                // =====================================
 
                 if (
                     href &&
                     href !== "#" &&
                     href.indexOf("/channel/") >= 0 &&
                     text.length >= 2 &&
-                    text.length <= 180
+                    text.length <= 160
                 ) {
                     return true;
                 }
 
+                // =====================================
+                // SOFT ACCEPT — CHANNEL-LIKE LINKS
+                // =====================================
+
                 if (
-                    text.length >= 2 &&
-                    text.length <= 240 &&
+                    href &&
+                    href !== "#" &&
+                    href.indexOf("/channel/") >= 0 &&
                     (
-                        combined.indexOf("live") >= 0 ||
                         combined.indexOf("channel") >= 0 ||
-                        combined.indexOf("channels") >= 0 ||
-                        combined.indexOf("epg") >= 0 ||
-                        combined.indexOf("guide") >= 0 ||
-                        combined.indexOf("program") >= 0 ||
+                        combined.indexOf("live") >= 0 ||
+                        combined.indexOf("tv") >= 0 ||
+                        combined.indexOf("stream") >= 0 ||
+                        combined.indexOf("player") >= 0 ||
+                        combined.indexOf("watch") >= 0 ||
+                        combined.indexOf("play") >= 0 ||
                         combined.indexOf("station") >= 0 ||
-                        combined.indexOf("tv") >= 0
+                        combined.indexOf("canal") >= 0 ||
+                        combined.indexOf("kanal") >= 0
                     )
                 ) {
                     return true;
                 }
 
+                // =====================================
+                // BUTTON / CLICKABLE FALLBACKS
+                // =====================================
+
                 if (
                     role === "button" &&
                     text.length >= 2 &&
-                    text.length <= 140
+                    text.length <= 120
                 ) {
                     return true;
                 }
@@ -8525,7 +7569,7 @@ private fun collectAutoScanCandidates(
                     !href &&
                     el.onclick &&
                     text.length >= 2 &&
-                    text.length <= 140
+                    text.length <= 120
                 ) {
                     return true;
                 }
@@ -8538,69 +7582,65 @@ private fun collectAutoScanCandidates(
             }
         }
 
-        // =====================================
-        // 1) NORMAL LINK / BUTTON CANDIDATES
-        // =====================================
-
         var nodes =
             Array.prototype.slice.call(
                 document.querySelectorAll(
-                    [
-                        "a[href]",
-                        "button",
-                        "[role='button']",
-                        "[onclick]",
-                        "[data-url]",
-                        "[data-href]",
-                        "[data-src]",
-                        "[data-stream]",
-                        "[data-channel]",
-                        "[data-channel-id]",
-                        "[data-name]",
-                        "[data-title]",
+    [
+        "a[href]",
+        "button",
+        "[role='button']",
+        "[onclick]",
+        "[data-url]",
+        "[data-href]",
+        "[data-src]",
+        "[data-stream]",
+        "[data-channel]",
+        "[data-channel-id]",
+        "[data-name]",
+        "[data-title]",
 
-                        ".channel",
-                        ".channels",
-                        ".tv-channel",
-                        ".station",
-                        ".card",
-                        ".item",
-                        "li",
+        ".channel",
+        ".channels",
+        ".tv-channel",
+        ".station",
+        ".card",
+        ".item",
+        "li",
 
-                        ".channel-row",
-                        ".channel-item",
-                        ".channel-list-item",
-                        ".epg-row",
-                        ".guide-row",
-                        ".program-row",
-                        ".live-row",
-                        ".grid-row",
-                        ".list-row",
+        ".channel-row",
+        ".channel-item",
+        ".channel-list-item",
+        ".epg-row",
+        ".guide-row",
+        ".program-row",
+        ".live-row",
+        ".grid-row",
+        ".list-row",
 
-                        "[class*='channel']",
-                        "[class*='Channel']",
-                        "[class*='channels']",
-                        "[class*='Channels']",
-                        "[class*='epg']",
-                        "[class*='EPG']",
-                        "[class*='guide']",
-                        "[class*='Guide']",
-                        "[class*='program']",
-                        "[class*='Program']",
-                        "[class*='station']",
-                        "[class*='Station']",
-                        "[class*='live']",
-                        "[class*='Live']",
-                        "[class*='row']",
-                        "[class*='Row']",
-                        "[class*='grid']",
-                        "[class*='Grid']",
-                        "[class*='list']",
-                        "[class*='List']",
-                        "[class*='logo']",
-                        "[class*='Logo']"
-                    ].join(",")
-                )
+        "[class*='channel']",
+        "[class*='Channel']",
+        "[class*='channels']",
+        "[class*='Channels']",
+        "[class*='epg']",
+        "[class*='EPG']",
+        "[class*='guide']",
+        "[class*='Guide']",
+        "[class*='program']",
+        "[class*='Program']",
+        "[class*='station']",
+        "[class*='Station']",
+        "[class*='live']",
+        "[class*='Live']",
+        "[class*='row']",
+        "[class*='Row']",
+        "[class*='grid']",
+        "[class*='Grid']",
+        "[class*='list']",
+        "[class*='List']",
+        "[class*='logo']",
+        "[class*='Logo']"
+    ].join(",")
+)
             );
 
         nodes.forEach(function(el) {
@@ -8617,102 +7657,38 @@ private fun collectAutoScanCandidates(
                 var href =
                     getHref(el);
 
+                if (
+                    text.length < 2 &&
+                    href.length < 5
+                ) {
+                    return;
+                }
+
                 if (!looksLikeChannel(el, text, href)) {
                     return;
                 }
 
-                addCandidate(
-                    text,
-                    href
-                );
+                var key =
+                    (text + "|" + href)
+                        .toLowerCase();
 
-            } catch(e) {}
-        });
+                if (seen[key]) {
+                    return;
+                }
 
-        // =====================================
-        // 2) ROW-BASED EPG CANDIDATES
-        // For VivaLive-style pages:
-        // #EPGTableWrapper → table.flategp → tr
-        // =====================================
+                seen[key] =
+                    true;
 
-        var rowSelectors = [
-            "#EPGTableWrapper table.flategp tbody tr",
-            "#userChannels table.flategp tbody tr",
-            "table.flategp tbody tr",
-            "#EPGTableWrapper tr",
-            "#userChannels tr"
-        ];
-
-        var rowIndex =
-            0;
-
-        rowSelectors.forEach(function(sel) {
-
-            try {
-
-                document
-                    .querySelectorAll(sel)
-                    .forEach(function(row) {
-
-                        try {
-
-                            if (!isVisible(row)) {
-                                return;
-                            }
-
-                            var text =
-                                getText(row);
-
-                            if (
-                                text.length < 2 ||
-                                text.length > 260
-                            ) {
-                                return;
-                            }
-
-                            var lower =
-                                text.toLowerCase();
-
-                            if (badWords.test(lower)) {
-                                return;
-                            }
-
-                            var rect =
-                                row.getBoundingClientRect();
-
-                            var x =
-                                Math.floor(
-                                    rect.left + rect.width / 2
-                                );
-
-                            var y =
-                                Math.floor(
-                                    rect.top + rect.height / 2
-                                );
-
-                            var href =
-                                "gel-row://" +
-                                rowIndex +
-                                "?x=" +
-                                x +
-                                "&y=" +
-                                y;
-
-                            rowIndex++;
-
-                            addCandidate(
-                                text,
-                                href
-                            );
-
-                        } catch(e) {}
-                    });
+                candidates.push({
+                    title: text.substring(0, 120),
+                    href: href.substring(0, 500)
+                });
 
             } catch(e) {}
         });
 
         return JSON.stringify(
-            candidates.slice(0, 300)
+            candidates.slice(0, 250)
         );
 
     } catch(e) {
@@ -8721,7 +7697,6 @@ private fun collectAutoScanCandidates(
     }
 
 })();
-
             """.trimIndent()
         ) { jsResult ->
 
@@ -8768,10 +7743,7 @@ private fun collectAutoScanCandidates(
 
                     if (
                         href.isBlank() ||
-                        (
-                            !href.startsWith("http", true) &&
-                            !href.startsWith("gel-row://", true)
-                        )
+                        !href.startsWith("http", true)
                     ) {
                         continue
                     }
@@ -8785,8 +7757,8 @@ private fun collectAutoScanCandidates(
                 }
 
                 // =====================================
-                // Prefer real channel pages first.
-                // If no real pages exist, keep row candidates.
+                // Prefer real channel pages.
+                // Avoid country/category pages when possible.
                 // =====================================
 
                 val channelLike =
@@ -8805,26 +7777,11 @@ private fun collectAutoScanCandidates(
                             !lower.contains("/country/")
                     }
 
-                val rowLike =
-                    parsed.filter { item ->
-
-                        item.href.startsWith(
-                            "gel-row://",
-                            true
-                        )
-                    }
-
                 val finalList =
-                    when {
-
-                        channelLike.isNotEmpty() ->
-                            channelLike
-
-                        rowLike.isNotEmpty() ->
-                            rowLike
-
-                        else ->
-                            parsed
+                    if (channelLike.isNotEmpty()) {
+                        channelLike
+                    } else {
+                        parsed
                     }
                         .distinctBy { item ->
                             item.href.lowercase()
@@ -9234,7 +8191,7 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 
 // =====================================
 // SCAN NEXT CHANNEL CANDIDATE
-// Opens URL candidates OR clicks gel-row:// EPG candidates
+// Opens each candidate URL and waits for stream detection
 // =====================================
 
 private fun scanNextAutoChannel() {
@@ -9267,12 +8224,6 @@ private fun scanNextAutoChannel() {
             popupWebView
                 ?: binding.contentMain.webview
 
-        val isRowCandidate =
-            candidate.href.startsWith(
-                "gel-row://",
-                true
-            )
-
         binding.contentMain.result.append(
             """
 
@@ -9289,11 +8240,7 @@ ${candidate.href}
         try {
 
             binding.contentMain.urlInput.setText(
-                if (isRowCandidate) {
-                    activeWebView.url.orEmpty()
-                } else {
-                    candidate.href
-                }
+                candidate.href
             )
 
             binding.contentMain.urlInput.setSelection(
@@ -9301,324 +8248,9 @@ ${candidate.href}
             )
 
             liveUrlInputText =
-                binding.contentMain.urlInput
-                    .text
-                    ?.toString()
-                    ?.trim()
-                    .orEmpty()
+                candidate.href
 
         } catch (_: Throwable) {}
-
-        // =====================================
-        // ROW CANDIDATE MODE
-        // gel-row://0?x=123&y=456
-        // Do NOT load URL. Click row inside current page.
-        // =====================================
-
-        if (isRowCandidate) {
-
-            try {
-
-                val uri =
-                    Uri.parse(
-                        candidate.href
-                    )
-
-                val x =
-                    uri.getQueryParameter(
-                        "x"
-                    )
-                        ?.toIntOrNull()
-                        ?: 0
-
-                val y =
-                    uri.getQueryParameter(
-                        "y"
-                    )
-                        ?.toIntOrNull()
-                        ?: 0
-
-                if (
-                    x <= 0 ||
-                    y <= 0
-                ) {
-
-                    binding.contentMain.result.append(
-                        """
-
-AUTO ROW SCAN:
-Invalid row coordinates.
-Skipping.
-
-────────────────────
-
-                        """.trimIndent()
-                    )
-
-                    autoScanIndex++
-
-                    binding.contentMain.webview.postDelayed(
-                        {
-                            scanNextAutoChannel()
-                        },
-                        700
-                    )
-
-                    return
-                }
-
-                val clickJs =
-                    """
-
-(function() {
-
-    try {
-
-        var x =
-            $x;
-
-        var y =
-            $y;
-
-        var el =
-            document.elementFromPoint(
-                x,
-                y
-            );
-
-        if (!el) {
-            return "NO_ELEMENT_AT_POINT";
-        }
-
-        var row =
-            null;
-
-        try {
-
-            row =
-                el.closest("tr");
-
-        } catch(e) {}
-
-        var target =
-            row || el;
-
-        var label =
-            (
-                target.innerText ||
-                target.textContent ||
-                target.src ||
-                ""
-            )
-            .trim()
-            .replace(/\s+/g, " ")
-            .substring(0, 180);
-
-        function fireOn(
-            node,
-            type
-        ) {
-
-            try {
-
-                var ev =
-                    new MouseEvent(
-                        type,
-                        {
-                            view: window,
-                            bubbles: true,
-                            cancelable: true,
-                            clientX: x,
-                            clientY: y
-                        }
-                    );
-
-                node.dispatchEvent(
-                    ev
-                );
-
-            } catch(e) {}
-        }
-
-        // =====================================
-        // Fire on exact element first
-        // =====================================
-
-        fireOn(el, "mouseover");
-        fireOn(el, "mousedown");
-        fireOn(el, "mouseup");
-        fireOn(el, "click");
-
-        try {
-            el.click();
-        } catch(e) {}
-
-        // =====================================
-        // Fire on parent row too
-        // VivaLive-style clickable TR
-        // =====================================
-
-        if (row && row !== el) {
-
-            fireOn(row, "mouseover");
-            fireOn(row, "mousedown");
-            fireOn(row, "mouseup");
-            fireOn(row, "click");
-
-            try {
-                row.click();
-            } catch(e) {}
-        }
-
-        return (
-            "ROW_CLICKED | " +
-            (target.tagName || "") +
-            " | " +
-            label
-        );
-
-    } catch(e) {
-
-        return "ROW_CLICK_ERROR: " + e;
-    }
-
-})();
-
-                    """.trimIndent()
-
-                activeWebView.evaluateJavascript(
-                    clickJs
-                ) { clickResult ->
-
-                    try {
-
-                        val cleanClick =
-                            clickResult
-                                ?.removePrefix("\"")
-                                ?.removeSuffix("\"")
-                                ?.replace("\\n", "\n")
-                                ?.replace("\\\"", "\"")
-                                ?.replace("\\/", "/")
-                                .orEmpty()
-
-                        binding.contentMain.result.append(
-                            """
-
-AUTO ROW CLICK:
-$cleanClick
-
-Waiting for stream...
-
-────────────────────
-
-                            """.trimIndent()
-                        )
-
-                    } catch (_: Throwable) {}
-                }
-
-                // First scan after row click
-                activeWebView.postDelayed(
-                    {
-
-                        try {
-
-                            if (
-                                !autoScanRunning ||
-                                cloudflareChallengeActive
-                            ) {
-                                return@postDelayed
-                            }
-
-                            runDeepMediaScan(
-                                activeWebView
-                            )
-
-                            showAllMedia()
-
-                        } catch (_: Throwable) {}
-                    },
-                    2200
-                )
-
-                // Final scan and finalize
-                activeWebView.postDelayed(
-                    {
-
-                        try {
-
-                            if (
-                                !autoScanRunning ||
-                                cloudflareChallengeActive
-                            ) {
-                                return@postDelayed
-                            }
-
-                            runDeepMediaScan(
-                                activeWebView
-                            )
-
-                            finalizeCurrentAutoChannel(
-                                candidate
-                            )
-
-                            autoScanIndex++
-
-                            binding.contentMain.webview.postDelayed(
-                                {
-                                    scanNextAutoChannel()
-                                },
-                                1000
-                            )
-
-                        } catch (t: Throwable) {
-
-                            Log.e(
-                                "AUTO_SCAN",
-                                "row finalize failed",
-                                t
-                            )
-
-                            autoScanIndex++
-
-                            binding.contentMain.webview.postDelayed(
-                                {
-                                    scanNextAutoChannel()
-                                },
-                                1000
-                            )
-                        }
-                    },
-                    5600
-                )
-
-                return
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "AUTO_SCAN",
-                    "row scan failed",
-                    t
-                )
-
-                autoScanIndex++
-
-                binding.contentMain.webview.postDelayed(
-                    {
-                        scanNextAutoChannel()
-                    },
-                    1000
-                )
-
-                return
-            }
-        }
-
-        // =====================================
-        // NORMAL URL CANDIDATE MODE
-        // Existing behavior
-        // =====================================
 
         try {
 
@@ -9730,17 +8362,19 @@ Skipping wait.
 
 AUTO SCAN:
 Play button clicked.
-Waiting for stream.
+Waiting for stream...
 
 ────────────────────
 
                                 """.trimIndent()
                             )
 
+                            // First scan after click
                             runDeepMediaScan(
                                 activeWebView
                             )
 
+                            // Second/final scan — not too slow
                             binding.contentMain.webview.postDelayed(
                                 {
 
@@ -13411,22 +12045,6 @@ try {
         );
 
         // =====================================
-        // RAW PLAYER RESPONSE DEBUG
-        // =====================================
-
-        try {
-
-            console.log(
-                "GEL_RAW_PLAYER_RESPONSE:",
-                txt.substring(
-                    0,
-                    5000
-                )
-            );
-
-        } catch(e) {}
-
-        // =====================================
         // CLEAN HELPER
         // =====================================
 
@@ -13728,21 +12346,6 @@ try {
                                         txt.includes("ytInitialPlayerResponse")
                                     ) {
 
-                                        console.log(
-                                            "GEL_PLAYER_RESPONSE_FOUND"
-                                        );
-
-                                        try {
-
-                                            console.log(
-                                                "GEL_RAW_PLAYER_RESPONSE:",
-                                                txt.substring(
-                                                    0,
-                                                    5000
-                                                )
-                                            );
-
-                                        } catch(e) {}
                                     }
 
                                 } catch(e) {}
@@ -16408,11 +15011,6 @@ private fun handleIncomingIntent() {
 
         val type =  
             intent?.type  
-
-        Log.e(  
-            "INTENT_DEBUG",  
-            "action=$action type=$type data=${intent?.dataString}"  
-        )  
 
         // =====================================  
         // SHARE TEXT  
@@ -21859,634 +20457,6 @@ binding.contentMain.result.text =
 }
 
 // =====================================
-// CLICK PATH SCANNER
-// Detects real clickable DOM path
-// =====================================
-
-private fun startClickPathScanner() {
-
-    try {
-
-        val activeWebView =
-            popupWebView
-                ?: binding.contentMain.webview
-
-        val js =
-            """
-
-(function() {
-
-    try {
-
-        if (window.__GEL_CLICK_PATH_SCANNER_INSTALLED__) {
-            return "GEL_CLICK_PATH_SCANNER_ALREADY_INSTALLED";
-        }
-
-        window.__GEL_CLICK_PATH_SCANNER_INSTALLED__ = true;
-
-        document.addEventListener(
-            "click",
-            function(e) {
-
-                try {
-
-                    var output = [];
-
-                    output.push("===== GEL CLICK PATH =====");
-
-                    if (e.target) {
-
-                        output.push(
-                            "TARGET TAG: " +
-                            e.target.tagName
-                        );
-
-                        output.push(
-                            "TARGET CLASS: " +
-                            (e.target.className || "")
-                        );
-
-                        output.push(
-                            "TARGET ID: " +
-                            (e.target.id || "")
-                        );
-
-                        output.push(
-                            "TARGET TEXT: " +
-                            (
-                                e.target.innerText ||
-                                e.target.textContent ||
-                                ""
-                            ).trim().substring(0, 120)
-                        );
-                    }
-
-                    output.push(
-                        "CLICK X/Y: " +
-                        e.clientX +
-                        " / " +
-                        e.clientY
-                    );
-
-                    var path =
-                        e.composedPath
-                            ? e.composedPath()
-                            : [];
-
-                    output.push("");
-                    output.push("PATH:");
-
-                    for (var i = 0; i < path.length; i++) {
-
-                        var el = path[i];
-
-                        if (!el || !el.tagName) {
-                            continue;
-                        }
-
-                        var line =
-                            i +
-                            " | " +
-                            el.tagName;
-
-                        if (el.id) {
-                            line += " #" + el.id;
-                        }
-
-                        if (el.className) {
-                            line += " ." + String(el.className).replace(/\s+/g, ".");
-                        }
-
-                        var txt =
-                            (
-                                el.innerText ||
-                                el.textContent ||
-                                ""
-                            ).trim().replace(/\s+/g, " ");
-
-                        if (txt.length > 0) {
-                            line += " | TEXT: " + txt.substring(0, 160);
-                        }
-
-                        output.push(line);
-                    }
-
-                    var finalOutput =
-    output.join("\n");
-
-try {
-
-    if (
-        window.GELClickBridge &&
-        window.GELClickBridge.onClickPath
-    ) {
-
-        window.GELClickBridge.onClickPath(
-            finalOutput
-        );
-
-    } else {
-
-        console.log(
-            finalOutput
-        );
-    }
-
-} catch(e) {
-
-    console.log(
-        finalOutput
-    );
-}
-
-                } catch(err) {
-
-                    try {
-
-    if (
-        window.GELClickBridge &&
-        window.GELClickBridge.onClickPath
-    ) {
-
-        window.GELClickBridge.onClickPath(
-            "GEL_CLICK_PATH_ERROR: " + err
-        );
-
-    } else {
-
-        console.log(
-            "GEL_CLICK_PATH_ERROR: " + err
-        );
-    }
-
-} catch(e) {}
-
-                }
-
-            },
-            true
-        );
-
-        return "GEL_CLICK_PATH_SCANNER_INSTALLED";
-
-    } catch(e) {
-
-        return "GEL_CLICK_PATH_SCANNER_ERROR: " + e;
-    }
-
-})();
-
-""".trimIndent()
-
-        activeWebView.evaluateJavascript(js) { result ->
-
-            Log.e(
-                "GEL_CLICK_PATH",
-                result ?: "NULL"
-            )
-        }
-
-    } catch (e: Throwable) {
-
-        Log.e(
-            "GEL_CLICK_PATH",
-            "ERROR: ${e.message}"
-        )
-    }
-}
-
-// =====================================
-// ROW CLICKER SCAN CHANNELS
-// Clicks visible EPG/channel rows and lets stream monitor capture HLS
-// =====================================
-
-private fun startRowClickerScanChannels() {
-
-    try {
-
-        val activeWebView =
-            popupWebView
-                ?: binding.contentMain.webview
-
-        startStreamMonitor()
-
-        binding.contentMain.result.append(
-            """
-
-ROW CLICKER SCAN STARTED
-
-Target:
-#EPGTableWrapper table.flategp tbody tr
-#userChannels table.flategp tbody tr
-
-────────────────────
-
-            """.trimIndent()
-        )
-
-        val collectJs =
-            """
-
-(function() {
-
-    try {
-
-        function isVisible(el) {
-
-            try {
-
-                if (!el) {
-                    return false;
-                }
-
-                var r =
-                    el.getBoundingClientRect();
-
-                var style =
-                    window.getComputedStyle(el);
-
-                return (
-                    r.width > 20 &&
-                    r.height > 10 &&
-                    r.bottom >= 0 &&
-                    r.right >= 0 &&
-                    r.top <= window.innerHeight &&
-                    r.left <= window.innerWidth &&
-                    style.display !== "none" &&
-                    style.visibility !== "hidden" &&
-                    style.opacity !== "0"
-                );
-
-            } catch(e) {
-
-                return false;
-            }
-        }
-
-        var selectors = [
-            "#EPGTableWrapper table.flategp tbody tr",
-            "#userChannels table.flategp tbody tr",
-            "table.flategp tbody tr",
-            "#EPGTableWrapper tr",
-            "#userChannels tr"
-        ];
-
-        var seen = {};
-        var rows = [];
-
-        selectors.forEach(function(sel) {
-
-            try {
-
-                document
-                    .querySelectorAll(sel)
-                    .forEach(function(row) {
-
-                        try {
-
-                            if (!isVisible(row)) {
-                                return;
-                            }
-
-                            var text =
-                                (
-                                    row.innerText ||
-                                    row.textContent ||
-                                    ""
-                                )
-                                .trim()
-                                .replace(/\s+/g, " ");
-
-                            if (text.length < 3) {
-                                return;
-                            }
-
-                            var key =
-                                text.toLowerCase();
-
-                            if (seen[key]) {
-                                return;
-                            }
-
-                            seen[key] =
-                                true;
-
-                            var r =
-                                row.getBoundingClientRect();
-
-                            rows.push({
-                                text: text.substring(0, 160),
-                                x: Math.floor(r.left + (r.width / 2)),
-                                y: Math.floor(r.top + (r.height / 2))
-                            });
-
-                        } catch(e) {}
-                    });
-
-            } catch(e) {}
-        });
-
-        return JSON.stringify(
-            rows.slice(0, 80)
-        );
-
-    } catch(e) {
-
-        return JSON.stringify([]);
-    }
-
-})();
-
-            """.trimIndent()
-
-        activeWebView.evaluateJavascript(
-            collectJs
-        ) { result ->
-
-            try {
-
-                val clean =
-                    result
-                        ?.removePrefix("\"")
-                        ?.removeSuffix("\"")
-                        ?.replace("\\\"", "\"")
-                        ?.replace("\\\\", "\\")
-                        ?.replace("\\n", "\n")
-                        ?.trim()
-                        .orEmpty()
-
-                val rows =
-                    org.json.JSONArray(
-                        clean
-                    )
-
-                if (rows.length() == 0) {
-
-                    binding.contentMain.result.append(
-                        """
-
-ROW CLICKER:
-No visible rows found.
-
-────────────────────
-
-                        """.trimIndent()
-                    )
-
-                    return@evaluateJavascript
-                }
-
-                binding.contentMain.result.append(
-                    """
-
-ROW CLICKER:
-Found ${rows.length()} visible row(s)
-
-────────────────────
-
-                    """.trimIndent()
-                )
-
-                fun clickRowAt(
-                    index: Int
-                ) {
-
-                    try {
-
-                        if (index >= rows.length()) {
-
-                            binding.contentMain.result.append(
-                                """
-
-ROW CLICKER SCAN FINISHED
-
-Rows clicked:
-${rows.length()}
-
-Now check detected streams / Open Player.
-
-────────────────────
-
-                                """.trimIndent()
-                            )
-
-                            showAllMedia()
-
-                            return
-                        }
-
-                        val obj =
-                            rows.optJSONObject(
-                                index
-                            )
-
-                        val title =
-                            obj
-                                ?.optString(
-                                    "text",
-                                    "ROW ${index + 1}"
-                                )
-                                ?.trim()
-                                .orEmpty()
-
-                        val x =
-                            obj
-                                ?.optInt(
-                                    "x",
-                                    0
-                                )
-                                ?: 0
-
-                        val y =
-                            obj
-                                ?.optInt(
-                                    "y",
-                                    0
-                                )
-                                ?: 0
-
-                        binding.contentMain.result.append(
-                            """
-
-ROW CLICK:
-${index + 1}/${rows.length()}
-$title
-
-────────────────────
-
-                            """.trimIndent()
-                        )
-
-                        val clickJs =
-                            """
-
-(function() {
-
-    try {
-
-        var x =
-            $x;
-
-        var y =
-            $y;
-
-        var el =
-            document.elementFromPoint(
-                x,
-                y
-            );
-
-        if (!el) {
-            return "NO_ELEMENT";
-        }
-
-        var target =
-            el;
-
-        try {
-
-            var row =
-                el.closest("tr");
-
-            if (row) {
-                target =
-                    row.querySelector("img") ||
-                    row.querySelector("article") ||
-                    row.querySelector("td") ||
-                    row;
-            }
-
-        } catch(e) {}
-
-        function fire(type) {
-
-            try {
-
-                var ev =
-                    new MouseEvent(
-                        type,
-                        {
-                            view: window,
-                            bubbles: true,
-                            cancelable: true,
-                            clientX: x,
-                            clientY: y
-                        }
-                    );
-
-                target.dispatchEvent(ev);
-
-            } catch(e) {}
-        }
-
-        fire("mouseover");
-        fire("mousedown");
-        fire("mouseup");
-        fire("click");
-
-        try {
-            target.click();
-        } catch(e) {}
-
-        return (
-            "CLICKED: " +
-            (target.tagName || "") +
-            " " +
-            (
-                target.innerText ||
-                target.textContent ||
-                target.src ||
-                ""
-            ).trim().substring(0, 120)
-        );
-
-    } catch(e) {
-
-        return "ROW_CLICK_ERROR: " + e;
-    }
-
-})();
-
-                            """.trimIndent()
-
-                        activeWebView.evaluateJavascript(
-                            clickJs
-                        ) { clickResult ->
-
-                            try {
-
-                                Log.e(
-                                    "ROW_CLICKER",
-                                    clickResult ?: ""
-                                )
-
-                            } catch (_: Throwable) {}
-                        }
-
-                        activeWebView.postDelayed(
-                            {
-
-                                try {
-
-                                    runDeepMediaScan(
-                                        activeWebView
-                                    )
-
-                                    showAllMedia()
-
-                                } catch (_: Throwable) {}
-
-                                activeWebView.postDelayed(
-                                    {
-                                        clickRowAt(
-                                            index + 1
-                                        )
-                                    },
-                                    2200
-                                )
-                            },
-                            2600
-                        )
-
-                    } catch (_: Throwable) {}
-                }
-
-                clickRowAt(
-                    0
-                )
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "ROW_CLICKER",
-                    "parse failed",
-                    t
-                )
-
-                binding.contentMain.result.append(
-                    """
-
-ROW CLICKER ERROR:
-${t.message ?: "Unknown error"}
-
-────────────────────
-
-                    """.trimIndent()
-                )
-            }
-        }
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "ROW_CLICKER",
-            "failed",
-            t
-        )
-    }
-}
-
-// =====================================
 // LIVE STREAM MONITOR
 // =====================================
 
@@ -27127,9 +25097,7 @@ override fun onCreateOptionsMenu(
         menu.add(Menu.NONE, menuAutoScanChannelsId, Menu.NONE, "Auto Scan Channels")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
             
-        menu.add(Menu.NONE, menuDomScanChannelsId, Menu.NONE, "DOM Scan Channels")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-   
+
         // =====================================
         // VIEW / DATA
         // =====================================
@@ -27193,13 +25161,7 @@ override fun onOptionsItemSelected(
             startAutoScanChannels()
             true
         }
-        
-        menuDomScanChannelsId -> {
-            startRowClickerScanChannels()
-            true
-        }
-
-        menuSavedChannelsId -> {
+menuSavedChannelsId -> {
             showSavedChannelsDialog()
             true
         }
