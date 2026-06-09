@@ -6774,9 +6774,12 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 }
 
 // =====================================
-// COLLECT COUNTRY PAGINATION PAGES
-// Teleon-style: same country/path, page=2/page=3...
-// Stable mode: no parent category resolver, no guesses, no /channels fallback
+// COLLECT COUNTRY / LIST PAGINATION PAGES
+// Stable same-page pagination:
+// 1) Query pagination: ?page=2
+// 2) Hash pagination:  #page/2/filter/alphaaz
+// Does NOT guess parent categories
+// Does NOT scan other sections
 // =====================================
 
 private fun collectCountryPaginationPages(
@@ -6828,13 +6831,46 @@ private fun collectCountryPaginationPages(
             }
         }
 
-        function addPage(title, href) {
+        function addFinalPage(title, href) {
 
             try {
 
                 if (!href) {
                     return;
                 }
+
+                var u =
+                    new URL(href, currentUrl);
+
+                if ((u.host || "") !== currentHost) {
+                    return;
+                }
+
+                if ((u.pathname || "") !== currentPath) {
+                    return;
+                }
+
+                var key =
+                    u.href.toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                pages.push({
+                    title: title || "PAGE",
+                    href: u.href
+                });
+
+            } catch(e) {}
+        }
+
+        function addQueryPage(title, href) {
+
+            try {
 
                 var u =
                     new URL(href, currentUrl);
@@ -6858,23 +6894,71 @@ private fun collectCountryPaginationPages(
                     return;
                 }
 
-                var key =
-                    u.href.toLowerCase();
-
-                if (seen[key]) {
-                    return;
-                }
-
-                seen[key] =
-                    true;
-
-                pages.push({
-                    title: title || ("PAGE " + pageValue),
-                    href: u.href
-                });
+                addFinalPage(
+                    title || ("PAGE " + pageValue),
+                    u.href
+                );
 
             } catch(e) {}
         }
+
+        function getHashPageNumber(hashValue) {
+
+            try {
+
+                var hash =
+                    String(hashValue || "");
+
+                var m =
+                    hash.match(/#page\/([0-9]+)/i);
+
+                if (!m || !m[1]) {
+                    return "";
+                }
+
+                return m[1];
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function addHashPage(title, href) {
+
+            try {
+
+                var u =
+                    new URL(href, currentUrl);
+
+                if ((u.host || "") !== currentHost) {
+                    return;
+                }
+
+                if ((u.pathname || "") !== currentPath) {
+                    return;
+                }
+
+                var pageValue =
+                    getHashPageNumber(
+                        u.hash || ""
+                    );
+
+                if (!pageValue) {
+                    return;
+                }
+
+                addFinalPage(
+                    title || ("PAGE " + pageValue),
+                    u.href
+                );
+
+            } catch(e) {}
+        }
+
+        // =====================================
+        // COLLECT VISIBLE PAGINATION LINKS
+        // =====================================
 
         document
             .querySelectorAll("a[href]")
@@ -6891,25 +6975,124 @@ private fun collectCountryPaginationPages(
                             a.textContent ||
                             a.getAttribute("aria-label") ||
                             a.getAttribute("title") ||
+                            a.getAttribute("rel") ||
                             ""
                         );
 
-                    addPage(text, href);
+                    addQueryPage(
+                        text,
+                        href
+                    );
+
+                    addHashPage(
+                        text,
+                        href
+                    );
 
                 } catch(e) {}
             });
 
-        addPage("CURRENT PAGE", currentUrl);
+        // =====================================
+        // CURRENT PAGE
+        // =====================================
+
+        addFinalPage(
+            "CURRENT PAGE",
+            currentUrl
+        );
 
         // =====================================
-        // EXPAND PAGINATION WINDOW TO FULL RANGE
-        // Same path only. No category guessing.
+        // EXPAND QUERY PAGINATION RANGE
+        // Teleon-style: ?page=N
         // =====================================
 
         try {
 
-            var maxPage =
+            var maxQueryPage =
                 1;
+
+            document
+                .querySelectorAll("a[href]")
+                .forEach(function(a) {
+
+                    try {
+
+                        var u =
+                            new URL(
+                                a.href || "",
+                                currentUrl
+                            );
+
+                        if ((u.host || "") !== currentHost) {
+                            return;
+                        }
+
+                        if ((u.pathname || "") !== currentPath) {
+                            return;
+                        }
+
+                        var pageValue =
+                            parseInt(
+                                u.searchParams.get("page") || "0",
+                                10
+                            );
+
+                        if (
+                            !isNaN(pageValue) &&
+                            pageValue > maxQueryPage
+                        ) {
+
+                            maxQueryPage =
+                                pageValue;
+                        }
+
+                    } catch(e) {}
+                });
+
+            if (maxQueryPage > 1) {
+
+                for (
+                    var p = 1;
+                    p <= maxQueryPage && p <= 80;
+                    p++
+                ) {
+
+                    try {
+
+                        var pageUrl =
+                            new URL(
+                                currentUrl
+                            );
+
+                        pageUrl.searchParams.set(
+                            "page",
+                            String(p)
+                        );
+
+                        addFinalPage(
+                            "PAGE " + p,
+                            pageUrl.href
+                        );
+
+                    } catch(e) {}
+                }
+            }
+
+        } catch(e) {}
+
+// =====================================
+        // EXPAND HASH PAGINATION RANGE
+        // VivaLive-style: #page/N/filter/alphaaz
+        // Supports visible pages + LAST button » / >> / last
+        // =====================================
+
+        try {
+
+            var maxHashPage =
+                1;
+
+            var hashTemplate =
+                "";
 
             document
                 .querySelectorAll("a[href]")
@@ -6949,9 +7132,18 @@ private fun collectCountryPaginationPages(
                             return;
                         }
 
+                        var pageValueRaw =
+                            getHashPageNumber(
+                                u.hash || ""
+                            );
+
+                        if (!pageValueRaw) {
+                            return;
+                        }
+
                         var pageValue =
                             parseInt(
-                                u.searchParams.get("page") || "1",
+                                pageValueRaw,
                                 10
                             );
 
@@ -6965,90 +7157,69 @@ private fun collectCountryPaginationPages(
                         var looksLast =
                             rel.indexOf("last") >= 0 ||
                             text.indexOf("last") >= 0 ||
-                            text.indexOf(">>") >= 0 ||
                             text.indexOf("»") >= 0 ||
-                            text.indexOf("»»") >= 0 ||
-                            text.indexOf("≫") >= 0 ||
+                            text.indexOf(">>") >= 0 ||
                             text.indexOf("last page") >= 0 ||
-                            text.indexOf("go to last") >= 0 ||
-                            text.indexOf("end") >= 0;
+                            text.indexOf("final") >= 0;
 
                         if (
                             looksLast ||
-                            pageValue > maxPage
+                            pageValue > maxHashPage
                         ) {
 
-                            maxPage =
+                            maxHashPage =
                                 pageValue;
+                        }
+
+                        if (!hashTemplate) {
+
+                            hashTemplate =
+                                u.hash || "";
                         }
 
                     } catch(e) {}
                 });
 
-            if (maxPage > 1) {
-
-                var expanded =
-                    [];
-
-                var base =
-                    new URL(
-                        currentUrl
-                    );
+            if (
+                maxHashPage > 1 &&
+                hashTemplate
+            ) {
 
                 for (
-                    var i = 1;
-                    i <= maxPage && i <= 100;
-                    i++
+                    var hp = 1;
+                    hp <= maxHashPage && hp <= 120;
+                    hp++
                 ) {
 
-                    var u =
-                        new URL(
-                            base.href
+                    try {
+
+                        var pageUrl2 =
+                            new URL(
+                                currentUrl
+                            );
+
+                        pageUrl2.search =
+                            "";
+
+                        pageUrl2.hash =
+                            hashTemplate.replace(
+                                /#page\/[0-9]+/i,
+                                "#page/" + hp
+                            );
+
+                        addFinalPage(
+                            "PAGE " + hp,
+                            pageUrl2.href
                         );
 
-                    u.searchParams.set(
-                        "page",
-                        String(i)
-                    );
-
-                    expanded.push({
-                        title: "PAGE " + i,
-                        href: u.href
-                    });
+                    } catch(e) {}
                 }
-
-                pages =
-                    expanded;
             }
 
         } catch(e) {}
 
-        pages.sort(function(a, b) {
-
-            try {
-
-                var pa =
-                    parseInt(
-                        new URL(a.href).searchParams.get("page") || "1",
-                        10
-                    );
-
-                var pb =
-                    parseInt(
-                        new URL(b.href).searchParams.get("page") || "1",
-                        10
-                    );
-
-                return pa - pb;
-
-            } catch(e) {
-
-                return 0;
-            }
-        });
-
         return JSON.stringify(
-            pages.slice(0, 100)
+            pages
         );
 
     } catch(e) {
@@ -7057,6 +7228,7 @@ private fun collectCountryPaginationPages(
     }
 
 })();
+
             """.trimIndent()
         ) { jsResult ->
 
@@ -7077,7 +7249,7 @@ private fun collectCountryPaginationPages(
                         cleaned
                     )
 
-                val pages =
+                val parsed =
                     mutableListOf<AutoScanPage>()
 
                 for (i in 0 until array.length()) {
@@ -7105,7 +7277,7 @@ private fun collectCountryPaginationPages(
                         continue
                     }
 
-                    pages.add(
+                    parsed.add(
                         AutoScanPage(
                             title = title,
                             href = href
@@ -7114,7 +7286,7 @@ private fun collectCountryPaginationPages(
                 }
 
                 onReady(
-                    pages.distinctBy { page ->
+                    parsed.distinctBy { page ->
                         page.href.lowercase()
                     }
                 )
@@ -7122,7 +7294,7 @@ private fun collectCountryPaginationPages(
             } catch (t: Throwable) {
 
                 Log.e(
-                    "AUTO_SCAN_PAGES",
+                    "COUNTRY_PAGES",
                     "parse failed",
                     t
                 )
@@ -7136,8 +7308,8 @@ private fun collectCountryPaginationPages(
     } catch (t: Throwable) {
 
         Log.e(
-            "AUTO_SCAN_PAGES",
-            "failed",
+            "COUNTRY_PAGES",
+            "collect failed",
             t
         )
 
