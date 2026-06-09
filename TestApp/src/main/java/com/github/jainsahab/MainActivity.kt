@@ -7630,121 +7630,231 @@ private fun collectCountryPaginationPages(
         // Home » Channels » News & Politics » BIZTV
         // =====================================
 
-        var isSingleChannelPage =
-            currentPath.indexOf("/channel/") >= 0;
+var isSingleChannelPage =
+    currentPath.indexOf("/channel/") >= 0;
 
-        if (isSingleChannelPage) {
+if (isSingleChannelPage) {
 
-            var bestCategoryHref =
-                "";
+    var currentChannelSlug =
+        currentPath
+            .split("/channel/")
+            .pop()
+            .replace(/\//g, "")
+            .toLowerCase();
 
-            var bestCategoryTitle =
-                "";
+    function slugify(text) {
 
-            document
-                .querySelectorAll("a[href]")
-                .forEach(function(a) {
+        try {
 
-                    try {
+            return String(text || "")
+                .toLowerCase()
+                .replace(/&/g, "and")
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "");
 
-                        var href =
-                            a.href || "";
+        } catch(e) {
 
-                        var text =
-                            cleanText(
-                                a.innerText ||
-                                a.textContent ||
-                                a.getAttribute("aria-label") ||
-                                a.getAttribute("title") ||
-                                ""
-                            );
+            return "";
+        }
+    }
 
-                        if (!href || !text) {
-                            return;
-                        }
+    function addParentCandidate(title, href) {
 
-                        var u =
-                            new URL(href, currentUrl);
+        try {
 
-                        if ((u.host || "") !== currentHost) {
-                            return;
-                        }
-
-                        var path =
-                            u.pathname || "";
-
-                        var lowerText =
-                            text.toLowerCase();
-
-                        var lowerHref =
-                            href.toLowerCase();
-
-                        if (
-                            lowerText === "home" ||
-                            lowerText === "biztv" ||
-                            lowerHref.indexOf("/channel/") >= 0
-                        ) {
-                            return;
-                        }
-
-                        var looksCategory =
-                            path.indexOf("/channels") >= 0 ||
-                            path.indexOf("/category") >= 0 ||
-                            path.indexOf("/genre") >= 0 ||
-                            path.indexOf("/live-tv") >= 0 ||
-                            lowerText.indexOf("news") >= 0 ||
-                            lowerText.indexOf("politics") >= 0 ||
-                            lowerText.indexOf("entertainment") >= 0 ||
-                            lowerText.indexOf("sports") >= 0 ||
-                            lowerText.indexOf("movies") >= 0 ||
-                            lowerText.indexOf("music") >= 0 ||
-                            lowerText.indexOf("kids") >= 0 ||
-                            lowerText.indexOf("business") >= 0 ||
-                            lowerText.indexOf("education") >= 0
-                        );
-
-                        if (!looksCategory) {
-                            return;
-                        }
-
-                        // Prefer the deepest/category breadcrumb, not generic /channels
-                        if (
-                            !bestCategoryHref ||
-                            path.length > (new URL(bestCategoryHref, currentUrl).pathname || "").length
-                        ) {
-
-                            bestCategoryHref =
-                                u.href;
-
-                            bestCategoryTitle =
-                                text;
-                        }
-
-                    } catch(e) {}
-                });
-
-            if (bestCategoryHref) {
-
-                addAnyPage(
-                    "PARENT CATEGORY: " + bestCategoryTitle,
-                    bestCategoryHref
-                );
-
-                return JSON.stringify(
-                    pages
-                );
+            if (!href) {
+                return;
             }
 
-            // fallback guesses
+            var u =
+                new URL(href, currentUrl);
+
+            if ((u.host || "") !== currentHost) {
+                return;
+            }
+
+            var path =
+                (u.pathname || "").toLowerCase();
+
+            if (!path || path === currentPath.toLowerCase()) {
+                return;
+            }
+
+            if (path.indexOf("/channel/") >= 0) {
+                return;
+            }
+
             addAnyPage(
-                "CHANNELS",
-                current.origin + "/channels"
+                title || "PARENT PAGE",
+                u.href
             );
 
-            return JSON.stringify(
-                pages
+        } catch(e) {}
+    }
+
+    // =====================================
+    // 1) BREADCRUMB / PAGE LINKS
+    // Grab every possible category-like link
+    // =====================================
+
+    document
+        .querySelectorAll("a[href]")
+        .forEach(function(a) {
+
+            try {
+
+                var href =
+                    a.href || "";
+
+                var text =
+                    cleanText(
+                        a.innerText ||
+                        a.textContent ||
+                        a.getAttribute("aria-label") ||
+                        a.getAttribute("title") ||
+                        ""
+                    );
+
+                if (!href || !text) {
+                    return;
+                }
+
+                var lowerText =
+                    text.toLowerCase();
+
+                var lowerHref =
+                    href.toLowerCase();
+
+                if (
+                    lowerText === "home" ||
+                    lowerText === "show more" ||
+                    lowerText === currentChannelSlug ||
+                    lowerHref.indexOf("/channel/") >= 0 ||
+                    lowerHref.indexOf("facebook") >= 0 ||
+                    lowerHref.indexOf("twitter") >= 0 ||
+                    lowerHref.indexOf("instagram") >= 0 ||
+                    lowerHref.indexOf("mailto:") >= 0
+                ) {
+                    return;
+                }
+
+                var looksParent =
+                    lowerHref.indexOf("/channels") >= 0 ||
+                    lowerHref.indexOf("/category") >= 0 ||
+                    lowerHref.indexOf("/genre") >= 0 ||
+                    lowerText === "channels" ||
+                    lowerText.indexOf("news") >= 0 ||
+                    lowerText.indexOf("politics") >= 0 ||
+                    lowerText.indexOf("entertainment") >= 0 ||
+                    lowerText.indexOf("sports") >= 0 ||
+                    lowerText.indexOf("movies") >= 0 ||
+                    lowerText.indexOf("music") >= 0 ||
+                    lowerText.indexOf("kids") >= 0 ||
+                    lowerText.indexOf("business") >= 0 ||
+                    lowerText.indexOf("education") >= 0 ||
+                    lowerText.indexOf("documentary") >= 0 ||
+                    lowerText.indexOf("lifestyle") >= 0 ||
+                    lowerText.indexOf("religion") >= 0 ||
+                    lowerText.indexOf("comedy") >= 0;
+
+                if (!looksParent) {
+                    return;
+                }
+
+                addParentCandidate(
+                    "PARENT LINK: " + text,
+                    href
+                );
+
+            } catch(e) {}
+        });
+
+    // =====================================
+    // 2) Breadcrumb text fallback
+    // Example visible text:
+    // Home » Channels » News & Politics » BIZTV
+    // =====================================
+
+    try {
+
+        var bodyText =
+            cleanText(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
             );
-        }
+
+        var parts =
+            bodyText
+                .split("»")
+                .map(function(x) {
+                    return cleanText(x);
+                })
+                .filter(function(x) {
+                    return x.length > 1;
+                });
+
+        parts.forEach(function(part) {
+
+            try {
+
+                var lower =
+                    part.toLowerCase();
+
+                if (
+                    lower === "home" ||
+                    lower === "channels" ||
+                    lower.indexOf(currentChannelSlug) >= 0 ||
+                    lower.indexOf("live " + currentChannelSlug) >= 0
+                ) {
+                    return;
+                }
+
+                var slug =
+                    slugify(part);
+
+                if (!slug) {
+                    return;
+                }
+
+                addParentCandidate(
+                    "GUESSED CATEGORY: " + part,
+                    current.origin + "/channels/" + slug
+                );
+
+                addParentCandidate(
+                    "GUESSED CATEGORY: " + part,
+                    current.origin + "/category/" + slug
+                );
+
+                addParentCandidate(
+                    "GUESSED CATEGORY: " + part,
+                    current.origin + "/channels/category/" + slug
+                );
+
+            } catch(e) {}
+        });
+
+    } catch(e) {}
+
+    // =====================================
+    // 3) Safe generic fallbacks
+    // =====================================
+
+    addParentCandidate(
+        "ALL CHANNELS",
+        current.origin + "/channels"
+    );
+
+    addParentCandidate(
+        "CHANNEL LIST",
+        current.origin + "/channels/"
+    );
+
+    return JSON.stringify(
+        pages
+    );
+}
 
         // =====================================
         // NORMAL LIST PAGE PAGINATION
