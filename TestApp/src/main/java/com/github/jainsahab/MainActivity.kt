@@ -3561,17 +3561,25 @@ binding.contentMain.webview.webChromeClient =
 
                             try {
 
-                                installCookieConsentWatcher(
-                                    view,
-                                    url
-                                )
+                                try {
 
-                            } catch (_: Throwable) {}
+    installCookieConsentWatcher(
+        view,
+        url
+    )
 
-                            handleInterceptedMediaUrl(
-                                url,
-                                null
-                            )
+} catch (_: Throwable) {}
+
+try {
+
+    startClickPathScanner()
+
+} catch (_: Throwable) {}
+
+handleInterceptedMediaUrl(
+    url,
+    null
+)
 
                             detectAndSaveUrl(
                                 url
@@ -20930,6 +20938,163 @@ detectedChannels
 binding.contentMain.result.text =  
     sb.toString()
 
+}
+
+// =====================================
+// CLICK PATH SCANNER
+// Detects real clickable DOM path
+// =====================================
+
+private fun startClickPathScanner() {
+
+    try {
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        val js =
+            """
+
+(function() {
+
+    try {
+
+        if (window.__GEL_CLICK_PATH_SCANNER_INSTALLED__) {
+            return "GEL_CLICK_PATH_SCANNER_ALREADY_INSTALLED";
+        }
+
+        window.__GEL_CLICK_PATH_SCANNER_INSTALLED__ = true;
+
+        document.addEventListener(
+            "click",
+            function(e) {
+
+                try {
+
+                    var output = [];
+
+                    output.push("===== GEL CLICK PATH =====");
+
+                    if (e.target) {
+
+                        output.push(
+                            "TARGET TAG: " +
+                            e.target.tagName
+                        );
+
+                        output.push(
+                            "TARGET CLASS: " +
+                            (e.target.className || "")
+                        );
+
+                        output.push(
+                            "TARGET ID: " +
+                            (e.target.id || "")
+                        );
+
+                        output.push(
+                            "TARGET TEXT: " +
+                            (
+                                e.target.innerText ||
+                                e.target.textContent ||
+                                ""
+                            ).trim().substring(0, 120)
+                        );
+                    }
+
+                    output.push(
+                        "CLICK X/Y: " +
+                        e.clientX +
+                        " / " +
+                        e.clientY
+                    );
+
+                    var path =
+                        e.composedPath
+                            ? e.composedPath()
+                            : [];
+
+                    output.push("");
+                    output.push("PATH:");
+
+                    for (var i = 0; i < path.length; i++) {
+
+                        var el = path[i];
+
+                        if (!el || !el.tagName) {
+                            continue;
+                        }
+
+                        var line =
+                            i +
+                            " | " +
+                            el.tagName;
+
+                        if (el.id) {
+                            line += " #" + el.id;
+                        }
+
+                        if (el.className) {
+                            line += " ." + String(el.className).replace(/\s+/g, ".");
+                        }
+
+                        var txt =
+                            (
+                                el.innerText ||
+                                el.textContent ||
+                                ""
+                            ).trim().replace(/\s+/g, " ");
+
+                        if (txt.length > 0) {
+                            line += " | TEXT: " + txt.substring(0, 160);
+                        }
+
+                        output.push(line);
+                    }
+
+                    console.log(
+                        output.join("\n")
+                    );
+
+                } catch(err) {
+
+                    console.log(
+                        "GEL_CLICK_PATH_ERROR:",
+                        err
+                    );
+                }
+
+            },
+            true
+        );
+
+        return "GEL_CLICK_PATH_SCANNER_INSTALLED";
+
+    } catch(e) {
+
+        return "GEL_CLICK_PATH_SCANNER_ERROR: " + e;
+    }
+
+})();
+
+""".trimIndent()
+
+        activeWebView.evaluateJavascript(js) { result ->
+
+            Log.e(
+                "GEL_CLICK_PATH",
+                result ?: "NULL"
+            )
+        }
+
+    } catch (e: Throwable) {
+
+        Log.e(
+            "GEL_CLICK_PATH",
+            "ERROR: ${e.message}"
+        )
+    }
 }
 
 // =====================================
