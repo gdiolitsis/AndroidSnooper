@@ -2371,11 +2371,11 @@ binding.contentMain.webview.settings.apply {
 }
 
 // =====================================
-// WEBVIEW TOUCH = PAUSE SCANNER + SCROLL FIX
-// Prevent ANR while user taps / scrolls / opens images
+// WEBVIEW TOUCH = PAUSE SCANNER + CLICK PATH PROBE
+// Android-side touch probe, no console / no bridge needed
 // =====================================
 
-binding.contentMain.webview.setOnTouchListener { v, _ ->
+binding.contentMain.webview.setOnTouchListener { v, event ->
 
     try {
 
@@ -2394,6 +2394,186 @@ binding.contentMain.webview.setOnTouchListener { v, _ ->
         v.parent?.requestDisallowInterceptTouchEvent(
             true
         )
+
+        if (
+            event != null &&
+            event.action == android.view.MotionEvent.ACTION_UP
+        ) {
+
+            val touchX =
+                event.x
+
+            val touchY =
+                event.y
+
+            val scale =
+                try {
+                    binding.contentMain.webview.scale
+                } catch (_: Throwable) {
+                    1.0f
+                }
+
+            val jsX =
+                if (scale > 0f) {
+                    touchX / scale
+                } else {
+                    touchX
+                }
+
+            val jsY =
+                if (scale > 0f) {
+                    touchY / scale
+                } else {
+                    touchY
+                }
+
+            val js =
+                """
+
+(function() {
+
+    try {
+
+        function describeElement(el) {
+
+            try {
+
+                if (!el) {
+                    return "NULL";
+                }
+
+                var txt =
+                    (
+                        el.innerText ||
+                        el.textContent ||
+                        ""
+                    )
+                    .trim()
+                    .replace(/\s+/g, " ")
+                    .substring(0, 180);
+
+                var out = "";
+
+                out += "TAG: " + (el.tagName || "") + "\n";
+                out += "ID: " + (el.id || "") + "\n";
+                out += "CLASS: " + (el.className || "") + "\n";
+                out += "HREF: " + (el.href || "") + "\n";
+                out += "SRC: " + (el.src || "") + "\n";
+                out += "TEXT: " + txt + "\n";
+
+                return out;
+
+            } catch(e) {
+
+                return "DESCRIBE ERROR: " + e;
+            }
+        }
+
+        var x =
+            $jsX;
+
+        var y =
+            $jsY;
+
+        var output = [];
+
+        output.push("===== GEL TOUCH PATH =====");
+        output.push("ANDROID X/Y: $touchX / $touchY");
+        output.push("JS X/Y: " + x + " / " + y);
+        output.push("PAGE URL: " + (window.location.href || ""));
+        output.push("");
+
+        var el =
+            document.elementFromPoint(
+                x,
+                y
+            );
+
+        output.push("ELEMENT FROM POINT:");
+        output.push(
+            describeElement(
+                el
+            )
+        );
+
+        output.push("PATH:");
+
+        var node =
+            el;
+
+        var index =
+            0;
+
+        while (
+            node &&
+            index < 10
+        ) {
+
+            try {
+
+                output.push(
+                    index +
+                    " | " +
+                    describeElement(
+                        node
+                    ).replace(/\n/g, " | ")
+                );
+
+            } catch(e) {}
+
+            node =
+                node.parentElement;
+
+            index++;
+        }
+
+        return output.join("\n");
+
+    } catch(e) {
+
+        return "GEL_TOUCH_PATH_ERROR: " + e;
+    }
+
+})();
+
+                """.trimIndent()
+
+            binding.contentMain.webview.evaluateJavascript(
+                js
+            ) { result ->
+
+                try {
+
+                    val clean =
+                        result
+                            ?.removePrefix("\"")
+                            ?.removeSuffix("\"")
+                            ?.replace("\\n", "\n")
+                            ?.replace("\\\"", "\"")
+                            ?.replace("\\/", "/")
+                            ?: ""
+
+                    if (clean.isNotBlank()) {
+
+                        Log.e(
+                            "GEL_TOUCH_PATH",
+                            clean
+                        )
+
+                        binding.contentMain.result.append(
+                            """
+
+$clean
+
+────────────────────
+
+                            """.trimIndent()
+                        )
+                    }
+
+                } catch (_: Throwable) {}
+            }
+        }
 
     } catch (_: Throwable) {}
 
