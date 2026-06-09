@@ -3561,8 +3561,6 @@ binding.contentMain.webview.webChromeClient =
 
                             try {
 
-                                try {
-
     installCookieConsentWatcher(
         view,
         url
