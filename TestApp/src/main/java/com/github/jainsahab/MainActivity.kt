@@ -1577,6 +1577,55 @@ inner class CookieConsentBridge {
 }
 
 // =====================================
+// CLICK PATH BRIDGE
+// Receives click-path data directly from WebView JavaScript
+// =====================================
+
+inner class ClickPathBridge {
+
+    @JavascriptInterface
+    fun onClickPath(
+        data: String?
+    ) {
+
+        try {
+
+            val clean =
+                data
+                    .orEmpty()
+                    .trim()
+
+            if (clean.isBlank()) {
+                return
+            }
+
+            Log.e(
+                "GEL_CLICK_PATH",
+                clean
+            )
+
+            runOnUiThread {
+
+                try {
+
+                    binding.contentMain.result.append(
+                        """
+
+$clean
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                } catch (_: Throwable) {}
+            }
+
+        } catch (_: Throwable) {}
+    }
+}
+
+// =====================================
 // HANDLE COOKIE CONSENT ACTION
 // Flush cookies and reload current page once
 // =====================================
@@ -2401,6 +2450,11 @@ try {
         CookieConsentBridge(),
         "GELCookieBridge"
     )
+    
+    binding.contentMain.webview.addJavascriptInterface(
+    ClickPathBridge(),
+    "GELClickBridge"
+)
 
 } catch (_: Throwable) {}
 
@@ -3488,6 +3542,11 @@ binding.contentMain.webview.webChromeClient =
                 CookieConsentBridge(),
                 "GELCookieBridge"
             )
+            
+            childWebView.addJavascriptInterface(
+    ClickPathBridge(),
+    "GELClickBridge"
+)
 
         } catch (_: Throwable) {}
 
@@ -21090,16 +21149,56 @@ private fun startClickPathScanner() {
                         output.push(line);
                     }
 
-                    console.log(
-                        output.join("\n")
-                    );
+                    var finalOutput =
+    output.join("\n");
+
+try {
+
+    if (
+        window.GELClickBridge &&
+        window.GELClickBridge.onClickPath
+    ) {
+
+        window.GELClickBridge.onClickPath(
+            finalOutput
+        );
+
+    } else {
+
+        console.log(
+            finalOutput
+        );
+    }
+
+} catch(e) {
+
+    console.log(
+        finalOutput
+    );
+}
 
                 } catch(err) {
 
-                    console.log(
-                        "GEL_CLICK_PATH_ERROR:",
-                        err
-                    );
+                    try {
+
+    if (
+        window.GELClickBridge &&
+        window.GELClickBridge.onClickPath
+    ) {
+
+        window.GELClickBridge.onClickPath(
+            "GEL_CLICK_PATH_ERROR: " + err
+        );
+
+    } else {
+
+        console.log(
+            "GEL_CLICK_PATH_ERROR: " + err
+        );
+    }
+
+} catch(e) {}
+
                 }
 
             },
