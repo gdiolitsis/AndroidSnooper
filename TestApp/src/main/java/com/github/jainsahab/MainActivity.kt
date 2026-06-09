@@ -7496,9 +7496,10 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 }
 
 // =====================================
-// COLLECT COUNTRY PAGINATION PAGES
-// Teleon-style: same country, page=2/page=3...
-// Does NOT scan other countries
+// COLLECT COUNTRY / CATEGORY PAGINATION PAGES
+// Supports:
+// 1) normal pagination on list pages
+// 2) single /channel/... pages → resolves parent category from breadcrumb
 // =====================================
 
 private fun collectCountryPaginationPages(
@@ -7550,7 +7551,40 @@ private fun collectCountryPaginationPages(
             }
         }
 
-        function addPage(title, href) {
+        function addAnyPage(title, href) {
+
+            try {
+
+                if (!href) {
+                    return;
+                }
+
+                var u =
+                    new URL(href, currentUrl);
+
+                if ((u.host || "") !== currentHost) {
+                    return;
+                }
+
+                var key =
+                    u.href.toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                pages.push({
+                    title: title || "PAGE",
+                    href: u.href
+                });
+
+            } catch(e) {}
+        }
+
+        function addPaginationPage(title, href) {
 
             try {
 
@@ -7580,23 +7614,141 @@ private fun collectCountryPaginationPages(
                     return;
                 }
 
-                var key =
-                    u.href.toLowerCase();
-
-                if (seen[key]) {
-                    return;
-                }
-
-                seen[key] =
-                    true;
-
-                pages.push({
-                    title: title || ("PAGE " + pageValue),
-                    href: u.href
-                });
+                addAnyPage(
+                    title || ("PAGE " + pageValue),
+                    u.href
+                );
 
             } catch(e) {}
         }
+
+        // =====================================
+        // SINGLE CHANNEL PAGE → FIND PARENT CATEGORY
+        // Example:
+        // /channel/biztv
+        // breadcrumb:
+        // Home » Channels » News & Politics » BIZTV
+        // =====================================
+
+        var isSingleChannelPage =
+            currentPath.indexOf("/channel/") >= 0;
+
+        if (isSingleChannelPage) {
+
+            var bestCategoryHref =
+                "";
+
+            var bestCategoryTitle =
+                "";
+
+            document
+                .querySelectorAll("a[href]")
+                .forEach(function(a) {
+
+                    try {
+
+                        var href =
+                            a.href || "";
+
+                        var text =
+                            cleanText(
+                                a.innerText ||
+                                a.textContent ||
+                                a.getAttribute("aria-label") ||
+                                a.getAttribute("title") ||
+                                ""
+                            );
+
+                        if (!href || !text) {
+                            return;
+                        }
+
+                        var u =
+                            new URL(href, currentUrl);
+
+                        if ((u.host || "") !== currentHost) {
+                            return;
+                        }
+
+                        var path =
+                            u.pathname || "";
+
+                        var lowerText =
+                            text.toLowerCase();
+
+                        var lowerHref =
+                            href.toLowerCase();
+
+                        if (
+                            lowerText === "home" ||
+                            lowerText === "biztv" ||
+                            lowerHref.indexOf("/channel/") >= 0
+                        ) {
+                            return;
+                        }
+
+                        var looksCategory =
+                            path.indexOf("/channels") >= 0 ||
+                            path.indexOf("/category") >= 0 ||
+                            path.indexOf("/genre") >= 0 ||
+                            path.indexOf("/live-tv") >= 0 ||
+                            lowerText.indexOf("news") >= 0 ||
+                            lowerText.indexOf("politics") >= 0 ||
+                            lowerText.indexOf("entertainment") >= 0 ||
+                            lowerText.indexOf("sports") >= 0 ||
+                            lowerText.indexOf("movies") >= 0 ||
+                            lowerText.indexOf("music") >= 0 ||
+                            lowerText.indexOf("kids") >= 0 ||
+                            lowerText.indexOf("business") >= 0 ||
+                            lowerText.indexOf("education") >= 0
+                        );
+
+                        if (!looksCategory) {
+                            return;
+                        }
+
+                        // Prefer the deepest/category breadcrumb, not generic /channels
+                        if (
+                            !bestCategoryHref ||
+                            path.length > (new URL(bestCategoryHref, currentUrl).pathname || "").length
+                        ) {
+
+                            bestCategoryHref =
+                                u.href;
+
+                            bestCategoryTitle =
+                                text;
+                        }
+
+                    } catch(e) {}
+                });
+
+            if (bestCategoryHref) {
+
+                addAnyPage(
+                    "PARENT CATEGORY: " + bestCategoryTitle,
+                    bestCategoryHref
+                );
+
+                return JSON.stringify(
+                    pages
+                );
+            }
+
+            // fallback guesses
+            addAnyPage(
+                "CHANNELS",
+                current.origin + "/channels"
+            );
+
+            return JSON.stringify(
+                pages
+            );
+        }
+
+        // =====================================
+        // NORMAL LIST PAGE PAGINATION
+        // =====================================
 
         document
             .querySelectorAll("a[href]")
@@ -7616,166 +7768,131 @@ private fun collectCountryPaginationPages(
                             ""
                         );
 
-                    addPage(text, href);
+                    addPaginationPage(
+                        text,
+                        href
+                    );
 
                 } catch(e) {}
             });
 
-        addPage("CURRENT PAGE", currentUrl);
+        addAnyPage(
+            "CURRENT PAGE",
+            currentUrl
+        );
 
-// =====================================
-// EXPAND PAGINATION WINDOW TO FULL RANGE
-// Detect last page from >> / » / rel=last / aria-label
-// Example: page 1 shows 1,2,3,4,>> where >> = page 19
-// Build page 1..19 manually.
-// =====================================
+        // =====================================
+        // EXPAND PAGINATION WINDOW TO FULL RANGE
+        // =====================================
 
-try {
+        try {
 
-    var maxPage =
-        1;
+            var maxPage =
+                1;
 
-    document
-        .querySelectorAll("a[href]")
-        .forEach(function(a) {
+            document
+                .querySelectorAll("a[href]")
+                .forEach(function(a) {
 
-            try {
+                    try {
 
-                var href =
-                    a.href || "";
+                        var href =
+                            a.href || "";
 
-                var text =
-                    cleanText(
-                        a.innerText ||
-                        a.textContent ||
-                        a.getAttribute("aria-label") ||
-                        a.getAttribute("title") ||
-                        a.getAttribute("rel") ||
-                        ""
-                    ).toLowerCase();
+                        var text =
+                            cleanText(
+                                a.innerText ||
+                                a.textContent ||
+                                a.getAttribute("aria-label") ||
+                                a.getAttribute("title") ||
+                                a.getAttribute("rel") ||
+                                ""
+                            ).toLowerCase();
 
-                var rel =
-                    String(
-                        a.getAttribute("rel") || ""
-                    ).toLowerCase();
+                        var rel =
+                            String(
+                                a.getAttribute("rel") || ""
+                            ).toLowerCase();
 
-                var u =
-                    new URL(
-                        href,
-                        currentUrl
-                    );
+                        var u =
+                            new URL(
+                                href,
+                                currentUrl
+                            );
 
-                if ((u.host || "") !== currentHost) {
-                    return;
-                }
+                        if ((u.host || "") !== currentHost) {
+                            return;
+                        }
 
-                if ((u.pathname || "") !== currentPath) {
-                    return;
-                }
+                        if ((u.pathname || "") !== currentPath) {
+                            return;
+                        }
 
-                var pageValue =
-                    parseInt(
-                        u.searchParams.get("page") || "1",
-                        10
-                    );
+                        var pageValue =
+                            parseInt(
+                                u.searchParams.get("page") || "1",
+                                10
+                            );
 
-                if (
-                    isNaN(pageValue) ||
-                    pageValue < 1
+                        if (
+                            isNaN(pageValue) ||
+                            pageValue < 1
+                        ) {
+                            return;
+                        }
+
+                        var looksLast =
+                            rel.indexOf("last") >= 0 ||
+                            text.indexOf("last") >= 0 ||
+                            text.indexOf("»") >= 0 ||
+                            text.indexOf(">>") >= 0;
+
+                        if (
+                            looksLast ||
+                            pageValue > maxPage
+                        ) {
+
+                            maxPage =
+                                pageValue;
+                        }
+
+                    } catch(e) {}
+                });
+
+            if (maxPage > 1) {
+
+                for (
+                    var p = 1;
+                    p <= maxPage && p <= 50;
+                    p++
                 ) {
-                    return;
+
+                    try {
+
+                        var pageUrl =
+                            new URL(
+                                currentUrl
+                            );
+
+                        pageUrl.searchParams.set(
+                            "page",
+                            String(p)
+                        );
+
+                        addAnyPage(
+                            "PAGE " + p,
+                            pageUrl.href
+                        );
+
+                    } catch(e) {}
                 }
+            }
 
-                var looksLast =
-                    rel.indexOf("last") >= 0 ||
-                    text.indexOf("last") >= 0 ||
-                    text.indexOf(">>") >= 0 ||
-                    text.indexOf("»") >= 0 ||
-                    text.indexOf("next last") >= 0 ||
-                    text.indexOf("go to last") >= 0;
-                    text.indexOf("»»") >= 0 ||
-                    text.indexOf("≫") >= 0 ||
-                    text.indexOf("last page") >= 0 ||
-                    text.indexOf("end") >= 0
+        } catch(e) {}
 
-                if (looksLast) {
-
-                    if (pageValue > maxPage) {
-                        maxPage =
-                            pageValue;
-                    }
-                }
-
-                // fallback: any visible page link with bigger page number
-                if (pageValue > maxPage) {
-                    maxPage =
-                        pageValue;
-                }
-
-            } catch(e) {}
-        });
-
-    if (maxPage > 1) {
-
-        var expanded =
-            [];
-
-        var base =
-            new URL(
-                currentUrl
-            );
-
-        for (var i = 1; i <= maxPage; i++) {
-
-            var u =
-                new URL(
-                    base.href
-                );
-
-            u.searchParams.set(
-                "page",
-                String(i)
-            );
-            
-            expanded.push({
-                title: "PAGE " + i,
-                href: u.href
-            });
-        }
-
-        pages =
-            expanded;
-    }
-
-} catch(e) {}
-
-pages.sort(function(a, b) {
-
-    try {
-
-        var pa =
-            parseInt(
-                new URL(a.href).searchParams.get("page") || "1",
-                10
-            );
-
-        var pb =
-            parseInt(
-                new URL(b.href).searchParams.get("page") || "1",
-                10
-            );
-
-        return pa - pb;
-
-    } catch(e) {
-
-        return 0;
-    }
-});
-
-return JSON.stringify(
-    pages.slice(0, 100)
-);
+        return JSON.stringify(
+            pages
+        );
 
     } catch(e) {
 
@@ -7783,6 +7900,7 @@ return JSON.stringify(
     }
 
 })();
+
             """.trimIndent()
         ) { jsResult ->
 
@@ -7790,19 +7908,20 @@ return JSON.stringify(
 
                 val cleaned =
                     jsResult
-                        .removePrefix("\"")
-                        .removeSuffix("\"")
-                        .replace("\\\\", "\\")
-                        .replace("\\\"", "\"")
-                        .replace("\\n", "\n")
-                        .trim()
+                        ?.removePrefix("\"")
+                        ?.removeSuffix("\"")
+                        ?.replace("\\\\", "\\")
+                        ?.replace("\\\"", "\"")
+                        ?.replace("\\n", "\n")
+                        ?.trim()
+                        .orEmpty()
 
                 val array =
                     org.json.JSONArray(
                         cleaned
                     )
 
-                val pages =
+                val parsed =
                     mutableListOf<AutoScanPage>()
 
                 for (i in 0 until array.length()) {
@@ -7830,7 +7949,7 @@ return JSON.stringify(
                         continue
                     }
 
-                    pages.add(
+                    parsed.add(
                         AutoScanPage(
                             title = title,
                             href = href
@@ -7839,13 +7958,15 @@ return JSON.stringify(
                 }
 
                 onReady(
-                    pages.distinctBy { it.href.lowercase() }
+                    parsed.distinctBy { page ->
+                        page.href.lowercase()
+                    }
                 )
 
             } catch (t: Throwable) {
 
                 Log.e(
-                    "AUTO_SCAN_PAGES",
+                    "COUNTRY_PAGES",
                     "parse failed",
                     t
                 )
@@ -7859,8 +7980,8 @@ return JSON.stringify(
     } catch (t: Throwable) {
 
         Log.e(
-            "AUTO_SCAN_PAGES",
-            "failed",
+            "COUNTRY_PAGES",
+            "collect failed",
             t
         )
 
