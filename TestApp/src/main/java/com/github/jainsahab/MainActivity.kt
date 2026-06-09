@@ -6655,7 +6655,11 @@ if (
     return false;
 }
 
-                if (
+// =====================================
+// HARD ACCEPT — CHANNEL LINKS
+// =====================================
+
+if (
     href &&
     href !== "#" &&
     href.indexOf("/channel/") >= 0 &&
@@ -6664,6 +6668,10 @@ if (
 ) {
     return true;
 }
+
+// =====================================
+// SOFT ACCEPT — CHANNEL-LIKE LINKS
+// =====================================
 
 if (
     href &&
@@ -6685,15 +6693,19 @@ if (
     return true;
 }
 
-                if (
-                    role === "button" &&
-                    text.length >= 2 &&
-                    text.length <= 120
-                ) {
-                    return true;
-                }
+// =====================================
+// BUTTON / CLICKABLE FALLBACKS
+// =====================================
 
-                if (
+if (
+    role === "button" &&
+    text.length >= 2 &&
+    text.length <= 120
+) {
+    return true;
+}
+
+if (
     !href &&
     el.onclick &&
     text.length >= 2 &&
@@ -6702,7 +6714,7 @@ if (
     return true;
 }
 
-                return false;
+return false;
 
             } catch(e) {
 
@@ -6808,9 +6820,9 @@ if (
                     org.json.JSONArray(
                         cleaned
                     )
-                    
+
                 lastChannelCandidateCount =
-    array.length()
+                    array.length()
 
                 val builder =
                     StringBuilder()
