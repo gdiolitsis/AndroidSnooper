@@ -146,6 +146,9 @@ private val menuScanChannelCandidatesId =
     
 private val menuAutoScanChannelsId =
     91023
+    
+private val menuDomScanChannelsId =
+    91026
 
 private val desktopUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
@@ -173,6 +176,12 @@ private val resultsPanelNormalHeightDp =
     
 private var autoScanStopButton: Button? =
     null
+
+private var domScanRunning =
+    false
+
+private var domScanIndex =
+    0
 
 // =====================================
 // AUTO CHANNEL SCANNER STATE
@@ -6384,6 +6393,415 @@ true
 } // END onCreate()
 
 // =====================================
+// DOM SCAN CHANNELS
+// Clicks visible grid/EPG/channel rows in current page
+// =====================================
+
+private fun startDomScanChannels() {
+
+    try {
+
+        if (domScanRunning) {
+            Toast.makeText(
+                this,
+                "DOM scan already running",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        domScanRunning =
+            true
+
+        domScanIndex =
+            0
+
+        window.addFlags(
+            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
+
+        binding.contentMain.result.append(
+            """
+
+DOM SCAN STARTED
+
+────────────────────
+
+            """.trimIndent()
+        )
+
+        clickNextDomChannel()
+
+    } catch (t: Throwable) {
+
+        domScanRunning =
+            false
+
+        window.clearFlags(
+            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
+
+        Log.e(
+            "DOM_SCAN",
+            "start failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// CLICK NEXT DOM CHANNEL ROW
+// =====================================
+
+private fun clickNextDomChannel() {
+
+    try {
+
+        if (!domScanRunning) {
+            return
+        }
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        activeWebView.evaluateJavascript(
+            """
+
+(function() {
+
+    try {
+
+        var index =
+            $domScanIndex;
+
+        var badWords =
+            /cookie|privacy|accept|reject|login|sign in|subscribe|share|facebook|twitter|instagram|youtube|menu|home|contact|terms|policy|close|back|next|previous|search|language|settings|download|app/i;
+
+        function cleanText(value) {
+            try {
+                return String(value || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+            } catch(e) {
+                return "";
+            }
+        }
+
+        function visible(el) {
+            try {
+                var s = window.getComputedStyle(el);
+                var r = el.getBoundingClientRect();
+
+                return (
+                    s.display !== "none" &&
+                    s.visibility !== "hidden" &&
+                    s.opacity !== "0" &&
+                    r.width > 40 &&
+                    r.height > 20
+                );
+            } catch(e) {
+                return false;
+            }
+        }
+
+        function textOf(el) {
+            try {
+                return cleanText(
+                    (el.innerText || "") + " " +
+                    (el.textContent || "") + " " +
+                    (el.getAttribute("aria-label") || "") + " " +
+                    (el.getAttribute("title") || "") + " " +
+                    (el.getAttribute("data-title") || "") + " " +
+                    (el.getAttribute("data-name") || "")
+                );
+            } catch(e) {
+                return "";
+            }
+        }
+
+        var nodes =
+            Array.prototype.slice.call(
+                document.querySelectorAll(
+                    [
+                        ".channel-row",
+                        ".channel-item",
+                        ".channel-list-item",
+                        ".epg-row",
+                        ".guide-row",
+                        ".program-row",
+                        ".live-row",
+                        ".grid-row",
+                        ".list-row",
+                        "[class*='channel']",
+                        "[class*='Channel']",
+                        "[class*='epg']",
+                        "[class*='EPG']",
+                        "[class*='guide']",
+                        "[class*='Guide']",
+                        "[class*='program']",
+                        "[class*='Program']",
+                        "[class*='station']",
+                        "[class*='Station']",
+                        "[class*='live']",
+                        "[class*='Live']",
+                        "[class*='row']",
+                        "[class*='Row']",
+                        "[class*='grid']",
+                        "[class*='Grid']",
+                        "[class*='list']",
+                        "[class*='List']"
+                    ].join(",")
+                )
+            );
+
+        var candidates =
+            [];
+
+        var seen =
+            {};
+
+        nodes.forEach(function(el) {
+
+            try {
+
+                if (!visible(el)) {
+                    return;
+                }
+
+                var text =
+                    textOf(el);
+
+                var combined =
+                    (
+                        text + " " +
+                        String(el.className || "") + " " +
+                        String(el.id || "")
+                    ).toLowerCase();
+
+                if (badWords.test(combined)) {
+                    return;
+                }
+
+                if (text.length < 2 || text.length > 220) {
+                    return;
+                }
+
+                if (
+                    combined.indexOf("live") < 0 &&
+                    combined.indexOf("channel") < 0 &&
+                    combined.indexOf("epg") < 0 &&
+                    combined.indexOf("guide") < 0 &&
+                    combined.indexOf("program") < 0 &&
+                    combined.indexOf("station") < 0 &&
+                    combined.indexOf("tv") < 0
+                ) {
+                    return;
+                }
+
+                var key =
+                    text.toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                candidates.push(el);
+
+            } catch(e) {}
+        });
+
+        if (index >= candidates.length) {
+            return JSON.stringify({
+                done: true,
+                count: candidates.length,
+                title: ""
+            });
+        }
+
+        var target =
+            candidates[index];
+
+        var title =
+            textOf(target).substring(0, 120);
+
+        try {
+            target.scrollIntoView({
+                block: "center",
+                inline: "center"
+            });
+        } catch(e) {}
+
+        try {
+            target.click();
+        } catch(e) {}
+
+        return JSON.stringify({
+            done: false,
+            count: candidates.length,
+            title: title
+        });
+
+    } catch(e) {
+
+        return JSON.stringify({
+            done: true,
+            count: 0,
+            title: "ERROR: " + e
+        });
+    }
+
+})();
+            """.trimIndent()
+        ) { result ->
+
+            try {
+
+                val cleaned =
+                    result
+                        ?.removePrefix("\"")
+                        ?.removeSuffix("\"")
+                        ?.replace("\\\\", "\\")
+                        ?.replace("\\\"", "\"")
+                        ?.replace("\\n", "\n")
+                        ?.trim()
+                        .orEmpty()
+
+                val obj =
+                    org.json.JSONObject(
+                        cleaned
+                    )
+
+                val done =
+                    obj.optBoolean(
+                        "done",
+                        true
+                    )
+
+                val count =
+                    obj.optInt(
+                        "count",
+                        0
+                    )
+
+                val title =
+                    obj.optString(
+                        "title",
+                        ""
+                    )
+
+                if (done) {
+
+                    finishDomScanChannels(
+                        count
+                    )
+
+                    return@evaluateJavascript
+                }
+
+                binding.contentMain.result.append(
+                    """
+
+DOM SCAN:
+${domScanIndex + 1}/$count
+$title
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+                runDeepMediaScan(
+                    activeWebView
+                )
+
+                binding.contentMain.webview.postDelayed(
+                    {
+
+                        runDeepMediaScan(
+                            activeWebView
+                        )
+
+                        domScanIndex++
+
+                        binding.contentMain.webview.postDelayed(
+                            {
+                                clickNextDomChannel()
+                            },
+                            700
+                        )
+                    },
+                    3500
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "DOM_SCAN",
+                    "parse failed",
+                    t
+                )
+
+                domScanRunning =
+                    false
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        domScanRunning =
+            false
+
+        Log.e(
+            "DOM_SCAN",
+            "click next failed",
+            t
+        )
+    }
+}
+
+// =====================================
+// FINISH DOM SCAN
+// =====================================
+
+private fun finishDomScanChannels(
+    totalCandidates: Int
+) {
+
+    domScanRunning =
+        false
+
+    window.clearFlags(
+        android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+    )
+
+    binding.contentMain.result.append(
+        """
+
+DOM SCAN DONE
+
+Candidates:
+$totalCandidates
+
+Detected streams:
+${collectCurrentPlayableStreamsForAutoScan().size}
+
+────────────────────
+
+        """.trimIndent()
+    )
+
+    Toast.makeText(
+        this,
+        "DOM scan done",
+        Toast.LENGTH_SHORT
+    ).show()
+}
+
+// =====================================
 // FLOATING STOP AUTO SCAN BUTTON
 // =====================================
 
@@ -7493,20 +7911,24 @@ private fun collectAutoScanCandidates(
                 }
                 
 // =====================================
-// GRID / EPG ROW WITHOUT HREF
-// For pages with TV guide rows, not /channel/ links
+// GRID / EPG ROW ACCEPT
+// For pages with embedded TV guide rows
 // =====================================
 
 if (
-    !href &&
     text.length >= 2 &&
-    text.length <= 180 &&
+    text.length <= 220 &&
     (
         combined.indexOf("live") >= 0 ||
         combined.indexOf("channel") >= 0 ||
+        combined.indexOf("channels") >= 0 ||
         combined.indexOf("epg") >= 0 ||
-        combined.indexOf("guide") >= 0
-    )
+        combined.indexOf("guide") >= 0 ||
+        combined.indexOf("program") >= 0 ||
+        combined.indexOf("station") >= 0 ||
+        combined.indexOf("tv") >= 0
+    ) &&
+    !badWords.test(combined)
 ) {
     return true;
 }
@@ -7588,13 +8010,21 @@ if (
         "[onclick]",
         "[data-url]",
         "[data-href]",
+        "[data-src]",
         "[data-stream]",
+        "[data-channel]",
+        "[data-channel-id]",
+        "[data-name]",
+        "[data-title]",
+
         ".channel",
+        ".channels",
         ".tv-channel",
         ".station",
         ".card",
         ".item",
         "li",
+
         ".channel-row",
         ".channel-item",
         ".channel-list-item",
@@ -7602,11 +8032,31 @@ if (
         ".guide-row",
         ".program-row",
         ".live-row",
+        ".grid-row",
+        ".list-row",
+
         "[class*='channel']",
+        "[class*='Channel']",
+        "[class*='channels']",
+        "[class*='Channels']",
         "[class*='epg']",
+        "[class*='EPG']",
         "[class*='guide']",
+        "[class*='Guide']",
+        "[class*='program']",
+        "[class*='Program']",
+        "[class*='station']",
+        "[class*='Station']",
         "[class*='live']",
-        "[class*='row']"
+        "[class*='Live']",
+        "[class*='row']",
+        "[class*='Row']",
+        "[class*='grid']",
+        "[class*='Grid']",
+        "[class*='list']",
+        "[class*='List']",
+        "[class*='logo']",
+        "[class*='Logo']"
     ].join(",")
 )
             );
@@ -25100,7 +25550,10 @@ override fun onCreateOptionsMenu(
 
         menu.add(Menu.NONE, menuAutoScanChannelsId, Menu.NONE, "Auto Scan Channels")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-
+            
+        menu.add(Menu.NONE, menuDomScanChannelsId, Menu.NONE, "DOM Scan Channels")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+   
         // =====================================
         // VIEW / DATA
         // =====================================
@@ -25164,6 +25617,11 @@ override fun onOptionsItemSelected(
             startAutoScanChannels()
             true
         }
+        
+        menuDomScanChannelsId -> {
+           startDomScanChannels()
+           true
+         }
 
         menuSavedChannelsId -> {
             showSavedChannelsDialog()
