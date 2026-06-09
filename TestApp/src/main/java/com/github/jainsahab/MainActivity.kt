@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -169,6 +170,9 @@ private val resultsPanelCollapsedHeightDp =
 
 private val resultsPanelNormalHeightDp =
     90
+    
+private var autoScanStopButton: Button? =
+    null
 
 // =====================================
 // AUTO CHANNEL SCANNER STATE
@@ -200,7 +204,7 @@ private val autoScanKnownBefore =
     mutableSetOf<String>()
 
 private val autoScanMaxCandidates =
-    80
+    Int.MAX_VALUE
 
 // =====================================
 // AUTOMATIC COOKIE CONSENT RECOVERY
@@ -6380,6 +6384,135 @@ true
 } // END onCreate()
 
 // =====================================
+// FLOATING STOP AUTO SCAN BUTTON
+// =====================================
+
+private fun showAutoScanStopButton() {
+
+    if (autoScanStopButton != null) {
+        return
+    }
+
+    val button =
+        Button(this).apply {
+
+            text =
+                "STOP AUTO SCAN"
+
+            setBackgroundColor(
+                android.graphics.Color.RED
+            )
+
+            setTextColor(
+                android.graphics.Color.WHITE
+            )
+
+            textSize =
+                13f
+
+            setOnClickListener {
+                stopAutoScanChannels()
+            }
+        }
+
+    val params =
+        FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+
+            gravity =
+                Gravity.BOTTOM or Gravity.END
+
+            setMargins(
+                0,
+                0,
+                24,
+                120
+            )
+        }
+
+    val root =
+        window.decorView as FrameLayout
+
+    root.addView(
+        button,
+        params
+    )
+
+    autoScanStopButton =
+        button
+}
+
+private fun hideAutoScanStopButton() {
+
+    try {
+
+        val root =
+            window.decorView as FrameLayout
+
+        autoScanStopButton?.let { button ->
+            root.removeView(button)
+        }
+
+    } catch (_: Throwable) {}
+
+    autoScanStopButton =
+        null
+}
+
+// =====================================
+// STOP AUTO CHANNEL SCAN
+// =====================================
+
+private fun stopAutoScanChannels() {
+
+    autoScanRunning =
+        false
+
+    hideAutoScanStopButton()
+
+    window.clearFlags(
+        android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+    )
+
+    try {
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        activeWebView.stopLoading()
+
+    } catch (_: Throwable) {}
+
+    binding.contentMain.result.append(
+        """
+
+AUTO CHANNEL SCAN STOPPED
+
+Scanned:
+$autoScanIndex / ${autoScanCandidates.size}
+
+Collected channels:
+${autoScanResults.size}
+
+Collected streams:
+${autoScanResults.values.sumOf { it.size }}
+
+────────────────────
+
+        """.trimIndent()
+    )
+
+    Toast.makeText(
+        this,
+        "Auto scan stopped",
+        Toast.LENGTH_SHORT
+    ).show()
+}
+
+// =====================================
 // SCAN CHANNEL CANDIDATES ONLY
 // Safe mode: does NOT click anything
 // Uses pagination pages when available
@@ -7753,6 +7886,8 @@ private fun startAutoScanChannels() {
     android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
 )
 
+showAutoScanStopButton()
+
         binding.contentMain.result.append(
             """
 
@@ -8351,6 +8486,12 @@ private fun finishAutoScanChannels() {
 
         autoScanRunning =
             false
+
+        hideAutoScanStopButton()
+
+        window.clearFlags(
+            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
 
         val totalStreams =
             autoScanResults.values.sumOf { list ->
