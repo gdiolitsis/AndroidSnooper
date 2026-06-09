@@ -7491,6 +7491,25 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
+                
+// =====================================
+// GRID / EPG ROW WITHOUT HREF
+// For pages with TV guide rows, not /channel/ links
+// =====================================
+
+if (
+    !href &&
+    text.length >= 2 &&
+    text.length <= 180 &&
+    (
+        combined.indexOf("live") >= 0 ||
+        combined.indexOf("channel") >= 0 ||
+        combined.indexOf("epg") >= 0 ||
+        combined.indexOf("guide") >= 0
+    )
+) {
+    return true;
+}
 
                 // =====================================
                 // HARD ACCEPT — CHANNEL LINKS
@@ -7562,22 +7581,34 @@ private fun collectAutoScanCandidates(
         var nodes =
             Array.prototype.slice.call(
                 document.querySelectorAll(
-                    [
-                        "a[href]",
-                        "button",
-                        "[role='button']",
-                        "[onclick]",
-                        "[data-url]",
-                        "[data-href]",
-                        "[data-stream]",
-                        ".channel",
-                        ".tv-channel",
-                        ".station",
-                        ".card",
-                        ".item",
-                        "li"
-                    ].join(",")
-                )
+    [
+        "a[href]",
+        "button",
+        "[role='button']",
+        "[onclick]",
+        "[data-url]",
+        "[data-href]",
+        "[data-stream]",
+        ".channel",
+        ".tv-channel",
+        ".station",
+        ".card",
+        ".item",
+        "li",
+        ".channel-row",
+        ".channel-item",
+        ".channel-list-item",
+        ".epg-row",
+        ".guide-row",
+        ".program-row",
+        ".live-row",
+        "[class*='channel']",
+        "[class*='epg']",
+        "[class*='guide']",
+        "[class*='live']",
+        "[class*='row']"
+    ].join(",")
+)
             );
 
         nodes.forEach(function(el) {
