@@ -6583,21 +6583,30 @@ private fun clickNextDomChannel() {
                     return;
                 }
 
-                if (text.length < 2 || text.length > 220) {
-                    return;
-                }
+                if (text.length < 2 || text.length > 300) {
+    return;
+}
 
-                if (
-                    combined.indexOf("live") < 0 &&
-                    combined.indexOf("channel") < 0 &&
-                    combined.indexOf("epg") < 0 &&
-                    combined.indexOf("guide") < 0 &&
-                    combined.indexOf("program") < 0 &&
-                    combined.indexOf("station") < 0 &&
-                    combined.indexOf("tv") < 0
-                ) {
-                    return;
-                }
+                var rect =
+    el.getBoundingClientRect();
+
+var hasChannelNumber =
+    /^[0-9]{1,4}\s+/.test(text) ||
+    /^[0-9]{1,4}$/.test(text.split(" ")[0] || "");
+
+var hasLive =
+    combined.indexOf("live") >= 0;
+
+var looksGridRow =
+    hasLive &&
+    hasChannelNumber &&
+    rect.width > 120 &&
+    rect.height >= 35 &&
+    rect.height <= 180;
+
+if (!looksGridRow) {
+    return;
+}
 
                 var key =
                     text.toLowerCase();
