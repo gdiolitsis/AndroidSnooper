@@ -6563,7 +6563,7 @@ Collecting pages...
                     }
 
                 binding.contentMain.result.append(
-                    """
+    """
 
 CHANNEL CANDIDATE SCAN:
 Pages found:
@@ -6571,12 +6571,53 @@ ${pageList.size}
 
 ────────────────────
 
-                    """.trimIndent()
-                )
+    """.trimIndent()
+)
 
-                collectCandidatesPreviewFromPages(
-                    pageList
-                )
+if (pageList.size > 10) {
+
+    val estimatedChannels =
+        pageList.size * 15
+
+    lastChannelCandidateCount =
+        estimatedChannels
+
+    binding.contentMain.result.append(
+        """
+
+CHANNEL CANDIDATE SCAN:
+Large paginated list detected.
+
+Pages:
+${pageList.size}
+
+Estimated content:
+About 15 channels per page
+
+Estimated total channels:
+~$estimatedChannels
+
+Preview scan skipped to avoid freezing the app.
+
+Use Auto Scan only when you want full collection.
+
+────────────────────
+
+        """.trimIndent()
+    )
+
+    Toast.makeText(
+        this,
+        "Pages: ${pageList.size} / estimated ~$estimatedChannels channels",
+        Toast.LENGTH_LONG
+    ).show()
+
+    return@runOnUiThread
+}
+
+collectCandidatesPreviewFromPages(
+    pageList
+)
             }
         }
 
