@@ -8030,7 +8030,7 @@ private fun clickWatchOrPlayButtonIfPresent(
 
 // =====================================
 // COLLECT CHANNEL CANDIDATES FOR AUTO SCAN
-// Safe: only collects href/title, does not click
+// Safe: collects href/title + row-based candidates
 // =====================================
 
 private fun collectAutoScanCandidates(
@@ -8125,6 +8125,17 @@ private fun collectAutoScanCandidates(
                 text += " " + (el.getAttribute("data-name") || "");
                 text += " " + (el.getAttribute("alt") || "");
 
+                var img =
+                    el.querySelector
+                        ? el.querySelector("img")
+                        : null;
+
+                if (img) {
+
+                    text += " " + (img.getAttribute("alt") || "");
+                    text += " " + (img.getAttribute("title") || "");
+                }
+
                 return cleanText(text);
 
             } catch(e) {
@@ -8163,6 +8174,42 @@ private fun collectAutoScanCandidates(
             }
         }
 
+        function addCandidate(title, href) {
+
+            try {
+
+                title =
+                    cleanText(title);
+
+                href =
+                    String(href || "").trim();
+
+                if (
+                    title.length < 2 &&
+                    href.length < 5
+                ) {
+                    return;
+                }
+
+                var key =
+                    (title + "|" + href)
+                        .toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                candidates.push({
+                    title: title.substring(0, 140),
+                    href: href.substring(0, 700)
+                });
+
+            } catch(e) {}
+        }
+
         function looksLikeChannel(el, text, href) {
 
             try {
@@ -8184,10 +8231,6 @@ private fun collectAutoScanCandidates(
                     return false;
                 }
 
-                // =====================================
-                // HARD REJECT — SOCIAL / CONTACT
-                // =====================================
-
                 if (
                     href.indexOf("facebook.com") >= 0 ||
                     href.indexOf("twitter.com") >= 0 ||
@@ -8198,10 +8241,6 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
-
-                // =====================================
-                // HARD REJECT — COUNTRY / PAGINATION
-                // =====================================
 
                 if (
                     href.indexOf("/country/") >= 0 ||
@@ -8215,76 +8254,38 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
-                
-// =====================================
-// GRID / EPG ROW ACCEPT
-// For pages with embedded TV guide rows
-// =====================================
-
-if (
-    text.length >= 2 &&
-    text.length <= 220 &&
-    (
-        combined.indexOf("live") >= 0 ||
-        combined.indexOf("channel") >= 0 ||
-        combined.indexOf("channels") >= 0 ||
-        combined.indexOf("epg") >= 0 ||
-        combined.indexOf("guide") >= 0 ||
-        combined.indexOf("program") >= 0 ||
-        combined.indexOf("station") >= 0 ||
-        combined.indexOf("tv") >= 0
-    ) &&
-    !badWords.test(combined)
-) {
-    return true;
-}
-
-                // =====================================
-                // HARD ACCEPT — CHANNEL LINKS
-                // =====================================
 
                 if (
                     href &&
                     href !== "#" &&
                     href.indexOf("/channel/") >= 0 &&
                     text.length >= 2 &&
-                    text.length <= 160
+                    text.length <= 180
                 ) {
                     return true;
                 }
 
-                // =====================================
-                // SOFT ACCEPT — CHANNEL-LIKE LINKS
-                // =====================================
-
                 if (
-                    href &&
-                    href !== "#" &&
-                    href.indexOf("/channel/") >= 0 &&
+                    text.length >= 2 &&
+                    text.length <= 240 &&
                     (
-                        combined.indexOf("channel") >= 0 ||
                         combined.indexOf("live") >= 0 ||
-                        combined.indexOf("tv") >= 0 ||
-                        combined.indexOf("stream") >= 0 ||
-                        combined.indexOf("player") >= 0 ||
-                        combined.indexOf("watch") >= 0 ||
-                        combined.indexOf("play") >= 0 ||
+                        combined.indexOf("channel") >= 0 ||
+                        combined.indexOf("channels") >= 0 ||
+                        combined.indexOf("epg") >= 0 ||
+                        combined.indexOf("guide") >= 0 ||
+                        combined.indexOf("program") >= 0 ||
                         combined.indexOf("station") >= 0 ||
-                        combined.indexOf("canal") >= 0 ||
-                        combined.indexOf("kanal") >= 0
+                        combined.indexOf("tv") >= 0
                     )
                 ) {
                     return true;
                 }
 
-                // =====================================
-                // BUTTON / CLICKABLE FALLBACKS
-                // =====================================
-
                 if (
                     role === "button" &&
                     text.length >= 2 &&
-                    text.length <= 120
+                    text.length <= 140
                 ) {
                     return true;
                 }
@@ -8293,7 +8294,7 @@ if (
                     !href &&
                     el.onclick &&
                     text.length >= 2 &&
-                    text.length <= 120
+                    text.length <= 140
                 ) {
                     return true;
                 }
@@ -8306,65 +8307,69 @@ if (
             }
         }
 
+        // =====================================
+        // 1) NORMAL LINK / BUTTON CANDIDATES
+        // =====================================
+
         var nodes =
             Array.prototype.slice.call(
                 document.querySelectorAll(
-    [
-        "a[href]",
-        "button",
-        "[role='button']",
-        "[onclick]",
-        "[data-url]",
-        "[data-href]",
-        "[data-src]",
-        "[data-stream]",
-        "[data-channel]",
-        "[data-channel-id]",
-        "[data-name]",
-        "[data-title]",
+                    [
+                        "a[href]",
+                        "button",
+                        "[role='button']",
+                        "[onclick]",
+                        "[data-url]",
+                        "[data-href]",
+                        "[data-src]",
+                        "[data-stream]",
+                        "[data-channel]",
+                        "[data-channel-id]",
+                        "[data-name]",
+                        "[data-title]",
 
-        ".channel",
-        ".channels",
-        ".tv-channel",
-        ".station",
-        ".card",
-        ".item",
-        "li",
+                        ".channel",
+                        ".channels",
+                        ".tv-channel",
+                        ".station",
+                        ".card",
+                        ".item",
+                        "li",
 
-        ".channel-row",
-        ".channel-item",
-        ".channel-list-item",
-        ".epg-row",
-        ".guide-row",
-        ".program-row",
-        ".live-row",
-        ".grid-row",
-        ".list-row",
+                        ".channel-row",
+                        ".channel-item",
+                        ".channel-list-item",
+                        ".epg-row",
+                        ".guide-row",
+                        ".program-row",
+                        ".live-row",
+                        ".grid-row",
+                        ".list-row",
 
-        "[class*='channel']",
-        "[class*='Channel']",
-        "[class*='channels']",
-        "[class*='Channels']",
-        "[class*='epg']",
-        "[class*='EPG']",
-        "[class*='guide']",
-        "[class*='Guide']",
-        "[class*='program']",
-        "[class*='Program']",
-        "[class*='station']",
-        "[class*='Station']",
-        "[class*='live']",
-        "[class*='Live']",
-        "[class*='row']",
-        "[class*='Row']",
-        "[class*='grid']",
-        "[class*='Grid']",
-        "[class*='list']",
-        "[class*='List']",
-        "[class*='logo']",
-        "[class*='Logo']"
-    ].join(",")
-)
+                        "[class*='channel']",
+                        "[class*='Channel']",
+                        "[class*='channels']",
+                        "[class*='Channels']",
+                        "[class*='epg']",
+                        "[class*='EPG']",
+                        "[class*='guide']",
+                        "[class*='Guide']",
+                        "[class*='program']",
+                        "[class*='Program']",
+                        "[class*='station']",
+                        "[class*='Station']",
+                        "[class*='live']",
+                        "[class*='Live']",
+                        "[class*='row']",
+                        "[class*='Row']",
+                        "[class*='grid']",
+                        "[class*='Grid']",
+                        "[class*='list']",
+                        "[class*='List']",
+                        "[class*='logo']",
+                        "[class*='Logo']"
+                    ].join(",")
+                )
             );
 
         nodes.forEach(function(el) {
@@ -8381,38 +8386,102 @@ if (
                 var href =
                     getHref(el);
 
-                if (
-                    text.length < 2 &&
-                    href.length < 5
-                ) {
-                    return;
-                }
-
                 if (!looksLikeChannel(el, text, href)) {
                     return;
                 }
 
-                var key =
-                    (text + "|" + href)
-                        .toLowerCase();
+                addCandidate(
+                    text,
+                    href
+                );
 
-                if (seen[key]) {
-                    return;
-                }
+            } catch(e) {}
+        });
 
-                seen[key] =
-                    true;
+        // =====================================
+        // 2) ROW-BASED EPG CANDIDATES
+        // For VivaLive-style pages:
+        // #EPGTableWrapper → table.flategp → tr
+        // =====================================
 
-                candidates.push({
-                    title: text.substring(0, 120),
-                    href: href.substring(0, 500)
-                });
+        var rowSelectors = [
+            "#EPGTableWrapper table.flategp tbody tr",
+            "#userChannels table.flategp tbody tr",
+            "table.flategp tbody tr",
+            "#EPGTableWrapper tr",
+            "#userChannels tr"
+        ];
+
+        var rowIndex =
+            0;
+
+        rowSelectors.forEach(function(sel) {
+
+            try {
+
+                document
+                    .querySelectorAll(sel)
+                    .forEach(function(row) {
+
+                        try {
+
+                            if (!isVisible(row)) {
+                                return;
+                            }
+
+                            var text =
+                                getText(row);
+
+                            if (
+                                text.length < 2 ||
+                                text.length > 260
+                            ) {
+                                return;
+                            }
+
+                            var lower =
+                                text.toLowerCase();
+
+                            if (badWords.test(lower)) {
+                                return;
+                            }
+
+                            var rect =
+                                row.getBoundingClientRect();
+
+                            var x =
+                                Math.floor(
+                                    rect.left + rect.width / 2
+                                );
+
+                            var y =
+                                Math.floor(
+                                    rect.top + rect.height / 2
+                                );
+
+                            var href =
+                                "gel-row://" +
+                                rowIndex +
+                                "?x=" +
+                                x +
+                                "&y=" +
+                                y;
+
+                            rowIndex++;
+
+                            addCandidate(
+                                text,
+                                href
+                            );
+
+                        } catch(e) {}
+                    });
 
             } catch(e) {}
         });
 
         return JSON.stringify(
-            candidates.slice(0, 250)
+            candidates.slice(0, 300)
         );
 
     } catch(e) {
@@ -8421,6 +8490,7 @@ if (
     }
 
 })();
+
             """.trimIndent()
         ) { jsResult ->
 
@@ -8467,7 +8537,10 @@ if (
 
                     if (
                         href.isBlank() ||
-                        !href.startsWith("http", true)
+                        (
+                            !href.startsWith("http", true) &&
+                            !href.startsWith("gel-row://", true)
+                        )
                     ) {
                         continue
                     }
@@ -8481,8 +8554,8 @@ if (
                 }
 
                 // =====================================
-                // Prefer real channel pages.
-                // Avoid country/category pages when possible.
+                // Prefer real channel pages first.
+                // If no real pages exist, keep row candidates.
                 // =====================================
 
                 val channelLike =
@@ -8501,11 +8574,26 @@ if (
                             !lower.contains("/country/")
                     }
 
+                val rowLike =
+                    parsed.filter { item ->
+
+                        item.href.startsWith(
+                            "gel-row://",
+                            true
+                        )
+                    }
+
                 val finalList =
-                    if (channelLike.isNotEmpty()) {
-                        channelLike
-                    } else {
-                        parsed
+                    when {
+
+                        channelLike.isNotEmpty() ->
+                            channelLike
+
+                        rowLike.isNotEmpty() ->
+                            rowLike
+
+                        else ->
+                            parsed
                     }
                         .distinctBy { item ->
                             item.href.lowercase()
@@ -8915,7 +9003,7 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 
 // =====================================
 // SCAN NEXT CHANNEL CANDIDATE
-// Opens each candidate URL and waits for stream detection
+// Opens URL candidates OR clicks gel-row:// EPG candidates
 // =====================================
 
 private fun scanNextAutoChannel() {
@@ -8948,6 +9036,12 @@ private fun scanNextAutoChannel() {
             popupWebView
                 ?: binding.contentMain.webview
 
+        val isRowCandidate =
+            candidate.href.startsWith(
+                "gel-row://",
+                true
+            )
+
         binding.contentMain.result.append(
             """
 
@@ -8964,7 +9058,11 @@ ${candidate.href}
         try {
 
             binding.contentMain.urlInput.setText(
-                candidate.href
+                if (isRowCandidate) {
+                    activeWebView.url.orEmpty()
+                } else {
+                    candidate.href
+                }
             )
 
             binding.contentMain.urlInput.setSelection(
@@ -8972,9 +9070,324 @@ ${candidate.href}
             )
 
             liveUrlInputText =
-                candidate.href
+                binding.contentMain.urlInput
+                    .text
+                    ?.toString()
+                    ?.trim()
+                    .orEmpty()
 
         } catch (_: Throwable) {}
+
+        // =====================================
+        // ROW CANDIDATE MODE
+        // gel-row://0?x=123&y=456
+        // Do NOT load URL. Click row inside current page.
+        // =====================================
+
+        if (isRowCandidate) {
+
+            try {
+
+                val uri =
+                    Uri.parse(
+                        candidate.href
+                    )
+
+                val x =
+                    uri.getQueryParameter(
+                        "x"
+                    )
+                        ?.toIntOrNull()
+                        ?: 0
+
+                val y =
+                    uri.getQueryParameter(
+                        "y"
+                    )
+                        ?.toIntOrNull()
+                        ?: 0
+
+                if (
+                    x <= 0 ||
+                    y <= 0
+                ) {
+
+                    binding.contentMain.result.append(
+                        """
+
+AUTO ROW SCAN:
+Invalid row coordinates.
+Skipping.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                    autoScanIndex++
+
+                    binding.contentMain.webview.postDelayed(
+                        {
+                            scanNextAutoChannel()
+                        },
+                        700
+                    )
+
+                    return
+                }
+
+                val clickJs =
+                    """
+
+(function() {
+
+    try {
+
+        var x =
+            $x;
+
+        var y =
+            $y;
+
+        var el =
+            document.elementFromPoint(
+                x,
+                y
+            );
+
+        if (!el) {
+            return "NO_ELEMENT_AT_POINT";
+        }
+
+        var row =
+            null;
+
+        try {
+
+            row =
+                el.closest("tr");
+
+        } catch(e) {}
+
+        var target =
+            row || el;
+
+        var label =
+            (
+                target.innerText ||
+                target.textContent ||
+                target.src ||
+                ""
+            )
+            .trim()
+            .replace(/\s+/g, " ")
+            .substring(0, 180);
+
+        function fireOn(
+            node,
+            type
+        ) {
+
+            try {
+
+                var ev =
+                    new MouseEvent(
+                        type,
+                        {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true,
+                            clientX: x,
+                            clientY: y
+                        }
+                    );
+
+                node.dispatchEvent(
+                    ev
+                );
+
+            } catch(e) {}
+        }
+
+        // =====================================
+        // Fire on exact element first
+        // =====================================
+
+        fireOn(el, "mouseover");
+        fireOn(el, "mousedown");
+        fireOn(el, "mouseup");
+        fireOn(el, "click");
+
+        try {
+            el.click();
+        } catch(e) {}
+
+        // =====================================
+        // Fire on parent row too
+        // VivaLive-style clickable TR
+        // =====================================
+
+        if (row && row !== el) {
+
+            fireOn(row, "mouseover");
+            fireOn(row, "mousedown");
+            fireOn(row, "mouseup");
+            fireOn(row, "click");
+
+            try {
+                row.click();
+            } catch(e) {}
+        }
+
+        return (
+            "ROW_CLICKED | " +
+            (target.tagName || "") +
+            " | " +
+            label
+        );
+
+    } catch(e) {
+
+        return "ROW_CLICK_ERROR: " + e;
+    }
+
+})();
+
+                    """.trimIndent()
+
+                activeWebView.evaluateJavascript(
+                    clickJs
+                ) { clickResult ->
+
+                    try {
+
+                        val cleanClick =
+                            clickResult
+                                ?.removePrefix("\"")
+                                ?.removeSuffix("\"")
+                                ?.replace("\\n", "\n")
+                                ?.replace("\\\"", "\"")
+                                ?.replace("\\/", "/")
+                                .orEmpty()
+
+                        binding.contentMain.result.append(
+                            """
+
+AUTO ROW CLICK:
+$cleanClick
+
+Waiting for stream...
+
+────────────────────
+
+                            """.trimIndent()
+                        )
+
+                    } catch (_: Throwable) {}
+                }
+
+                // First scan after row click
+                activeWebView.postDelayed(
+                    {
+
+                        try {
+
+                            if (
+                                !autoScanRunning ||
+                                cloudflareChallengeActive
+                            ) {
+                                return@postDelayed
+                            }
+
+                            runDeepMediaScan(
+                                activeWebView
+                            )
+
+                            showAllMedia()
+
+                        } catch (_: Throwable) {}
+                    },
+                    2200
+                )
+
+                // Final scan and finalize
+                activeWebView.postDelayed(
+                    {
+
+                        try {
+
+                            if (
+                                !autoScanRunning ||
+                                cloudflareChallengeActive
+                            ) {
+                                return@postDelayed
+                            }
+
+                            runDeepMediaScan(
+                                activeWebView
+                            )
+
+                            finalizeCurrentAutoChannel(
+                                candidate
+                            )
+
+                            autoScanIndex++
+
+                            binding.contentMain.webview.postDelayed(
+                                {
+                                    scanNextAutoChannel()
+                                },
+                                1000
+                            )
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "AUTO_SCAN",
+                                "row finalize failed",
+                                t
+                            )
+
+                            autoScanIndex++
+
+                            binding.contentMain.webview.postDelayed(
+                                {
+                                    scanNextAutoChannel()
+                                },
+                                1000
+                            )
+                        }
+                    },
+                    5600
+                )
+
+                return
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "AUTO_SCAN",
+                    "row scan failed",
+                    t
+                )
+
+                autoScanIndex++
+
+                binding.contentMain.webview.postDelayed(
+                    {
+                        scanNextAutoChannel()
+                    },
+                    1000
+                )
+
+                return
+            }
+        }
+
+        // =====================================
+        // NORMAL URL CANDIDATE MODE
+        // Existing behavior
+        // =====================================
 
         try {
 
@@ -9086,19 +9499,17 @@ Skipping wait.
 
 AUTO SCAN:
 Play button clicked.
-Waiting for stream...
+Waiting for stream.
 
 ────────────────────
 
                                 """.trimIndent()
                             )
 
-                            // First scan after click
                             runDeepMediaScan(
                                 activeWebView
                             )
 
-                            // Second/final scan — not too slow
                             binding.contentMain.webview.postDelayed(
                                 {
 
@@ -21414,6 +21825,437 @@ try {
 }
 
 // =====================================
+// ROW CLICKER SCAN CHANNELS
+// Clicks visible EPG/channel rows and lets stream monitor capture HLS
+// =====================================
+
+private fun startRowClickerScanChannels() {
+
+    try {
+
+        val activeWebView =
+            popupWebView
+                ?: binding.contentMain.webview
+
+        startStreamMonitor()
+
+        binding.contentMain.result.append(
+            """
+
+ROW CLICKER SCAN STARTED
+
+Target:
+#EPGTableWrapper table.flategp tbody tr
+#userChannels table.flategp tbody tr
+
+────────────────────
+
+            """.trimIndent()
+        )
+
+        val collectJs =
+            """
+
+(function() {
+
+    try {
+
+        function isVisible(el) {
+
+            try {
+
+                if (!el) {
+                    return false;
+                }
+
+                var r =
+                    el.getBoundingClientRect();
+
+                var style =
+                    window.getComputedStyle(el);
+
+                return (
+                    r.width > 20 &&
+                    r.height > 10 &&
+                    r.bottom >= 0 &&
+                    r.right >= 0 &&
+                    r.top <= window.innerHeight &&
+                    r.left <= window.innerWidth &&
+                    style.display !== "none" &&
+                    style.visibility !== "hidden" &&
+                    style.opacity !== "0"
+                );
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        var selectors = [
+            "#EPGTableWrapper table.flategp tbody tr",
+            "#userChannels table.flategp tbody tr",
+            "table.flategp tbody tr",
+            "#EPGTableWrapper tr",
+            "#userChannels tr"
+        ];
+
+        var seen = {};
+        var rows = [];
+
+        selectors.forEach(function(sel) {
+
+            try {
+
+                document
+                    .querySelectorAll(sel)
+                    .forEach(function(row) {
+
+                        try {
+
+                            if (!isVisible(row)) {
+                                return;
+                            }
+
+                            var text =
+                                (
+                                    row.innerText ||
+                                    row.textContent ||
+                                    ""
+                                )
+                                .trim()
+                                .replace(/\s+/g, " ");
+
+                            if (text.length < 3) {
+                                return;
+                            }
+
+                            var key =
+                                text.toLowerCase();
+
+                            if (seen[key]) {
+                                return;
+                            }
+
+                            seen[key] =
+                                true;
+
+                            var r =
+                                row.getBoundingClientRect();
+
+                            rows.push({
+                                text: text.substring(0, 160),
+                                x: Math.floor(r.left + (r.width / 2)),
+                                y: Math.floor(r.top + (r.height / 2))
+                            });
+
+                        } catch(e) {}
+                    });
+
+            } catch(e) {}
+        });
+
+        return JSON.stringify(
+            rows.slice(0, 80)
+        );
+
+    } catch(e) {
+
+        return JSON.stringify([]);
+    }
+
+})();
+
+            """.trimIndent()
+
+        activeWebView.evaluateJavascript(
+            collectJs
+        ) { result ->
+
+            try {
+
+                val clean =
+                    result
+                        ?.removePrefix("\"")
+                        ?.removeSuffix("\"")
+                        ?.replace("\\\"", "\"")
+                        ?.replace("\\\\", "\\")
+                        ?.replace("\\n", "\n")
+                        ?.trim()
+                        .orEmpty()
+
+                val rows =
+                    org.json.JSONArray(
+                        clean
+                    )
+
+                if (rows.length() == 0) {
+
+                    binding.contentMain.result.append(
+                        """
+
+ROW CLICKER:
+No visible rows found.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                    return@evaluateJavascript
+                }
+
+                binding.contentMain.result.append(
+                    """
+
+ROW CLICKER:
+Found ${rows.length()} visible row(s)
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+                fun clickRowAt(
+                    index: Int
+                ) {
+
+                    try {
+
+                        if (index >= rows.length()) {
+
+                            binding.contentMain.result.append(
+                                """
+
+ROW CLICKER SCAN FINISHED
+
+Rows clicked:
+${rows.length()}
+
+Now check detected streams / Open Player.
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            showAllMedia()
+
+                            return
+                        }
+
+                        val obj =
+                            rows.optJSONObject(
+                                index
+                            )
+
+                        val title =
+                            obj
+                                ?.optString(
+                                    "text",
+                                    "ROW ${index + 1}"
+                                )
+                                ?.trim()
+                                .orEmpty()
+
+                        val x =
+                            obj
+                                ?.optInt(
+                                    "x",
+                                    0
+                                )
+                                ?: 0
+
+                        val y =
+                            obj
+                                ?.optInt(
+                                    "y",
+                                    0
+                                )
+                                ?: 0
+
+                        binding.contentMain.result.append(
+                            """
+
+ROW CLICK:
+${index + 1}/${rows.length()}
+$title
+
+────────────────────
+
+                            """.trimIndent()
+                        )
+
+                        val clickJs =
+                            """
+
+(function() {
+
+    try {
+
+        var x =
+            $x;
+
+        var y =
+            $y;
+
+        var el =
+            document.elementFromPoint(
+                x,
+                y
+            );
+
+        if (!el) {
+            return "NO_ELEMENT";
+        }
+
+        var target =
+            el;
+
+        try {
+
+            var row =
+                el.closest("tr");
+
+            if (row) {
+                target =
+                    row.querySelector("img") ||
+                    row.querySelector("article") ||
+                    row.querySelector("td") ||
+                    row;
+            }
+
+        } catch(e) {}
+
+        function fire(type) {
+
+            try {
+
+                var ev =
+                    new MouseEvent(
+                        type,
+                        {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true,
+                            clientX: x,
+                            clientY: y
+                        }
+                    );
+
+                target.dispatchEvent(ev);
+
+            } catch(e) {}
+        }
+
+        fire("mouseover");
+        fire("mousedown");
+        fire("mouseup");
+        fire("click");
+
+        try {
+            target.click();
+        } catch(e) {}
+
+        return (
+            "CLICKED: " +
+            (target.tagName || "") +
+            " " +
+            (
+                target.innerText ||
+                target.textContent ||
+                target.src ||
+                ""
+            ).trim().substring(0, 120)
+        );
+
+    } catch(e) {
+
+        return "ROW_CLICK_ERROR: " + e;
+    }
+
+})();
+
+                            """.trimIndent()
+
+                        activeWebView.evaluateJavascript(
+                            clickJs
+                        ) { clickResult ->
+
+                            try {
+
+                                Log.e(
+                                    "ROW_CLICKER",
+                                    clickResult ?: ""
+                                )
+
+                            } catch (_: Throwable) {}
+                        }
+
+                        activeWebView.postDelayed(
+                            {
+
+                                try {
+
+                                    runDeepMediaScan(
+                                        activeWebView
+                                    )
+
+                                    showAllMedia()
+
+                                } catch (_: Throwable) {}
+
+                                activeWebView.postDelayed(
+                                    {
+                                        clickRowAt(
+                                            index + 1
+                                        )
+                                    },
+                                    2200
+                                )
+                            },
+                            2600
+                        )
+
+                    } catch (_: Throwable) {}
+                }
+
+                clickRowAt(
+                    0
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "ROW_CLICKER",
+                    "parse failed",
+                    t
+                )
+
+                binding.contentMain.result.append(
+                    """
+
+ROW CLICKER ERROR:
+${t.message ?: "Unknown error"}
+
+────────────────────
+
+                    """.trimIndent()
+                )
+            }
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "ROW_CLICKER",
+            "failed",
+            t
+        )
+    }
+}
+
+// =====================================
 // LIVE STREAM MONITOR
 // =====================================
 
@@ -26122,9 +26964,9 @@ override fun onOptionsItemSelected(
         }
         
         menuDomScanChannelsId -> {
-           startDomScanChannels()
-           true
-         }
+            startRowClickerScanChannels()
+            true
+        }
 
         menuSavedChannelsId -> {
             showSavedChannelsDialog()
