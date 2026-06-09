@@ -3308,6 +3308,45 @@ ${errorResponse?.reasonPhrase ?: ""}
 binding.contentMain.webview.webChromeClient =
     object : WebChromeClient() {
     
+    override fun onConsoleMessage(
+    consoleMessage: android.webkit.ConsoleMessage?
+): Boolean {
+
+    try {
+
+        val msg =
+            consoleMessage
+                ?.message()
+                .orEmpty()
+
+        if (
+            msg.contains(
+                "GEL CLICK PATH",
+                true
+            ) ||
+            msg.contains(
+                "GEL_CLICK_PATH",
+                true
+            ) ||
+            msg.contains(
+                "GEL_CLICK_PATH_ERROR",
+                true
+            )
+        ) {
+
+            Log.e(
+                "GEL_CLICK_PATH",
+                msg
+            )
+        }
+
+    } catch (_: Throwable) {}
+
+    return super.onConsoleMessage(
+        consoleMessage
+    )
+}
+    
     override fun onProgressChanged(
     view: WebView?,
     newProgress: Int
