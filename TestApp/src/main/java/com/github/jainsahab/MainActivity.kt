@@ -6590,19 +6590,24 @@ private fun clickNextDomChannel() {
                 var rect =
     el.getBoundingClientRect();
 
-var hasChannelNumber =
-    /^[0-9]{1,4}\s+/.test(text) ||
-    /^[0-9]{1,4}$/.test(text.split(" ")[0] || "");
-
 var hasLive =
     combined.indexOf("live") >= 0;
 
+var isBigContainer =
+    rect.height > 190 ||
+    text.toLowerCase().indexOf("641 channels") >= 0 ||
+    text.toLowerCase().indexOf("channels") === 0 ||
+    text.toLowerCase().indexOf("home »") >= 0 ||
+    text.toLowerCase().indexOf("show more") >= 0;
+
 var looksGridRow =
     hasLive &&
-    hasChannelNumber &&
+    !isBigContainer &&
     rect.width > 120 &&
     rect.height >= 35 &&
-    rect.height <= 180;
+    rect.height <= 190 &&
+    text.length >= 2 &&
+    text.length <= 300;
 
 if (!looksGridRow) {
     return;
