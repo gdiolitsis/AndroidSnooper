@@ -5688,18 +5688,6 @@ val selectedText =
 
 // =====================================
 // RESULT LONG PRESS MENU
-// =====================================
-
-binding.contentMain.result.setOnTouchListener { _, event ->
-
-    lastTouchX = event.x
-    lastTouchY = event.y
-
-    false
-}
-
-// =====================================
-// RESULT LONG PRESS MENU
 // AlertDialog version — never goes off-screen
 // =====================================
 
@@ -5786,12 +5774,172 @@ binding.contentMain.result.setOnLongClickListener { _ ->
                 ?: ""
     }
 
-    if (selectedUrl.isBlank()) {
+    selectedUrl =
+        cleanDetectedUrl(
+            selectedUrl
+        )
+
+    if (
+        selectedUrl.isBlank() ||
+        !isExportableStream(
+            selectedUrl
+        )
+    ) {
         return@setOnLongClickListener true
     }
 
     lastSelectedUrl =
         selectedUrl
+
+    val selectedSnapshot =
+        streamInfoSnapshots[selectedUrl]
+            ?: streamInfoSnapshots[
+                selectedUrl.substringBefore("?")
+            ]
+
+    fun getMenuBestQualityStream(): String {
+
+        return try {
+
+            val selectedClean =
+                cleanDetectedUrl(
+                    selectedUrl
+                )
+
+            if (
+                selectedClean.isNotBlank() &&
+                isExportableStream(
+                    selectedClean
+                ) &&
+                isBestQualityTrackStream(
+                    selectedClean
+                )
+            ) {
+                return selectedClean
+            }
+
+            val snapshotBest =
+                cleanDetectedUrl(
+                    selectedSnapshot?.bestStream.orEmpty()
+                )
+
+            if (
+                snapshotBest.isNotBlank() &&
+                isExportableStream(
+                    snapshotBest
+                ) &&
+                isBestQualityTrackStream(
+                    snapshotBest
+                )
+            ) {
+                return snapshotBest
+            }
+
+            val globalBest =
+                cleanDetectedUrl(
+                    getCleanBestStreamUrl()
+                )
+
+            if (
+                globalBest.isNotBlank() &&
+                isExportableStream(
+                    globalBest
+                ) &&
+                isBestQualityTrackStream(
+                    globalBest
+                )
+            ) {
+                return globalBest
+            }
+
+            ""
+
+        } catch (_: Throwable) {
+
+            ""
+        }
+    }
+
+    fun getMenuBestStableStream(): String {
+
+        return try {
+
+            val selectedClean =
+                cleanDetectedUrl(
+                    selectedUrl
+                )
+
+            if (
+                selectedClean.isNotBlank() &&
+                isExportableStream(
+                    selectedClean
+                ) &&
+                !isBestQualityTrackStream(
+                    selectedClean
+                ) &&
+                (
+                    isStablePlaylistStream(
+                        selectedClean
+                    ) ||
+                        isLowerPriorityHlsVariant(
+                            selectedClean
+                        ) ||
+                        selectedClean.contains(
+                            ".m3u8",
+                            true
+                        )
+                    )
+            ) {
+                return selectedClean
+            }
+
+            val snapshotBestLive =
+                cleanDetectedUrl(
+                    selectedSnapshot?.bestLive.orEmpty()
+                )
+
+            if (
+                snapshotBestLive.isNotBlank() &&
+                isExportableStream(
+                    snapshotBestLive
+                ) &&
+                !isBestQualityTrackStream(
+                    snapshotBestLive
+                )
+            ) {
+                return snapshotBestLive
+            }
+
+            val snapshotBest =
+                cleanDetectedUrl(
+                    selectedSnapshot?.bestStream.orEmpty()
+                )
+
+            if (
+                snapshotBest.isNotBlank() &&
+                isExportableStream(
+                    snapshotBest
+                ) &&
+                !isBestQualityTrackStream(
+                    snapshotBest
+                )
+            ) {
+                return snapshotBest
+            }
+
+            ""
+
+        } catch (_: Throwable) {
+
+            ""
+        }
+    }
+
+    val menuBestQualityStream =
+        getMenuBestQualityStream()
+
+    val menuBestStableStream =
+        getMenuBestStableStream()
 
     val actions =
         mutableListOf<String>()
@@ -5812,7 +5960,7 @@ binding.contentMain.result.setOnLongClickListener { _ ->
         "SAVE CHANNEL"
     )
 
-    if (bestStreamUrl.isNotBlank()) {
+    if (menuBestQualityStream.isNotBlank()) {
 
         actions.add(
             "OPEN BEST STREAM"
@@ -5820,6 +5968,17 @@ binding.contentMain.result.setOnLongClickListener { _ ->
 
         actions.add(
             "COPY BEST STREAM"
+        )
+    }
+
+    if (menuBestStableStream.isNotBlank()) {
+
+        actions.add(
+            "OPEN BEST STABLE STREAM"
+        )
+
+        actions.add(
+            "COPY BEST STABLE STREAM"
         )
     }
 
@@ -5848,58 +6007,474 @@ binding.contentMain.result.setOnLongClickListener { _ ->
         )
     }
 
-androidx.appcompat.app.AlertDialog.Builder(this)
+    androidx.appcompat.app.AlertDialog.Builder(this)
 
-    .setTitle(
-        "Stream Actions"
-    )
+        .setTitle(
+            "Stream Actions"
+        )
 
-    .setItems(
-        actions.toTypedArray()
-    ) { dialogInterface, which ->
+        .setItems(
+            actions.toTypedArray()
+        ) { dialogInterface, which ->
 
-        val finalUrl =
-            lastSelectedUrl
-                .trim()
+            val finalUrl =
+                cleanDetectedUrl(
+                    lastSelectedUrl
+                )
 
-        if (finalUrl.isBlank()) {
-            return@setItems
-        }
+            if (
+                finalUrl.isBlank() ||
+                !isExportableStream(
+                    finalUrl
+                )
+            ) {
+                return@setItems
+            }
 
-        when (
-            actions[which]
-        ) {
+            when (
+                actions[which]
+            ) {
 
-            "OPEN PLAYER" -> {
+                "OPEN PLAYER" -> {
 
-                try {
+                    try {
 
-                    val urlToOpen =
-                        finalUrl.trim()
+                        val urlToOpen =
+                            finalUrl.trim()
 
-                    if (
-                        urlToOpen.contains(
-                            "youtube.com/watch",
-                            true
-                        ) ||
-                        urlToOpen.contains(
-                            "youtu.be/",
-                            true
-                        ) ||
-                        urlToOpen.contains(
-                            "youtube.com/live",
-                            true
-                        ) ||
-                        urlToOpen.contains(
-                            "youtube.com/c/",
-                            true
+                        if (
+                            urlToOpen.contains(
+                                "youtube.com/watch",
+                                true
+                            ) ||
+                            urlToOpen.contains(
+                                "youtu.be/",
+                                true
+                            ) ||
+                            urlToOpen.contains(
+                                "youtube.com/live",
+                                true
+                            ) ||
+                            urlToOpen.contains(
+                                "youtube.com/c/",
+                                true
+                            )
+                        ) {
+
+                            Toast.makeText(
+                                this,
+                                "YouTube requires local resolver / Termux",
+                                Toast.LENGTH_LONG
+                            ).show()
+
+                            val intent =
+                                Intent(
+                                    Intent.ACTION_VIEW
+                                ).apply {
+
+                                    data =
+                                        Uri.parse(
+                                            urlToOpen
+                                        )
+
+                                    addCategory(
+                                        Intent.CATEGORY_BROWSABLE
+                                    )
+
+                                    addFlags(
+                                        Intent.FLAG_ACTIVITY_NEW_TASK
+                                    )
+                                }
+
+                            startActivity(
+                                Intent.createChooser(
+                                    intent,
+                                    "Open YouTube Link"
+                                )
+                            )
+
+                            return@setItems
+                        }
+
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW
+                            ).apply {
+
+                                setDataAndType(
+                                    Uri.parse(
+                                        urlToOpen
+                                    ),
+                                    "video/*"
+                                )
+
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+
+                                addFlags(
+                                    Intent.FLAG_ACTIVITY_NEW_TASK
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open With"
+                            )
                         )
-                    ) {
+
+                    } catch (_: Throwable) {
 
                         Toast.makeText(
                             this,
-                            "YouTube requires local resolver / Termux",
-                            Toast.LENGTH_LONG
+                            "No compatible player",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "SHARE URL" -> {
+
+                    try {
+
+                        val urlToShare =
+                            finalUrl.trim()
+
+                        if (urlToShare.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No URL selected",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        val shareIntent =
+                            Intent(
+                                Intent.ACTION_SEND
+                            ).apply {
+
+                                type =
+                                    "text/plain"
+
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    urlToShare
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share Stream"
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Share failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "COPY URL" -> {
+
+                    try {
+
+                        val urlToCopy =
+                            finalUrl.trim()
+
+                        if (urlToCopy.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No URL selected",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
+
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "stream",
+                                urlToCopy
+                            )
+                        )
+
+                        Toast.makeText(
+                            this,
+                            "URL copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Copy failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "SAVE CHANNEL" -> {
+
+                    try {
+
+                        addSavedChannel(
+                            finalUrl
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Save failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "OPEN BEST STREAM" -> {
+
+                    try {
+
+                        val bestQualityUrl =
+                            getMenuBestQualityStream()
+
+                        if (bestQualityUrl.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No best quality stream",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW
+                            ).apply {
+
+                                setDataAndType(
+                                    Uri.parse(
+                                        bestQualityUrl
+                                    ),
+                                    "video/*"
+                                )
+
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+
+                                addFlags(
+                                    Intent.FLAG_ACTIVITY_NEW_TASK
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open Best Stream"
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Cannot open best stream",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "COPY BEST STREAM" -> {
+
+                    try {
+
+                        val bestQualityUrl =
+                            getMenuBestQualityStream()
+
+                        if (bestQualityUrl.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No best quality stream",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
+
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "best_quality_stream",
+                                bestQualityUrl
+                            )
+                        )
+
+                        Toast.makeText(
+                            this,
+                            "Best stream copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Copy failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "OPEN BEST STABLE STREAM" -> {
+
+                    try {
+
+                        val bestStableUrl =
+                            getMenuBestStableStream()
+
+                        if (bestStableUrl.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No best stable stream",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW
+                            ).apply {
+
+                                setDataAndType(
+                                    Uri.parse(
+                                        bestStableUrl
+                                    ),
+                                    "video/*"
+                                )
+
+                                addCategory(
+                                    Intent.CATEGORY_BROWSABLE
+                                )
+
+                                addFlags(
+                                    Intent.FLAG_ACTIVITY_NEW_TASK
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Open Best Stable Stream"
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Cannot open best stable stream",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "COPY BEST STABLE STREAM" -> {
+
+                    try {
+
+                        val bestStableUrl =
+                            getMenuBestStableStream()
+
+                        if (bestStableUrl.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No best stable stream",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
+
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "best_stable_stream",
+                                bestStableUrl
+                            )
+                        )
+
+                        Toast.makeText(
+                            this,
+                            "Best stable stream copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Copy failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "OPEN YOUTUBE WATCH" -> {
+
+                    try {
+
+                        val ytUrl =
+                            cleanDetectedUrl(
+                                youtubeWatchUrl
+                            )
+
+                        if (ytUrl.isBlank()) {
+
+                            Toast.makeText(
+                                this,
+                                "No YouTube watch URL",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
+                        }
+
+                        Toast.makeText(
+                            this,
+                            "Opening YouTube watch URL",
+                            Toast.LENGTH_SHORT
                         ).show()
 
                         val intent =
@@ -5909,7 +6484,7 @@ androidx.appcompat.app.AlertDialog.Builder(this)
 
                                 data =
                                     Uri.parse(
-                                        urlToOpen
+                                        ytUrl
                                     )
 
                                 addCategory(
@@ -5928,458 +6503,177 @@ androidx.appcompat.app.AlertDialog.Builder(this)
                             )
                         )
 
-                        return@setItems
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Cannot open YouTube link",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
+                }
 
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW
-                        ).apply {
+                "COPY YOUTUBE WATCH" -> {
 
-                            setDataAndType(
-                                Uri.parse(urlToOpen),
-                                "video/*"
+                    try {
+
+                        val ytUrl =
+                            cleanDetectedUrl(
+                                youtubeWatchUrl
                             )
 
-                            addCategory(
-                                Intent.CATEGORY_BROWSABLE
-                            )
+                        if (ytUrl.isBlank()) {
 
-                            addFlags(
-                                Intent.FLAG_ACTIVITY_NEW_TASK
-                            )
+                            Toast.makeText(
+                                this,
+                                "No YouTube watch URL",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@setItems
                         }
 
-                    startActivity(
-                        Intent.createChooser(
-                            intent,
-                            "Open With"
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
+
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "youtube_watch",
+                                ytUrl
+                            )
                         )
-                    )
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "No compatible player",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            "SHARE URL" -> {
-
-                try {
-
-                    val urlToShare =
-                        finalUrl.trim()
-
-                    if (urlToShare.isBlank()) {
 
                         Toast.makeText(
                             this,
-                            "No URL selected",
+                            "YouTube link copied",
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        return@setItems
-                    }
-
-                    val shareIntent =
-                        Intent(
-                            Intent.ACTION_SEND
-                        ).apply {
-
-                            type =
-                                "text/plain"
-
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                urlToShare
-                            )
-                        }
-
-                    startActivity(
-                        Intent.createChooser(
-                            shareIntent,
-                            "Share Stream"
-                        )
-                    )
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "Share failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            "COPY URL" -> {
-
-                try {
-
-                    val urlToCopy =
-                        finalUrl.trim()
-
-                    if (urlToCopy.isBlank()) {
+                    } catch (_: Throwable) {
 
                         Toast.makeText(
                             this,
-                            "No URL selected",
+                            "Copy failed",
                             Toast.LENGTH_SHORT
                         ).show()
-
-                        return@setItems
                     }
-
-                    val clipboard =
-                        getSystemService(
-                            CLIPBOARD_SERVICE
-                        ) as ClipboardManager
-
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            "stream",
-                            urlToCopy
-                        )
-                    )
-
-                    Toast.makeText(
-                        this,
-                        "URL copied",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "Copy failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
                 }
-            }
 
-            "SAVE CHANNEL" -> {
+                "COPY DASH PAIR" -> {
 
-                try {
+                    try {
 
-                    addSavedChannel(
-                        finalUrl
-                    )
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "Save failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            "OPEN BEST STREAM" -> {
-
-                try {
-
-                    val cleanBestStreamUrl =
-                        getCleanBestStreamUrl()
-
-                    if (cleanBestStreamUrl.isBlank()) {
-
-                        Toast.makeText(
-                            this,
-                            "No clean best stream",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        return@setItems
-                    }
-
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW
-                        ).apply {
-
-                            setDataAndType(
-                                Uri.parse(cleanBestStreamUrl),
-                                "video/*"
-                            )
-
-                            addCategory(
-                                Intent.CATEGORY_BROWSABLE
-                            )
-
-                            addFlags(
-                                Intent.FLAG_ACTIVITY_NEW_TASK
-                            )
-                        }
-
-                    startActivity(
-                        Intent.createChooser(
-                            intent,
-                            "Open Best Stream"
-                        )
-                    )
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "Cannot open best stream",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            "COPY BEST STREAM" -> {
-
-                try {
-
-                    val cleanBestStreamUrl =
-                        getCleanBestStreamUrl()
-
-                    if (cleanBestStreamUrl.isBlank()) {
-
-                        Toast.makeText(
-                            this,
-                            "No clean best stream",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        return@setItems
-                    }
-
-                    val clipboard =
-                        getSystemService(
-                            CLIPBOARD_SERVICE
-                        ) as ClipboardManager
-
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            "best_stream",
-                            cleanBestStreamUrl
-                        )
-                    )
-
-                    Toast.makeText(
-                        this,
-                        "Best stream copied",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                } catch (_: Throwable) {}
-            }
-
-            "OPEN YOUTUBE WATCH" -> {
-
-                try {
-
-                    val ytUrl =
-                        youtubeWatchUrl
-                            .trim()
-
-                    if (ytUrl.isBlank()) {
-
-                        Toast.makeText(
-                            this,
-                            "No YouTube watch URL",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        return@setItems
-                    }
-
-                    Toast.makeText(
-                        this,
-                        "Opening YouTube watch URL",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW
-                        ).apply {
-
-                            data =
-                                Uri.parse(
-                                    ytUrl
-                                )
-
-                            addCategory(
-                                Intent.CATEGORY_BROWSABLE
-                            )
-
-                            addFlags(
-                                Intent.FLAG_ACTIVITY_NEW_TASK
-                            )
-                        }
-
-                    startActivity(
-                        Intent.createChooser(
-                            intent,
-                            "Open YouTube Link"
-                        )
-                    )
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "Cannot open YouTube link",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            "COPY YOUTUBE WATCH" -> {
-
-                try {
-
-                    val ytUrl =
-                        youtubeWatchUrl
-                            .trim()
-
-                    if (ytUrl.isBlank()) {
-
-                        Toast.makeText(
-                            this,
-                            "No YouTube watch URL",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        return@setItems
-                    }
-
-                    val clipboard =
-                        getSystemService(
-                            CLIPBOARD_SERVICE
-                        ) as ClipboardManager
-
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            "youtube_watch",
-                            ytUrl
-                        )
-                    )
-
-                    Toast.makeText(
-                        this,
-                        "YouTube link copied",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                } catch (_: Throwable) {
-
-                    Toast.makeText(
-                        this,
-                        "Copy failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            "COPY DASH PAIR" -> {
-
-                try {
-
-                    val dashPairText =
-                        """
+                        val dashPairText =
+                            """
 YOUTUBE DASH PAIR
 
 VIDEO ITAG:
 $youtubeDashVideoItag
 
 VIDEO URL:
-$youtubeDashVideoUrl
+${cleanDetectedUrl(youtubeDashVideoUrl)}
 
 AUDIO ITAG:
 $youtubeDashAudioItag
 
 AUDIO URL:
-$youtubeDashAudioUrl
-                        """.trimIndent()
+${cleanDetectedUrl(youtubeDashAudioUrl)}
+                            """.trimIndent()
 
-                    val clipboard =
-                        getSystemService(
-                            CLIPBOARD_SERVICE
-                        ) as ClipboardManager
+                        val clipboard =
+                            getSystemService(
+                                CLIPBOARD_SERVICE
+                            ) as ClipboardManager
 
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            "youtube_dash_pair",
-                            dashPairText
-                        )
-                    )
-
-                    Toast.makeText(
-                        this,
-                        "DASH pair copied",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                } catch (_: Throwable) {}
-            }
-
-            "SHARE DASH PAIR" -> {
-
-                try {
-
-                    val dashPairText =
-                        """
-YOUTUBE DASH PAIR
-
-VIDEO ITAG:
-$youtubeDashVideoItag
-
-VIDEO URL:
-$youtubeDashVideoUrl
-
-AUDIO ITAG:
-$youtubeDashAudioItag
-
-AUDIO URL:
-$youtubeDashAudioUrl
-                        """.trimIndent()
-
-                    val shareIntent =
-                        Intent(
-                            Intent.ACTION_SEND
-                        ).apply {
-
-                            type =
-                                "text/plain"
-
-                            putExtra(
-                                Intent.EXTRA_TEXT,
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "youtube_dash_pair",
                                 dashPairText
                             )
-                        }
-
-                    startActivity(
-                        Intent.createChooser(
-                            shareIntent,
-                            "Share DASH Pair"
                         )
-                    )
 
-                } catch (_: Throwable) {}
+                        Toast.makeText(
+                            this,
+                            "DASH pair copied",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Copy failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                "SHARE DASH PAIR" -> {
+
+                    try {
+
+                        val dashPairText =
+                            """
+YOUTUBE DASH PAIR
+
+VIDEO ITAG:
+$youtubeDashVideoItag
+
+VIDEO URL:
+${cleanDetectedUrl(youtubeDashVideoUrl)}
+
+AUDIO ITAG:
+$youtubeDashAudioItag
+
+AUDIO URL:
+${cleanDetectedUrl(youtubeDashAudioUrl)}
+                            """.trimIndent()
+
+                        val shareIntent =
+                            Intent(
+                                Intent.ACTION_SEND
+                            ).apply {
+
+                                type =
+                                    "text/plain"
+
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    dashPairText
+                                )
+                            }
+
+                        startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share DASH Pair"
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        Toast.makeText(
+                            this,
+                            "Share failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
+
+            dialogInterface.dismiss()
         }
 
-        dialogInterface.dismiss()
-    }
+        .setNegativeButton(
+            "CLOSE",
+            null
+        )
 
-    .setNegativeButton(
-        "CLOSE",
-        null
-    )
+        .show()
 
-    .show()
-
-true
+    true
 
 } // END result long press listener
 
@@ -6393,8 +6687,7 @@ private fun showAutoScanStopButton() {
 
     if (autoScanStopButton != null) {
         return
-    }
-
+    
     val button =
         Button(this).apply {
 
@@ -9986,7 +10279,10 @@ Waiting for stream...
 
 // =====================================
 // FINALIZE ONE AUTO-SCANNED CHANNEL
-// Stores only streams discovered after opening candidate
+// Stores all clean streams discovered after opening candidate.
+// Marks:
+// BEST QUALITY = tracks-v1a1/mono.m3u8
+// BEST STABLE  = playlist.m3u8 / index.m3u8
 // =====================================
 
 private fun finalizeCurrentAutoChannel(
@@ -9999,32 +10295,79 @@ private fun finalizeCurrentAutoChannel(
             collectCurrentPlayableStreamsForAutoScan()
 
         val newStreams =
-            allNow.filter { stream ->
+            allNow
+                .map { stream ->
+                    cleanDetectedUrl(
+                        stream
+                    )
+                }
+                .filter { stream ->
 
-                !autoScanKnownBefore.contains(
-                    stream.lowercase()
-                )
-            }
-
-        val preferred =
-            newStreams.filter { stream ->
-
-                isPlaylistUrl(
-                    stream
-                )
-            }
+                    stream.isNotBlank() &&
+                        isExportableStream(
+                            stream
+                        ) &&
+                        !autoScanKnownBefore.contains(
+                            stream.lowercase()
+                        )
+                }
 
         val finalStreams =
-            if (preferred.isNotEmpty()) {
-                preferred
-            } else {
-                newStreams
-            }
+            newStreams
                 .distinctBy { stream ->
                     stream.lowercase()
                 }
+                .sortedWith(
+                    compareByDescending<String> { stream ->
+                        streamRankScore(
+                            stream
+                        )
+                    }.thenBy { stream ->
+                        stream.lowercase()
+                    }
+                )
 
         if (finalStreams.isNotEmpty()) {
+
+            val bestQualityStream =
+                pickBestQualityStream(
+                    finalStreams
+                )
+
+            val bestStableStream =
+                pickBestStableStream(
+                    finalStreams
+                )
+
+            val bestQualityNote =
+                if (bestQualityStream.isNotBlank()) {
+
+                    """
+
+BEST QUALITY:
+$bestQualityStream
+
+                    """.trimIndent()
+
+                } else {
+
+                    ""
+                }
+
+            val bestStableNote =
+                if (bestStableStream.isNotBlank()) {
+
+                    """
+
+BEST STABLE:
+$bestStableStream
+
+                    """.trimIndent()
+
+                } else {
+
+                    ""
+                }
 
             val list =
                 autoScanResults.getOrPut(
@@ -10035,12 +10378,46 @@ private fun finalizeCurrentAutoChannel(
 
             finalStreams.forEach { stream ->
 
-                if (!list.contains(stream)) {
+                if (
+                    list.none { existing ->
+                        existing.equals(
+                            stream,
+                            true
+                        )
+                    }
+                ) {
                     list.add(
                         stream
                     )
                 }
             }
+
+            val labelLines =
+                finalStreams.joinToString("\n") { stream ->
+
+                    when {
+
+                        stream.equals(
+                            bestQualityStream,
+                            true
+                        ) ->
+                            "⭐ BEST QUALITY → $stream"
+
+                        stream.equals(
+                            bestStableStream,
+                            true
+                        ) ->
+                            "🛟 BEST STABLE → $stream"
+
+                        isLowerPriorityHlsVariant(
+                            stream
+                        ) ->
+                            "🧩 FALLBACK → $stream"
+
+                        else ->
+                            stream
+                    }
+                }
 
             binding.contentMain.result.append(
                 """
@@ -10048,10 +10425,12 @@ private fun finalizeCurrentAutoChannel(
 AUTO SCAN FOUND:
 ${candidate.title}
 
+$bestQualityNote
+$bestStableNote
 Streams:
 ${finalStreams.size}
 
-${finalStreams.joinToString("\n")}
+$labelLines
 
 ────────────────────
 
@@ -21687,6 +22066,187 @@ private fun isExportableStream(
     }
 
     return false
+}
+
+// =====================================
+// STREAM QUALITY / STABILITY HELPERS
+// =====================================
+
+private fun isBestQualityTrackStream(
+    url: String
+): Boolean {
+
+    val lower =
+        cleanDetectedUrl(
+            url
+        ).lowercase()
+
+    return lower.contains(
+        "/tracks-v1a1/mono.m3u8"
+    )
+}
+
+private fun isStablePlaylistStream(
+    url: String
+): Boolean {
+
+    val lower =
+        cleanDetectedUrl(
+            url
+        ).lowercase()
+
+    if (
+        !lower.contains(".m3u8")
+    ) {
+        return false
+    }
+
+    if (
+        lower.contains("chunklist") ||
+        lower.contains("/chunks.m3u8") ||
+        lower.contains("/chunk.m3u8") ||
+        lower.contains("/tracks-") ||
+        lower.contains("mono.m3u8")
+    ) {
+        return false
+    }
+
+    return lower.endsWith("/playlist.m3u8") ||
+        lower.endsWith("playlist.m3u8") ||
+        lower.endsWith("/index.m3u8") ||
+        lower.endsWith("index.m3u8")
+}
+
+private fun isLowerPriorityHlsVariant(
+    url: String
+): Boolean {
+
+    val lower =
+        cleanDetectedUrl(
+            url
+        ).lowercase()
+
+    return lower.contains("chunklist") ||
+        lower.contains("/chunks.m3u8") ||
+        lower.contains("/chunk.m3u8")
+}
+
+private fun streamRankScore(
+    url: String
+): Int {
+
+    val clean =
+        cleanDetectedUrl(
+            url
+        )
+
+    val lower =
+        clean.lowercase()
+
+    return when {
+
+        // Best quality: combined video+audio track
+        isBestQualityTrackStream(
+            clean
+        ) ->
+            1000
+
+        // Most stable fallback / master
+        isStablePlaylistStream(
+            clean
+        ) ->
+            900
+
+        // Clean manifest from known HLS provider
+        lower.contains("/manifest/video/") &&
+            lower.contains(".m3u8") ->
+            800
+
+        // Other clean m3u8
+        lower.contains(".m3u8") &&
+            !isLowerPriorityHlsVariant(
+                clean
+            ) ->
+            700
+
+        // Chunklist / chunks fallback
+        isLowerPriorityHlsVariant(
+            clean
+        ) ->
+            500
+
+        // Static video fallback
+        lower.contains(".mp4") ||
+            lower.contains(".webm") ->
+            300
+
+        else ->
+            0
+    }
+}
+
+private fun pickBestQualityStream(
+    streams: List<String>
+): String {
+
+    return streams
+        .map { item ->
+            cleanDetectedUrl(
+                item
+            )
+        }
+        .filter { item ->
+            item.isNotBlank() &&
+                isExportableStream(
+                    item
+                )
+        }
+        .filter { item ->
+            isBestQualityTrackStream(
+                item
+            )
+        }
+        .distinctBy { item ->
+            item.lowercase()
+        }
+        .maxByOrNull { item ->
+            streamRankScore(
+                item
+            )
+        }
+        .orEmpty()
+}
+
+private fun pickBestStableStream(
+    streams: List<String>
+): String {
+
+    return streams
+        .map { item ->
+            cleanDetectedUrl(
+                item
+            )
+        }
+        .filter { item ->
+            item.isNotBlank() &&
+                isExportableStream(
+                    item
+                )
+        }
+        .filter { item ->
+            isStablePlaylistStream(
+                item
+            )
+        }
+        .distinctBy { item ->
+            item.lowercase()
+        }
+        .maxByOrNull { item ->
+            streamRankScore(
+                item
+            )
+        }
+        .orEmpty()
 }
 
 // =====================================
