@@ -9362,6 +9362,31 @@ private fun scanNextAutoChannel() {
 
         val candidate =
             autoScanCandidates[autoScanIndex]
+            
+// =====================================
+// RESET PER-CANDIDATE STREAM STATE
+// Prevents previous channel best stream/logs leaking
+// into the next scanned channel.
+// =====================================
+
+try {
+
+    bestStreamUrl =
+        ""
+
+    bestLiveUrl =
+        ""
+
+    youtubeWatchUrl =
+        ""
+
+    youtubeDashVideoUrl =
+        ""
+
+    youtubeDashAudioUrl =
+        ""
+
+} catch (_: Throwable) {}      
 
         autoScanKnownBefore.clear()
 
@@ -11365,14 +11390,159 @@ private fun cleanDetectedUrl(
     rawUrl: String
 ): String {
 
-    return rawUrl
-        .replace("\\u0026", "&")
-        .replace("\\u003d", "=")
-        .replace("\\u003f", "?")
-        .replace("\\u002f", "/")
-        .replace("\\/", "/")
-        .replace("&amp;", "&")
-        .trim()
+    return try {
+
+        var value =
+            rawUrl
+                .replace("\\u0026", "&")
+                .replace("\\u003d", "=")
+                .replace("\\u003f", "?")
+                .replace("\\u002f", "/")
+                .replace("\\/", "/")
+                .replace("&amp;", "&")
+                .trim()
+
+        if (value.isBlank()) {
+            return ""
+        }
+
+        // =====================================
+        // REMOVE WRAPPED / TRAILING JUNK
+        // =====================================
+
+        value =
+            value
+                .trim()
+                .trim('"')
+                .trim('\'')
+
+        // =====================================
+        // DROP KNOWN BAD QUERY VARIANTS COMPLETELY
+        // =====================================
+
+        val lower =
+            value.lowercase()
+
+        if (
+            lower.contains("?error=") ||
+            lower.contains("&error=") ||
+            lower.contains("reader_gdpr") ||
+            lower.contains("gdpr_binary_consent") ||
+            lower.contains("gdpr_comes_from_infopack") ||
+            lower.contains("reader_us_privacy") ||
+            lower.contains("vmap") ||
+            lower.contains("monetization") ||
+            lower.contains("cookie_sync") ||
+            lower.contains("ciid=") ||
+            lower.contains("cidx=") ||
+            lower.contains("sidx=") ||
+            lower.contains("vididx=") ||
+            lower.contains("imal=") ||
+            lower.contains("3pcb=") ||
+            lower.contains("rap=") ||
+            lower.contains("apo=") ||
+            lower.contains("pdm=") ||
+            lower.contains("pbm=")
+        ) {
+
+            val base =
+                value.substringBefore("?")
+                    .trim()
+
+            if (
+                base.contains(".m3u8", true) ||
+                base.contains(".mpd", true) ||
+                base.contains(".mp4", true)
+            ) {
+                return base
+            }
+
+            return ""
+        }
+
+        // =====================================
+        // CLEAN COMMON SAFE HLS QUERY NOISE
+        // Keep URLs distinct when query is probably required.
+        // Strip only obvious browser/ad/session junk.
+        // =====================================
+
+        if (
+            value.contains(".m3u8", true) ||
+            value.contains(".mpd", true)
+        ) {
+
+            val base =
+                value.substringBefore("?")
+
+            val query =
+                value.substringAfter(
+                    "?",
+                    ""
+                )
+
+            if (query.isBlank()) {
+                return value
+            }
+
+            val badQueryKeys =
+                listOf(
+                    "reader_gdpr_flag",
+                    "reader_gdpr_consent",
+                    "gdpr_binary_consent",
+                    "gdpr_comes_from_infopack",
+                    "reader_us_privacy",
+                    "ciid",
+                    "cidx",
+                    "sidx",
+                    "vidIdx",
+                    "imal",
+                    "3pcb",
+                    "rap",
+                    "apo",
+                    "pdm",
+                    "pbm",
+                    "cookie_sync_ab_gk",
+                    "error"
+                )
+
+            val kept =
+                query
+                    .split("&")
+                    .filter { part ->
+
+                        val key =
+                            part.substringBefore("=")
+                                .trim()
+
+                        key.isNotBlank() &&
+                            badQueryKeys.none { bad ->
+                                key.equals(
+                                    bad,
+                                    true
+                                )
+                            }
+                    }
+
+            return if (kept.isEmpty()) {
+                base
+            } else {
+                base + "?" + kept.joinToString("&")
+            }
+        }
+
+        value
+
+    } catch (_: Throwable) {
+
+        rawUrl
+            .replace("\\u0026", "&")
+            .replace("\\u003d", "=")
+            .replace("\\u003f", "?")
+            .replace("\\u002f", "/")
+            .replace("\\/", "/")
+            .replace("&amp;", "&")
+            .trim()
+    }
 }
 
 // =====================================
@@ -20413,23 +20583,41 @@ val cdnType =
 
 // =====================================
 // EXTRA PLAYABLE LINKS
+// Show only clean/exportable playable links
 // =====================================
 
 val extraPlayableLinks =
     buildString {
 
-        if (youtubeWatchUrl.isNotBlank()) {
+        val cleanYoutubeWatchUrl =
+            cleanDetectedUrl(
+                youtubeWatchUrl
+            )
+
+        if (
+            cleanYoutubeWatchUrl.isNotBlank() &&
+            isExportableStream(
+                cleanYoutubeWatchUrl
+            )
+        ) {
 
             append("▶️ YOUTUBE WATCH PLAYABLE")
             append("\n")
-            append(youtubeWatchUrl)
+            append(cleanYoutubeWatchUrl)
             append("\n\n")
         }
 
         val cleanBestStreamUrl =
-            getCleanBestStreamUrl()
+            cleanDetectedUrl(
+                getCleanBestStreamUrl()
+            )
 
-        if (cleanBestStreamUrl.isNotBlank()) {
+        if (
+            cleanBestStreamUrl.isNotBlank() &&
+            isExportableStream(
+                cleanBestStreamUrl
+            )
+        ) {
 
             append("⭐ BEST STREAM")
             append("\n")
@@ -20439,17 +20627,47 @@ val extraPlayableLinks =
     }
 
 // =====================================
+// FINAL CLEAN LOG URL
+// Only playable / exportable streams are allowed
+// in logs, snapshots and last selected URL.
+// =====================================
+
+val finalLogUrl =
+    cleanDetectedUrl(
+        cleanedUrl
+    )
+
+if (
+    finalLogUrl.isBlank() ||
+    !isExportableStream(
+        finalLogUrl
+    )
+) {
+    return
+}
+
+// =====================================
 // YOUTUBE LIVE EXPORT NOTE
 // =====================================
+
+val cleanYoutubeWatchForNote =
+    cleanDetectedUrl(
+        youtubeWatchUrl
+    )
 
 val youtubeLiveExportNote =
     if (
         isYoutubeLiveDash &&
-        youtubeWatchUrl.isNotBlank() &&
-        !extraPlayableLinks.contains(youtubeWatchUrl)
+        cleanYoutubeWatchForNote.isNotBlank() &&
+        isExportableStream(
+            cleanYoutubeWatchForNote
+        ) &&
+        !extraPlayableLinks.contains(
+            cleanYoutubeWatchForNote
+        )
     ) {
 
-        "\n▶️ PLAYABLE WATCH URL\n$youtubeWatchUrl"
+        "\n▶️ PLAYABLE WATCH URL\n$cleanYoutubeWatchForNote"
 
     } else {
 
@@ -20461,7 +20679,7 @@ val youtubeLiveExportNote =
 // =====================================
 
 lastSelectedUrl =
-    cleanedUrl
+    finalLogUrl
 
 // =====================================
 // FORENSIC NOTE
@@ -20513,28 +20731,68 @@ val forensicNote =
 
 try {
 
+    val cleanBest =
+        cleanDetectedUrl(
+            getCleanBestStreamUrl()
+        )
+
+    val cleanBestLive =
+        cleanDetectedUrl(
+            bestLiveUrl
+        )
+
     val snapshot =
         StreamInfoSnapshot(
-            url = cleanedUrl,
+            url = finalLogUrl,
             badge = streamBadge,
             quality = streamQuality,
             cdn = cdnType,
             security = securityBadge,
             segment = segmentBadge,
             forensic = forensicNote,
-            youtubeWatch = youtubeWatchUrl,
-            dashVideo = youtubeDashVideoUrl,
-            dashAudio = youtubeDashAudioUrl,
+            youtubeWatch = cleanYoutubeWatchForNote,
+            dashVideo = cleanDetectedUrl(
+                youtubeDashVideoUrl
+            ),
+            dashAudio = cleanDetectedUrl(
+                youtubeDashAudioUrl
+            ),
             dashVideoItag = youtubeDashVideoItag,
             dashAudioItag = youtubeDashAudioItag,
-            bestStream = getCleanBestStreamUrl(),
-            bestLive = bestLiveUrl
+            bestStream = if (
+                cleanBest.isNotBlank() &&
+                isExportableStream(
+                    cleanBest
+                )
+            ) {
+                cleanBest
+            } else {
+                ""
+            },
+            bestLive = if (
+                cleanBestLive.isNotBlank() &&
+                isExportableStream(
+                    cleanBestLive
+                )
+            ) {
+                cleanBestLive
+            } else {
+                ""
+            }
         )
 
-    streamInfoSnapshots[savedUrl] =
-        snapshot
+    val cleanSavedUrl =
+        cleanDetectedUrl(
+            savedUrl
+        )
 
-    streamInfoSnapshots[cleanedUrl] =
+    if (cleanSavedUrl.isNotBlank()) {
+
+        streamInfoSnapshots[cleanSavedUrl] =
+            snapshot
+    }
+
+    streamInfoSnapshots[finalLogUrl] =
         snapshot
 
 } catch (_: Throwable) {}
@@ -20552,7 +20810,7 @@ $extraPlayableLinks$streamBadge [$streamQuality] [$cdnType]$securityBadge$segmen
 
 $displayUrl
 
-$cleanedUrl
+$finalLogUrl
 
 ────────────────────
 
@@ -21270,6 +21528,38 @@ private fun isExportableStream(
     }
 
     // =====================================
+    // HARD BAD / TEMP / AD / ERROR VARIANTS
+    // =====================================
+
+    if (
+        lower.contains("?error=") ||
+        lower.contains("&error=") ||
+        lower.contains("error=1108") ||
+        lower.contains("reader_gdpr") ||
+        lower.contains("gdpr_binary_consent") ||
+        lower.contains("gdpr_comes_from_infopack") ||
+        lower.contains("reader_us_privacy") ||
+        lower.contains("vmap") ||
+        lower.contains("monetization") ||
+        lower.contains("cookie_sync") ||
+        lower.contains("cookie_sync_ab") ||
+        lower.contains("ciid=") ||
+        lower.contains("cidx=") ||
+        lower.contains("sidx=") ||
+        lower.contains("vididx=") ||
+        lower.contains("imal=") ||
+        lower.contains("3pcb=") ||
+        lower.contains("rap=") ||
+        lower.contains("apo=") ||
+        lower.contains("pdm=") ||
+        lower.contains("pbm=") ||
+        lower.contains("reader_") ||
+        lower.contains("gdpr_")
+    ) {
+        return false
+    }
+
+    // =====================================
     // FAKE YOUTUBE WATCH URL FILTER
     // =====================================
 
@@ -21277,7 +21567,7 @@ private fun isExportableStream(
         (
             lower.contains("youtube.com/watch") ||
                 lower.contains("youtu.be/")
-        ) &&
+            ) &&
         !isRealYouTubeWatchUrl(cleanUrl)
     ) {
         return false
@@ -21386,7 +21676,7 @@ private fun isExportableStream(
             (
                 lower.contains("googlevideo.com") &&
                     lower.contains("videoplayback")
-            )
+                )
     ) {
         return true
     }
