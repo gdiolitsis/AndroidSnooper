@@ -8443,55 +8443,42 @@ private fun collectAutoScanCandidates(
                     return;
                 }
 
-                if (isSortOrRatingBlock(card)) {
-                    return;
-                }
+if (isSortOrRatingBlock(card)) {
+    return;
+}
 
-                if (isCategoryOrNavigationBlock(card)) {
-                    return;
-                }
+var title =
+    getBestTitle(card);
 
-                var title =
-                    getBestTitle(card);
+if (isBadTitle(title)) {
+    return;
+}
 
-                if (isBadTitle(title)) {
-                    return;
-                }
+var deep =
+    getDeepSignal(card);
 
-                var deep =
-                    getDeepSignal(card);
+var hasMedia =
+    deep.indexOf("posted by") >= 0 ||
+    deep.indexOf("<img") >= 0 ||
+    deep.indexOf("thumbnail") >= 0 ||
+    deep.indexOf("thumb") >= 0 ||
+    deep.indexOf("poster") >= 0 ||
+    deep.indexOf("play") >= 0 ||
+    deep.indexOf("watch") >= 0 ||
+    deep.indexOf("video") >= 0 ||
+    deep.indexOf("player") >= 0;
 
-                var hasMedia =
-                    deep.indexOf("posted by") >= 0 ||
-                    deep.indexOf("<img") >= 0 ||
-                    deep.indexOf("thumbnail") >= 0 ||
-                    deep.indexOf("thumb") >= 0 ||
-                    deep.indexOf("poster") >= 0 ||
-                    deep.indexOf("play") >= 0 ||
-                    deep.indexOf("watch") >= 0 ||
-                    deep.indexOf("video") >= 0 ||
-                    deep.indexOf("player") >= 0;
+if (!hasMedia) {
+    return;
+}
 
-                if (!hasMedia) {
-                    return;
-                }
+var href =
+    makeRowHref(card);
 
-                var href =
-                    getHref(card);
-
-                if (
-                    !href ||
-                    href === "#"
-                ) {
-
-                    href =
-                        makeRowHref(card);
-                }
-
-                addCandidate(
-                    title,
-                    href
-                );
+addCandidate(
+    title,
+    href
+);
 
             } catch(e) {}
         });
