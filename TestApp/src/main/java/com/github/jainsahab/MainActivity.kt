@@ -7540,7 +7540,7 @@ private fun collectAutoScanCandidates(
     try {
 
         var badWords =
-            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|menu|home|contact|terms|policy|advert|ads|close/i;
+            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|home|contact|terms|policy|advert|ads|close/i;
 
         var candidates =
             [];
@@ -7614,6 +7614,16 @@ private fun collectAutoScanCandidates(
                 text += " " + (el.getAttribute("data-name") || "");
                 text += " " + (el.getAttribute("alt") || "");
 
+                var img =
+                    el.querySelector &&
+                    el.querySelector("img");
+
+                if (img) {
+
+                    text += " " + (img.getAttribute("alt") || "");
+                    text += " " + (img.getAttribute("title") || "");
+                }
+
                 return cleanText(text);
 
             } catch(e) {
@@ -7652,6 +7662,154 @@ private fun collectAutoScanCandidates(
             }
         }
 
+        function readNodeSignal(el) {
+
+            try {
+
+                if (!el) {
+                    return "";
+                }
+
+                var signal =
+                    "";
+
+                signal += " " + String(el.tagName || "");
+                signal += " " + String(el.className || "");
+                signal += " " + String(el.id || "");
+                signal += " " + String(el.getAttribute("role") || "");
+                signal += " " + String(el.getAttribute("aria-label") || "");
+                signal += " " + String(el.getAttribute("title") || "");
+                signal += " " + String(el.innerText || "");
+                signal += " " + String(el.innerHTML || "");
+
+                return signal.toLowerCase();
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function isInsideCategoryBlock(el) {
+
+            try {
+
+                var current =
+                    el;
+
+                var depth =
+                    0;
+
+                while (
+                    current &&
+                    depth < 8
+                ) {
+
+                    var signal =
+                        readNodeSignal(current);
+
+                    if (
+                        signal.indexOf("cat-item") >= 0 ||
+                        signal.indexOf("category-list") >= 0 ||
+                        signal.indexOf("categories") >= 0 ||
+                        signal.indexOf("category") >= 0 ||
+                        signal.indexOf("categoria") >= 0 ||
+                        signal.indexOf("categoría") >= 0 ||
+                        signal.indexOf("select category") >= 0 ||
+                        signal.indexOf("selecciona categoria") >= 0 ||
+                        signal.indexOf("widget") >= 0 ||
+                        signal.indexOf("sidebar") >= 0 ||
+                        signal.indexOf("taxonomy") >= 0 ||
+                        signal.indexOf("archive") >= 0 ||
+                        signal.indexOf("tagcloud") >= 0 ||
+                        signal.indexOf("tag-cloud") >= 0 ||
+                        signal.indexOf("breadcrumb") >= 0 ||
+                        signal.indexOf("pagination") >= 0 ||
+                        signal.indexOf("pager") >= 0 ||
+                        signal.indexOf("page-numbers") >= 0 ||
+                        signal.indexOf("nav-links") >= 0 ||
+                        signal.indexOf("navbar") >= 0 ||
+                        signal.indexOf("navigation") >= 0 ||
+                        signal.indexOf("main-menu") >= 0 ||
+                        signal.indexOf("menu-item") >= 0
+                    ) {
+
+                        return true;
+                    }
+
+                    current =
+                        current.parentElement;
+
+                    depth++;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
+        function isInsideMediaCardBlock(el) {
+
+            try {
+
+                var current =
+                    el;
+
+                var depth =
+                    0;
+
+                while (
+                    current &&
+                    depth < 8
+                ) {
+
+                    var signal =
+                        readNodeSignal(current);
+
+                    if (
+                        signal.indexOf("<article") >= 0 ||
+                        signal.indexOf(" article ") >= 0 ||
+                        signal.indexOf("post-") >= 0 ||
+                        signal.indexOf(" post ") >= 0 ||
+                        signal.indexOf("entry") >= 0 ||
+                        signal.indexOf("card") >= 0 ||
+                        signal.indexOf("channel-card") >= 0 ||
+                        signal.indexOf("channel-item") >= 0 ||
+                        signal.indexOf("tv-channel") >= 0 ||
+                        signal.indexOf("video") >= 0 ||
+                        signal.indexOf("thumbnail") >= 0 ||
+                        signal.indexOf("thumb") >= 0 ||
+                        signal.indexOf("<img") >= 0 ||
+                        signal.indexOf("poster") >= 0 ||
+                        signal.indexOf("play") >= 0 ||
+                        signal.indexOf("watch") >= 0 ||
+                        signal.indexOf("player") >= 0 ||
+                        signal.indexOf("stream") >= 0 ||
+                        signal.indexOf("live") >= 0 ||
+                        signal.indexOf("posted by") >= 0 ||
+                        signal.indexOf("published") >= 0
+                    ) {
+
+                        return true;
+                    }
+
+                    current =
+                        current.parentElement;
+
+                    depth++;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
         function looksLikeChannel(el, text, href) {
 
             try {
@@ -7669,9 +7827,11 @@ private fun collectAutoScanCandidates(
                     (text + " " + href + " " + cls + " " + id + " " + role)
                         .toLowerCase();
 
-                if (badWords.test(combined)) {
-                    return false;
-                }
+                var insideCategoryBlock =
+                    isInsideCategoryBlock(el);
+
+                var insideMediaCardBlock =
+                    isInsideMediaCardBlock(el);
 
                 // =====================================
                 // HARD REJECT — SOCIAL / CONTACT
@@ -7681,6 +7841,8 @@ private fun collectAutoScanCandidates(
                     href.indexOf("facebook.com") >= 0 ||
                     href.indexOf("twitter.com") >= 0 ||
                     href.indexOf("instagram.com") >= 0 ||
+                    href.indexOf("telegram") >= 0 ||
+                    href.indexOf("whatsapp") >= 0 ||
                     href.indexOf("wa.me") >= 0 ||
                     href.indexOf("mailto:") >= 0 ||
                     href.indexOf("tel:") >= 0
@@ -7689,14 +7851,17 @@ private fun collectAutoScanCandidates(
                 }
 
                 // =====================================
-                // HARD REJECT — COUNTRY / PAGINATION
+                // HARD REJECT — PAGINATION / COUNTRY / ARCHIVE
                 // =====================================
 
                 if (
                     href.indexOf("/country/") >= 0 ||
                     href.indexOf("/countries/") >= 0 ||
+                    href.indexOf("/category/") >= 0 ||
+                    href.indexOf("/categories/") >= 0 ||
                     href.indexOf("?page=") >= 0 ||
                     href.indexOf("&page=") >= 0 ||
+                    href.indexOf("#page/") >= 0 ||
                     href.indexOf("per-page=") >= 0 ||
                     combined.indexOf("last") >= 0 ||
                     combined.indexOf("next") >= 0 ||
@@ -7704,54 +7869,94 @@ private fun collectAutoScanCandidates(
                 ) {
                     return false;
                 }
-                
-// =====================================
-// GRID / EPG ROW ACCEPT
-// For pages with embedded TV guide rows
-// =====================================
-
-if (
-    text.length >= 2 &&
-    text.length <= 220 &&
-    (
-        combined.indexOf("live") >= 0 ||
-        combined.indexOf("channel") >= 0 ||
-        combined.indexOf("channels") >= 0 ||
-        combined.indexOf("epg") >= 0 ||
-        combined.indexOf("guide") >= 0 ||
-        combined.indexOf("program") >= 0 ||
-        combined.indexOf("station") >= 0 ||
-        combined.indexOf("tv") >= 0
-    ) &&
-    !badWords.test(combined)
-) {
-    return true;
-}
 
                 // =====================================
-                // HARD ACCEPT — CHANNEL LINKS
+                // GENERIC CATEGORY / MENU / SIDEBAR FILTER
+                // If it lives in a category/menu/sidebar block
+                // and it is NOT a media/card/post block, it is not a channel.
+                // =====================================
+
+                if (
+                    insideCategoryBlock &&
+                    !insideMediaCardBlock
+                ) {
+                    return false;
+                }
+
+                if (
+                    badWords.test(combined) &&
+                    !insideMediaCardBlock
+                ) {
+                    return false;
+                }
+
+                // =====================================
+                // DIRECT STREAM LINKS
                 // =====================================
 
                 if (
                     href &&
                     href !== "#" &&
-                    href.indexOf("/channel/") >= 0 &&
+                    (
+                        href.indexOf(".m3u8") >= 0 ||
+                        href.indexOf(".mpd") >= 0 ||
+                        href.indexOf(".mp4") >= 0 ||
+                        href.indexOf(".ts") >= 0
+                    ) &&
                     text.length >= 2 &&
-                    text.length <= 160
+                    text.length <= 220
                 ) {
                     return true;
                 }
 
                 // =====================================
-                // SOFT ACCEPT — CHANNEL-LIKE LINKS
+                // HARD ACCEPT — CLEAR CHANNEL / WATCH / PLAYER LINKS
                 // =====================================
 
                 if (
                     href &&
                     href !== "#" &&
-                    href.indexOf("/channel/") >= 0 &&
+                    text.length >= 2 &&
+                    text.length <= 180 &&
+                    (
+                        href.indexOf("/channel/") >= 0 ||
+                        href.indexOf("/channels/") >= 0 ||
+                        href.indexOf("/watch/") >= 0 ||
+                        href.indexOf("/player/") >= 0 ||
+                        href.indexOf("/live/") >= 0
+                    )
+                ) {
+                    return true;
+                }
+
+                // =====================================
+                // /TV/ LINKS
+                // Accept only when they look like media cards.
+                // This prevents category folders from being scanned as channels.
+                // =====================================
+
+                if (
+                    href &&
+                    href !== "#" &&
+                    text.length >= 2 &&
+                    text.length <= 180 &&
+                    href.indexOf("/tv/") >= 0 &&
+                    insideMediaCardBlock
+                ) {
+                    return true;
+                }
+
+                // =====================================
+                // MEDIA CARD ACCEPT
+                // =====================================
+
+                if (
+                    insideMediaCardBlock &&
+                    text.length >= 2 &&
+                    text.length <= 220 &&
                     (
                         combined.indexOf("channel") >= 0 ||
+                        combined.indexOf("channels") >= 0 ||
                         combined.indexOf("live") >= 0 ||
                         combined.indexOf("tv") >= 0 ||
                         combined.indexOf("stream") >= 0 ||
@@ -7760,8 +7965,33 @@ if (
                         combined.indexOf("play") >= 0 ||
                         combined.indexOf("station") >= 0 ||
                         combined.indexOf("canal") >= 0 ||
-                        combined.indexOf("kanal") >= 0
+                        combined.indexOf("kanal") >= 0 ||
+                        href.indexOf("/tv/") >= 0
                     )
+                ) {
+                    return true;
+                }
+
+                // =====================================
+                // GRID / EPG ROW ACCEPT
+                // For pages with embedded TV guide rows
+                // =====================================
+
+                if (
+                    text.length >= 2 &&
+                    text.length <= 220 &&
+                    (
+                        combined.indexOf("live") >= 0 ||
+                        combined.indexOf("channel") >= 0 ||
+                        combined.indexOf("channels") >= 0 ||
+                        combined.indexOf("epg") >= 0 ||
+                        combined.indexOf("guide") >= 0 ||
+                        combined.indexOf("program") >= 0 ||
+                        combined.indexOf("station") >= 0 ||
+                        combined.indexOf("tv") >= 0
+                    ) &&
+                    !insideCategoryBlock &&
+                    !badWords.test(combined)
                 ) {
                     return true;
                 }
@@ -7773,7 +8003,8 @@ if (
                 if (
                     role === "button" &&
                     text.length >= 2 &&
-                    text.length <= 120
+                    text.length <= 120 &&
+                    !insideCategoryBlock
                 ) {
                     return true;
                 }
@@ -7782,7 +8013,8 @@ if (
                     !href &&
                     el.onclick &&
                     text.length >= 2 &&
-                    text.length <= 120
+                    text.length <= 120 &&
+                    !insideCategoryBlock
                 ) {
                     return true;
                 }
@@ -7798,62 +8030,73 @@ if (
         var nodes =
             Array.prototype.slice.call(
                 document.querySelectorAll(
-    [
-        "a[href]",
-        "button",
-        "[role='button']",
-        "[onclick]",
-        "[data-url]",
-        "[data-href]",
-        "[data-src]",
-        "[data-stream]",
-        "[data-channel]",
-        "[data-channel-id]",
-        "[data-name]",
-        "[data-title]",
+                    [
+                        "a[href]",
+                        "button",
+                        "[role='button']",
+                        "[onclick]",
+                        "[data-url]",
+                        "[data-href]",
+                        "[data-src]",
+                        "[data-stream]",
+                        "[data-channel]",
+                        "[data-channel-id]",
+                        "[data-name]",
+                        "[data-title]",
 
-        ".channel",
-        ".channels",
-        ".tv-channel",
-        ".station",
-        ".card",
-        ".item",
-        "li",
+                        ".channel",
+                        ".channels",
+                        ".tv-channel",
+                        ".station",
+                        ".card",
+                        ".item",
+                        "li",
+                        "article",
 
-        ".channel-row",
-        ".channel-item",
-        ".channel-list-item",
-        ".epg-row",
-        ".guide-row",
-        ".program-row",
-        ".live-row",
-        ".grid-row",
-        ".list-row",
+                        ".channel-row",
+                        ".channel-item",
+                        ".channel-list-item",
+                        ".epg-row",
+                        ".guide-row",
+                        ".program-row",
+                        ".live-row",
+                        ".grid-row",
+                        ".list-row",
 
-        "[class*='channel']",
-        "[class*='Channel']",
-        "[class*='channels']",
-        "[class*='Channels']",
-        "[class*='epg']",
-        "[class*='EPG']",
-        "[class*='guide']",
-        "[class*='Guide']",
-        "[class*='program']",
-        "[class*='Program']",
-        "[class*='station']",
-        "[class*='Station']",
-        "[class*='live']",
-        "[class*='Live']",
-        "[class*='row']",
-        "[class*='Row']",
-        "[class*='grid']",
-        "[class*='Grid']",
-        "[class*='list']",
-        "[class*='List']",
-        "[class*='logo']",
-        "[class*='Logo']"
-    ].join(",")
-)
+                        "[class*='channel']",
+                        "[class*='Channel']",
+                        "[class*='channels']",
+                        "[class*='Channels']",
+                        "[class*='epg']",
+                        "[class*='EPG']",
+                        "[class*='guide']",
+                        "[class*='Guide']",
+                        "[class*='program']",
+                        "[class*='Program']",
+                        "[class*='station']",
+                        "[class*='Station']",
+                        "[class*='live']",
+                        "[class*='Live']",
+                        "[class*='row']",
+                        "[class*='Row']",
+                        "[class*='grid']",
+                        "[class*='Grid']",
+                        "[class*='list']",
+                        "[class*='List']",
+                        "[class*='logo']",
+                        "[class*='Logo']",
+                        "[class*='card']",
+                        "[class*='Card']",
+                        "[class*='post']",
+                        "[class*='Post']",
+                        "[class*='entry']",
+                        "[class*='Entry']",
+                        "[class*='video']",
+                        "[class*='Video']",
+                        "[class*='thumb']",
+                        "[class*='Thumb']"
+                    ].join(",")
+                )
             );
 
         nodes.forEach(function(el) {
@@ -7917,12 +8160,13 @@ if (
 
                 val cleaned =
                     jsResult
-                        .removePrefix("\"")
-                        .removeSuffix("\"")
-                        .replace("\\\\", "\\")
-                        .replace("\\\"", "\"")
-                        .replace("\\n", "\n")
-                        .trim()
+                        ?.removePrefix("\"")
+                        ?.removeSuffix("\"")
+                        ?.replace("\\\\", "\\")
+                        ?.replace("\\\"", "\"")
+                        ?.replace("\\n", "\n")
+                        ?.trim()
+                        .orEmpty()
 
                 val array =
                     org.json.JSONArray(
@@ -7970,8 +8214,8 @@ if (
                 }
 
                 // =====================================
-                // Prefer real channel pages.
-                // Avoid country/category pages when possible.
+                // Prefer real channel / watch / player pages.
+                // Category/menu/sidebar links have already been filtered in JS.
                 // =====================================
 
                 val channelLike =
@@ -7982,12 +8226,22 @@ if (
 
                         (
                             lower.contains("/channel/") ||
+                                lower.contains("/channels/") ||
                                 lower.contains("/watch/") ||
                                 lower.contains("/live/") ||
                                 lower.contains("/tv/") ||
-                                lower.contains("/player/")
+                                lower.contains("/player/") ||
+                                lower.contains(".m3u8") ||
+                                lower.contains(".mpd") ||
+                                lower.contains(".mp4")
                             ) &&
-                            !lower.contains("/country/")
+                            !lower.contains("/country/") &&
+                            !lower.contains("/countries/") &&
+                            !lower.contains("/category/") &&
+                            !lower.contains("/categories/") &&
+                            !lower.contains("?page=") &&
+                            !lower.contains("&page=") &&
+                            !lower.contains("#page/")
                     }
 
                 val finalList =
