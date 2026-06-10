@@ -7519,7 +7519,10 @@ private fun clickWatchOrPlayButtonIfPresent(
 
 // =====================================
 // COLLECT CHANNEL CANDIDATES FOR AUTO SCAN
-// Safe: only collects href/title, does not click
+// Safe: collects channel links + media cards
+// Generic DOM logic:
+// CATEGORY / MENU / SIDEBAR / NAV = skip
+// ARTICLE / POST / CARD / VIDEO / THUMBNAIL = candidate
 // =====================================
 
 private fun collectAutoScanCandidates(
@@ -7539,14 +7542,14 @@ private fun collectAutoScanCandidates(
 
     try {
 
-        var badWords =
-            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|home|contact|terms|policy|advert|ads|close/i;
-
         var candidates =
             [];
 
         var seen =
             {};
+
+        var badWords =
+            /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|home|contact|terms|policy|advert|ads|close/i;
 
         function cleanText(value) {
 
@@ -7614,17 +7617,112 @@ private fun collectAutoScanCandidates(
                 text += " " + (el.getAttribute("data-name") || "");
                 text += " " + (el.getAttribute("alt") || "");
 
+                try {
+
+                    var img =
+                        el.querySelector &&
+                        el.querySelector("img");
+
+                    if (img) {
+
+                        text += " " + (img.getAttribute("alt") || "");
+                        text += " " + (img.getAttribute("title") || "");
+                    }
+
+                } catch(e) {}
+
+                return cleanText(text);
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function getBestTitle(el) {
+
+            try {
+
+                var selectors =
+                    [
+                        "h1",
+                        "h2",
+                        "h3",
+                        "h4",
+                        ".title",
+                        ".entry-title",
+                        ".post-title",
+                        ".video-title",
+                        ".channel-title",
+                        "[class*='title']",
+                        "[class*='Title']"
+                    ];
+
+                for (
+                    var i = 0;
+                    i < selectors.length;
+                    i++
+                ) {
+
+                    var t =
+                        el.querySelector &&
+                        el.querySelector(
+                            selectors[i]
+                        );
+
+                    if (t) {
+
+                        var tx =
+                            cleanText(
+                                t.innerText ||
+                                t.textContent ||
+                                t.getAttribute("title") ||
+                                ""
+                            );
+
+                        if (
+                            tx.length >= 2 &&
+                            tx.length <= 160
+                        ) {
+                            return tx;
+                        }
+                    }
+                }
+
                 var img =
                     el.querySelector &&
                     el.querySelector("img");
 
                 if (img) {
 
-                    text += " " + (img.getAttribute("alt") || "");
-                    text += " " + (img.getAttribute("title") || "");
+                    var alt =
+                        cleanText(
+                            img.getAttribute("alt") ||
+                            img.getAttribute("title") ||
+                            ""
+                        );
+
+                    if (
+                        alt.length >= 2 &&
+                        alt.length <= 160
+                    ) {
+                        return alt;
+                    }
                 }
 
-                return cleanText(text);
+                var own =
+                    getText(el);
+
+                if (own.length > 220) {
+
+                    own =
+                        own.substring(
+                            0,
+                            220
+                        );
+                }
+
+                return cleanText(own);
 
             } catch(e) {
 
@@ -7641,10 +7739,19 @@ private fun collectAutoScanCandidates(
                 }
 
                 var a =
+                    el.closest &&
                     el.closest("a[href]");
 
                 if (a && a.href) {
                     return String(a.href || "").trim();
+                }
+
+                var innerA =
+                    el.querySelector &&
+                    el.querySelector("a[href]");
+
+                if (innerA && innerA.href) {
+                    return String(innerA.href || "").trim();
                 }
 
                 var dataUrl =
@@ -7662,7 +7769,7 @@ private fun collectAutoScanCandidates(
             }
         }
 
-        function readNodeSignal(el) {
+        function getSignal(el) {
 
             try {
 
@@ -7679,8 +7786,6 @@ private fun collectAutoScanCandidates(
                 signal += " " + String(el.getAttribute("role") || "");
                 signal += " " + String(el.getAttribute("aria-label") || "");
                 signal += " " + String(el.getAttribute("title") || "");
-                signal += " " + String(el.innerText || "");
-                signal += " " + String(el.innerHTML || "");
 
                 return signal.toLowerCase();
 
@@ -7690,7 +7795,29 @@ private fun collectAutoScanCandidates(
             }
         }
 
-        function isInsideCategoryBlock(el) {
+        function getDeepSignal(el) {
+
+            try {
+
+                if (!el) {
+                    return "";
+                }
+
+                var signal =
+                    getSignal(el);
+
+                signal += " " + String(el.innerText || "").toLowerCase();
+                signal += " " + String(el.innerHTML || "").toLowerCase();
+
+                return signal;
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function isCategoryOrNavigationBlock(el) {
 
             try {
 
@@ -7702,27 +7829,28 @@ private fun collectAutoScanCandidates(
 
                 while (
                     current &&
-                    depth < 8
+                    depth < 7 &&
+                    current !== document.body
                 ) {
 
                     var signal =
-                        readNodeSignal(current);
+                        getSignal(current);
+
+                    var deep =
+                        getDeepSignal(current);
 
                     if (
                         signal.indexOf("cat-item") >= 0 ||
                         signal.indexOf("category-list") >= 0 ||
                         signal.indexOf("categories") >= 0 ||
-                        signal.indexOf("category") >= 0 ||
                         signal.indexOf("categoria") >= 0 ||
                         signal.indexOf("categoría") >= 0 ||
-                        signal.indexOf("select category") >= 0 ||
-                        signal.indexOf("selecciona categoria") >= 0 ||
-                        signal.indexOf("widget") >= 0 ||
-                        signal.indexOf("sidebar") >= 0 ||
                         signal.indexOf("taxonomy") >= 0 ||
                         signal.indexOf("archive") >= 0 ||
                         signal.indexOf("tagcloud") >= 0 ||
                         signal.indexOf("tag-cloud") >= 0 ||
+                        signal.indexOf("sidebar") >= 0 ||
+                        signal.indexOf("widget") >= 0 ||
                         signal.indexOf("breadcrumb") >= 0 ||
                         signal.indexOf("pagination") >= 0 ||
                         signal.indexOf("pager") >= 0 ||
@@ -7731,9 +7859,12 @@ private fun collectAutoScanCandidates(
                         signal.indexOf("navbar") >= 0 ||
                         signal.indexOf("navigation") >= 0 ||
                         signal.indexOf("main-menu") >= 0 ||
-                        signal.indexOf("menu-item") >= 0
+                        signal.indexOf("menu-item") >= 0 ||
+                        signal.indexOf("menu ") >= 0 ||
+                        signal.indexOf(" menu") >= 0 ||
+                        deep.indexOf("select category") >= 0 ||
+                        deep.indexOf("selecciona categoria") >= 0
                     ) {
-
                         return true;
                     }
 
@@ -7751,7 +7882,7 @@ private fun collectAutoScanCandidates(
             }
         }
 
-        function isInsideMediaCardBlock(el) {
+        function findMediaCard(el) {
 
             try {
 
@@ -7763,37 +7894,48 @@ private fun collectAutoScanCandidates(
 
                 while (
                     current &&
-                    depth < 8
+                    depth < 7 &&
+                    current !== document.body
                 ) {
 
                     var signal =
-                        readNodeSignal(current);
+                        getSignal(current);
 
-                    if (
-                        signal.indexOf("<article") >= 0 ||
-                        signal.indexOf(" article ") >= 0 ||
-                        signal.indexOf("post-") >= 0 ||
-                        signal.indexOf(" post ") >= 0 ||
+                    var deep =
+                        getDeepSignal(current);
+
+                    var hasContainerSignal =
+                        signal.indexOf("article") >= 0 ||
+                        signal.indexOf("post") >= 0 ||
                         signal.indexOf("entry") >= 0 ||
                         signal.indexOf("card") >= 0 ||
-                        signal.indexOf("channel-card") >= 0 ||
-                        signal.indexOf("channel-item") >= 0 ||
-                        signal.indexOf("tv-channel") >= 0 ||
+                        signal.indexOf("channel") >= 0 ||
                         signal.indexOf("video") >= 0 ||
-                        signal.indexOf("thumbnail") >= 0 ||
-                        signal.indexOf("thumb") >= 0 ||
-                        signal.indexOf("<img") >= 0 ||
-                        signal.indexOf("poster") >= 0 ||
-                        signal.indexOf("play") >= 0 ||
-                        signal.indexOf("watch") >= 0 ||
-                        signal.indexOf("player") >= 0 ||
-                        signal.indexOf("stream") >= 0 ||
-                        signal.indexOf("live") >= 0 ||
-                        signal.indexOf("posted by") >= 0 ||
-                        signal.indexOf("published") >= 0
-                    ) {
+                        signal.indexOf("media") >= 0 ||
+                        signal.indexOf("item") >= 0;
 
-                        return true;
+                    var hasMediaSignal =
+                        deep.indexOf("posted by") >= 0 ||
+                        deep.indexOf("<img") >= 0 ||
+                        deep.indexOf("thumbnail") >= 0 ||
+                        deep.indexOf("thumb") >= 0 ||
+                        deep.indexOf("poster") >= 0 ||
+                        deep.indexOf("play") >= 0 ||
+                        deep.indexOf("watch") >= 0 ||
+                        deep.indexOf("video") >= 0 ||
+                        deep.indexOf("player") >= 0 ||
+                        deep.indexOf("views") >= 0 ||
+                        deep.indexOf("votes") >= 0;
+
+                    var title =
+                        getBestTitle(current);
+
+                    if (
+                        hasContainerSignal &&
+                        hasMediaSignal &&
+                        title.length >= 2
+                    ) {
+                        return current;
                     }
 
                     current =
@@ -7802,12 +7944,75 @@ private fun collectAutoScanCandidates(
                     depth++;
                 }
 
-                return false;
+                return null;
 
             } catch(e) {
 
-                return false;
+                return null;
             }
+        }
+
+        function makeRowHref(el) {
+
+            try {
+
+                var rect =
+                    el.getBoundingClientRect();
+
+                var x =
+                    Math.floor(
+                        rect.left + rect.width / 2
+                    );
+
+                var y =
+                    Math.floor(
+                        rect.top + rect.height / 2
+                    );
+
+                return "gel-row://" + encodeURIComponent(window.location.href) +
+                    "?x=" + x +
+                    "&y=" + y;
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
+        function addCandidate(title, href) {
+
+            try {
+
+                title =
+                    cleanText(title);
+
+                href =
+                    String(href || "").trim();
+
+                if (
+                    title.length < 2 ||
+                    href.length < 5
+                ) {
+                    return;
+                }
+
+                var key =
+                    (title + "|" + href)
+                        .toLowerCase();
+
+                if (seen[key]) {
+                    return;
+                }
+
+                seen[key] =
+                    true;
+
+                candidates.push({
+                    title: title.substring(0, 120),
+                    href: href.substring(0, 500)
+                });
+
+            } catch(e) {}
         }
 
         function looksLikeChannel(el, text, href) {
@@ -7827,11 +8032,14 @@ private fun collectAutoScanCandidates(
                     (text + " " + href + " " + cls + " " + id + " " + role)
                         .toLowerCase();
 
-                var insideCategoryBlock =
-                    isInsideCategoryBlock(el);
+                var mediaCard =
+                    findMediaCard(el);
 
-                var insideMediaCardBlock =
-                    isInsideMediaCardBlock(el);
+                var insideMediaCard =
+                    !!mediaCard;
+
+                var insideCategoryBlock =
+                    isCategoryOrNavigationBlock(el);
 
                 // =====================================
                 // HARD REJECT — SOCIAL / CONTACT
@@ -7851,7 +8059,7 @@ private fun collectAutoScanCandidates(
                 }
 
                 // =====================================
-                // HARD REJECT — PAGINATION / COUNTRY / ARCHIVE
+                // HARD REJECT — PAGINATION / ARCHIVE
                 // =====================================
 
                 if (
@@ -7871,21 +8079,21 @@ private fun collectAutoScanCandidates(
                 }
 
                 // =====================================
-                // GENERIC CATEGORY / MENU / SIDEBAR FILTER
-                // If it lives in a category/menu/sidebar block
-                // and it is NOT a media/card/post block, it is not a channel.
+                // CATEGORY / MENU / SIDEBAR FILTER
+                // Category links are not channels.
+                // Media card wins only when it has real card signals.
                 // =====================================
 
                 if (
                     insideCategoryBlock &&
-                    !insideMediaCardBlock
+                    !insideMediaCard
                 ) {
                     return false;
                 }
 
                 if (
                     badWords.test(combined) &&
-                    !insideMediaCardBlock
+                    !insideMediaCard
                 ) {
                     return false;
                 }
@@ -7910,7 +8118,7 @@ private fun collectAutoScanCandidates(
                 }
 
                 // =====================================
-                // HARD ACCEPT — CLEAR CHANNEL / WATCH / PLAYER LINKS
+                // CLEAR CHANNEL / WATCH / PLAYER LINKS
                 // =====================================
 
                 if (
@@ -7931,17 +8139,17 @@ private fun collectAutoScanCandidates(
 
                 // =====================================
                 // /TV/ LINKS
-                // Accept only when they look like media cards.
-                // This prevents category folders from being scanned as channels.
+                // Accept only if inside real media card.
+                // Prevents category folders from being scanned.
                 // =====================================
 
                 if (
                     href &&
                     href !== "#" &&
+                    href.indexOf("/tv/") >= 0 &&
                     text.length >= 2 &&
                     text.length <= 180 &&
-                    href.indexOf("/tv/") >= 0 &&
-                    insideMediaCardBlock
+                    insideMediaCard
                 ) {
                     return true;
                 }
@@ -7951,30 +8159,15 @@ private fun collectAutoScanCandidates(
                 // =====================================
 
                 if (
-                    insideMediaCardBlock &&
+                    insideMediaCard &&
                     text.length >= 2 &&
-                    text.length <= 220 &&
-                    (
-                        combined.indexOf("channel") >= 0 ||
-                        combined.indexOf("channels") >= 0 ||
-                        combined.indexOf("live") >= 0 ||
-                        combined.indexOf("tv") >= 0 ||
-                        combined.indexOf("stream") >= 0 ||
-                        combined.indexOf("player") >= 0 ||
-                        combined.indexOf("watch") >= 0 ||
-                        combined.indexOf("play") >= 0 ||
-                        combined.indexOf("station") >= 0 ||
-                        combined.indexOf("canal") >= 0 ||
-                        combined.indexOf("kanal") >= 0 ||
-                        href.indexOf("/tv/") >= 0
-                    )
+                    text.length <= 240
                 ) {
                     return true;
                 }
 
                 // =====================================
                 // GRID / EPG ROW ACCEPT
-                // For pages with embedded TV guide rows
                 // =====================================
 
                 if (
@@ -8027,6 +8220,106 @@ private fun collectAutoScanCandidates(
             }
         }
 
+        // =====================================
+        // PASS 1 — MEDIA CARD COLLECTOR
+        // Finds real cards even when category links exist everywhere.
+        // =====================================
+
+        var cardNodes =
+            Array.prototype.slice.call(
+                document.querySelectorAll(
+                    [
+                        "article",
+                        ".post",
+                        ".entry",
+                        ".card",
+                        ".item",
+                        ".video",
+                        ".channel",
+                        ".tv-channel",
+                        ".media",
+                        "[class*='post']",
+                        "[class*='Post']",
+                        "[class*='entry']",
+                        "[class*='Entry']",
+                        "[class*='card']",
+                        "[class*='Card']",
+                        "[class*='video']",
+                        "[class*='Video']",
+                        "[class*='channel']",
+                        "[class*='Channel']",
+                        "[class*='thumb']",
+                        "[class*='Thumb']"
+                    ].join(",")
+                )
+            );
+
+        cardNodes.forEach(function(card) {
+
+            try {
+
+                if (!isVisible(card)) {
+                    return;
+                }
+
+                if (isCategoryOrNavigationBlock(card)) {
+                    return;
+                }
+
+                var title =
+                    getBestTitle(card);
+
+                if (
+                    title.length < 2 ||
+                    title.length > 180
+                ) {
+                    return;
+                }
+
+                var deep =
+                    getDeepSignal(card);
+
+                var hasMedia =
+                    deep.indexOf("posted by") >= 0 ||
+                    deep.indexOf("<img") >= 0 ||
+                    deep.indexOf("thumbnail") >= 0 ||
+                    deep.indexOf("thumb") >= 0 ||
+                    deep.indexOf("poster") >= 0 ||
+                    deep.indexOf("play") >= 0 ||
+                    deep.indexOf("watch") >= 0 ||
+                    deep.indexOf("video") >= 0 ||
+                    deep.indexOf("player") >= 0 ||
+                    deep.indexOf("views") >= 0 ||
+                    deep.indexOf("votes") >= 0;
+
+                if (!hasMedia) {
+                    return;
+                }
+
+                var href =
+                    getHref(card);
+
+                if (
+                    !href ||
+                    href === "#"
+                ) {
+
+                    href =
+                        makeRowHref(card);
+                }
+
+                addCandidate(
+                    title,
+                    href
+                );
+
+            } catch(e) {}
+        });
+
+        // =====================================
+        // PASS 2 — LINK / BUTTON COLLECTOR
+        // =====================================
+
         var nodes =
             Array.prototype.slice.call(
                 document.querySelectorAll(
@@ -8044,15 +8337,6 @@ private fun collectAutoScanCandidates(
                         "[data-name]",
                         "[data-title]",
 
-                        ".channel",
-                        ".channels",
-                        ".tv-channel",
-                        ".station",
-                        ".card",
-                        ".item",
-                        "li",
-                        "article",
-
                         ".channel-row",
                         ".channel-item",
                         ".channel-list-item",
@@ -8065,8 +8349,6 @@ private fun collectAutoScanCandidates(
 
                         "[class*='channel']",
                         "[class*='Channel']",
-                        "[class*='channels']",
-                        "[class*='Channels']",
                         "[class*='epg']",
                         "[class*='EPG']",
                         "[class*='guide']",
@@ -8078,23 +8360,7 @@ private fun collectAutoScanCandidates(
                         "[class*='live']",
                         "[class*='Live']",
                         "[class*='row']",
-                        "[class*='Row']",
-                        "[class*='grid']",
-                        "[class*='Grid']",
-                        "[class*='list']",
-                        "[class*='List']",
-                        "[class*='logo']",
-                        "[class*='Logo']",
-                        "[class*='card']",
-                        "[class*='Card']",
-                        "[class*='post']",
-                        "[class*='Post']",
-                        "[class*='entry']",
-                        "[class*='Entry']",
-                        "[class*='video']",
-                        "[class*='Video']",
-                        "[class*='thumb']",
-                        "[class*='Thumb']"
+                        "[class*='Row']"
                     ].join(",")
                 )
             );
@@ -8124,21 +8390,24 @@ private fun collectAutoScanCandidates(
                     return;
                 }
 
-                var key =
-                    (text + "|" + href)
-                        .toLowerCase();
+                if (
+                    !href ||
+                    href === "#"
+                ) {
 
-                if (seen[key]) {
-                    return;
+                    var mediaCard =
+                        findMediaCard(el);
+
+                    if (mediaCard) {
+                        href =
+                            makeRowHref(mediaCard);
+                    }
                 }
 
-                seen[key] =
-                    true;
-
-                candidates.push({
-                    title: text.substring(0, 120),
-                    href: href.substring(0, 500)
-                });
+                addCandidate(
+                    text,
+                    href
+                );
 
             } catch(e) {}
         });
@@ -8200,7 +8469,10 @@ private fun collectAutoScanCandidates(
 
                     if (
                         href.isBlank() ||
-                        !href.startsWith("http", true)
+                        (
+                            !href.startsWith("http", true) &&
+                                !href.startsWith("gel-row://", true)
+                            )
                     ) {
                         continue
                     }
@@ -8213,11 +8485,6 @@ private fun collectAutoScanCandidates(
                     )
                 }
 
-                // =====================================
-                // Prefer real channel / watch / player pages.
-                // Category/menu/sidebar links have already been filtered in JS.
-                // =====================================
-
                 val channelLike =
                     parsed.filter { item ->
 
@@ -8225,7 +8492,8 @@ private fun collectAutoScanCandidates(
                             item.href.lowercase()
 
                         (
-                            lower.contains("/channel/") ||
+                            lower.startsWith("gel-row://") ||
+                                lower.contains("/channel/") ||
                                 lower.contains("/channels/") ||
                                 lower.contains("/watch/") ||
                                 lower.contains("/live/") ||
