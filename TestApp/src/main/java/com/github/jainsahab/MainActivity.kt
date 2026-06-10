@@ -7634,12 +7634,15 @@ private fun collectAutoScanCandidates(
                     return true;
                 }
                 
-                if (
+if (
     t.indexOf("plan servidor") >= 0 ||
     t.indexOf("licencia") >= 0 ||
     t.indexOf("mensual") >= 0 ||
     t.indexOf("hosting") >= 0 ||
-    t.indexOf("hostlagarto") >= 0
+    t.indexOf("hostlagarto") >= 0 ||
+    t === "videos" ||
+    t === "youtube" ||
+    t === "emisoras con video"
 ) {
     return true;
 }
@@ -8756,20 +8759,28 @@ private fun collectAutoScanCandidates(
                     val lowerTitle =
                         title.lowercase()
 
-                    if (
-                        lowerTitle.contains("sort by") ||
-                        lowerTitle == "1 star" ||
-                        lowerTitle == "2 star" ||
-                        lowerTitle == "3 star" ||
-                        lowerTitle == "4 star" ||
-                        lowerTitle == "5 star" ||
-                        lowerTitle.contains("out of 5") ||
-                        lowerTitle.contains("average") ||
-                        lowerTitle.contains("votes") ||
-                        lowerTitle.contains("rating")
-                    ) {
-                        continue
-                    }
+if (
+    lowerTitle.contains("sort by") ||
+    lowerTitle == "1 star" ||
+    lowerTitle == "2 star" ||
+    lowerTitle == "3 star" ||
+    lowerTitle == "4 star" ||
+    lowerTitle == "5 star" ||
+    lowerTitle.contains("out of 5") ||
+    lowerTitle.contains("average") ||
+    lowerTitle.contains("votes") ||
+    lowerTitle.contains("rating") ||
+    lowerTitle == "videos" ||
+    lowerTitle == "youtube" ||
+    lowerTitle == "emisoras con video" ||
+    lowerTitle.contains("plan servidor") ||
+    lowerTitle.contains("licencia") ||
+    lowerTitle.contains("mensual") ||
+    lowerTitle.contains("hosting") ||
+    lowerTitle.contains("hostlagarto")
+) {
+    continue
+}
 
                     parsed.add(
                         AutoScanCandidate(
@@ -8812,8 +8823,24 @@ private fun collectAutoScanCandidates(
                         parsed
                     }
                         .distinctBy { item ->
-                            item.href.lowercase()
-                        }
+
+    if (
+        item.href.startsWith(
+            "gel-row://",
+            true
+        )
+    ) {
+        item.title
+            .lowercase()
+            .replace(
+                Regex("\\s+"),
+                " "
+            )
+            .trim()
+    } else {
+        item.href.lowercase()
+    }
+}
                         .take(
                             autoScanMaxCandidates
                         )
@@ -9045,8 +9072,10 @@ window.clearFlags(
 
 // =====================================
 // COLLECT CANDIDATES FROM ALL COUNTRY PAGES
-// Opens each pagination page, collects /channel/ links,
-// then starts normal auto scan.
+// Opens each pagination page only when needed.
+// If current WebView is already on the target page,
+// it scans the existing DOM without reloading.
+// Retry once when candidates are 0.
 // =====================================
 
 private fun collectCandidatesFromCountryPages(
@@ -9062,6 +9091,23 @@ private fun collectCandidatesFromCountryPages(
         val allCandidates =
             mutableListOf<AutoScanCandidate>()
 
+        fun normalizePageUrl(
+            value: String
+        ): String {
+
+            return try {
+
+                value
+                    .trim()
+                    .removeSuffix("/")
+                    .lowercase()
+
+            } catch (_: Throwable) {
+
+                value.trim().lowercase()
+            }
+        }
+
         fun scanPageAt(
             index: Int
         ) {
@@ -9070,7 +9116,9 @@ private fun collectCandidatesFromCountryPages(
 
                 val finalCandidates =
                     allCandidates
-                        .distinctBy { it.href.lowercase() }
+                        .distinctBy { item ->
+                            item.href.lowercase()
+                        }
                         .take(
                             autoScanMaxCandidates
                         )
@@ -9098,6 +9146,7 @@ No channel candidates found across country pages.
                 }
 
                 autoScanCandidates.clear()
+
                 autoScanCandidates.addAll(
                     finalCandidates
                 )
@@ -9126,6 +9175,7 @@ ${autoScanCandidates.size}
                 )
 
                 scanNextAutoChannel()
+
                 return
             }
 
@@ -9143,6 +9193,105 @@ ${page.href}
 
                 """.trimIndent()
             )
+
+            fun collectCurrentPageCandidates(
+                retry: Boolean
+            ) {
+
+                collectAutoScanCandidates { candidates ->
+
+                    runOnUiThread {
+
+                        if (
+                            candidates.isEmpty() &&
+                            retry
+                        ) {
+
+                            binding.contentMain.result.append(
+                                """
+
+COUNTRY PAGE CANDIDATES:
+0
+
+Retrying DOM scan once...
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            binding.contentMain.webview.postDelayed(
+                                {
+                                    collectCurrentPageCandidates(
+                                        false
+                                    )
+                                },
+                                2200
+                            )
+
+                            return@runOnUiThread
+                        }
+
+                        allCandidates.addAll(
+                            candidates
+                        )
+
+                        binding.contentMain.result.append(
+                            """
+
+COUNTRY PAGE CANDIDATES:
+${candidates.size}
+
+TOTAL SO FAR:
+${allCandidates.distinctBy { it.href.lowercase() }.size}
+
+────────────────────
+
+                            """.trimIndent()
+                        )
+
+                        scanPageAt(
+                            index + 1
+                        )
+                    }
+                }
+            }
+
+            val currentUrl =
+                activeWebView.url.orEmpty()
+
+            val samePage =
+                normalizePageUrl(
+                    currentUrl
+                ) == normalizePageUrl(
+                    page.href
+                )
+
+            if (samePage) {
+
+                binding.contentMain.result.append(
+                    """
+
+AUTO CHANNEL SCAN:
+Current page already loaded.
+Scanning existing DOM.
+
+────────────────────
+
+                    """.trimIndent()
+                )
+
+                binding.contentMain.webview.postDelayed(
+                    {
+                        collectCurrentPageCandidates(
+                            true
+                        )
+                    },
+                    700
+                )
+
+                return
+            }
 
             try {
 
@@ -9167,36 +9316,11 @@ ${page.href}
 
             binding.contentMain.webview.postDelayed(
                 {
-
-                    collectAutoScanCandidates { candidates ->
-
-                        runOnUiThread {
-
-                            allCandidates.addAll(
-                                candidates
-                            )
-
-                            binding.contentMain.result.append(
-                                """
-
-COUNTRY PAGE CANDIDATES:
-${candidates.size}
-
-TOTAL SO FAR:
-${allCandidates.distinctBy { it.href.lowercase() }.size}
-
-────────────────────
-
-                                """.trimIndent()
-                            )
-
-                            scanPageAt(
-                                index + 1
-                            )
-                        }
-                    }
+                    collectCurrentPageCandidates(
+                        true
+                    )
                 },
-                3500
+                5500
             )
         }
 
