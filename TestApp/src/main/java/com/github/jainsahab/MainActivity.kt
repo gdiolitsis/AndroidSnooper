@@ -7633,6 +7633,16 @@ private fun collectAutoScanCandidates(
                 if (sortRatingWords.test(t)) {
                     return true;
                 }
+                
+                if (
+    t.indexOf("plan servidor") >= 0 ||
+    t.indexOf("licencia") >= 0 ||
+    t.indexOf("mensual") >= 0 ||
+    t.indexOf("hosting") >= 0 ||
+    t.indexOf("hostlagarto") >= 0
+) {
+    return true;
+}
 
                 if (
                     /^[0-9]+ star$/i.test(t) ||
@@ -8685,8 +8695,7 @@ addCandidate(
                                 lower.contains("/channel/") ||
                                 lower.contains("/channels/") ||
                                 lower.contains("/watch/") ||
-                                lower.contains("/live/") ||
-                                lower.contains("/tv/") ||
+                                lower.contains("/live/") ||                                
                                 lower.contains("/player/") ||
                                 lower.contains(".m3u8") ||
                                 lower.contains(".mpd") ||
