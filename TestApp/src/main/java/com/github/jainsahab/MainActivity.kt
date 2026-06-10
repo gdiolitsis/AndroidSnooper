@@ -7523,6 +7523,7 @@ private fun clickWatchOrPlayButtonIfPresent(
 // Generic DOM logic:
 // CATEGORY / MENU / SIDEBAR / NAV = skip
 // ARTICLE / POST / CARD / VIDEO / THUMBNAIL = candidate
+// SORT / RATING / STAR blocks = skip
 // =====================================
 
 private fun collectAutoScanCandidates(
@@ -7551,6 +7552,9 @@ private fun collectAutoScanCandidates(
         var badWords =
             /cookie|privacy|gdpr|consent|accept|reject|login|sign in|signin|subscribe|share|facebook|twitter|instagram|telegram|whatsapp|youtube|search|home|contact|terms|policy|advert|ads|close/i;
 
+        var sortRatingWords =
+            /sort by|comments|rating|ratings|views|newest|random|star|stars|vote|votes|average|out of 5/i;
+
         function cleanText(value) {
 
             try {
@@ -7562,6 +7566,101 @@ private fun collectAutoScanCandidates(
             } catch(e) {
 
                 return "";
+            }
+        }
+
+        function normalizeTitle(value) {
+
+            try {
+
+                var text =
+                    cleanText(value);
+
+                // Fix duplicated titles like:
+                // "Boca Chica Boca Chica"
+                var parts =
+                    text.split(" ");
+
+                if (
+                    parts.length % 2 === 0 &&
+                    parts.length >= 2
+                ) {
+
+                    var half =
+                        parts.length / 2;
+
+                    var left =
+                        parts.slice(0, half).join(" ");
+
+                    var right =
+                        parts.slice(half).join(" ");
+
+                    if (
+                        left.toLowerCase() === right.toLowerCase()
+                    ) {
+                        text =
+                            left;
+                    }
+                }
+
+                return cleanText(text);
+
+            } catch(e) {
+
+                return cleanText(value);
+            }
+        }
+
+        function isBadTitle(title) {
+
+            try {
+
+                var t =
+                    cleanText(title).toLowerCase();
+
+                if (!t) {
+                    return true;
+                }
+
+                if (t.length < 2) {
+                    return true;
+                }
+
+                if (t.length > 180) {
+                    return true;
+                }
+
+                if (sortRatingWords.test(t)) {
+                    return true;
+                }
+
+                if (
+                    /^[0-9]+ star$/i.test(t) ||
+                    /^[0-9]+ stars$/i.test(t)
+                ) {
+                    return true;
+                }
+
+                if (
+                    t === "star" ||
+                    t === "stars" ||
+                    t === "rating" ||
+                    t === "ratings" ||
+                    t === "sort" ||
+                    t === "sort by" ||
+                    t === "comments" ||
+                    t === "views" ||
+                    t === "newest" ||
+                    t === "random"
+                ) {
+                    return true;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return true;
             }
         }
 
@@ -7625,13 +7724,22 @@ private fun collectAutoScanCandidates(
 
                     if (img) {
 
-                        text += " " + (img.getAttribute("alt") || "");
-                        text += " " + (img.getAttribute("title") || "");
+                        var imgAlt =
+                            cleanText(
+                                img.getAttribute("alt") ||
+                                img.getAttribute("title") ||
+                                ""
+                            );
+
+                        if (!isBadTitle(imgAlt)) {
+
+                            text += " " + imgAlt;
+                        }
                     }
 
                 } catch(e) {}
 
-                return cleanText(text);
+                return normalizeTitle(text);
 
             } catch(e) {
 
@@ -7673,17 +7781,14 @@ private fun collectAutoScanCandidates(
                     if (t) {
 
                         var tx =
-                            cleanText(
+                            normalizeTitle(
                                 t.innerText ||
                                 t.textContent ||
                                 t.getAttribute("title") ||
                                 ""
                             );
 
-                        if (
-                            tx.length >= 2 &&
-                            tx.length <= 160
-                        ) {
+                        if (!isBadTitle(tx)) {
                             return tx;
                         }
                     }
@@ -7696,24 +7801,25 @@ private fun collectAutoScanCandidates(
                 if (img) {
 
                     var alt =
-                        cleanText(
+                        normalizeTitle(
                             img.getAttribute("alt") ||
                             img.getAttribute("title") ||
                             ""
                         );
 
-                    if (
-                        alt.length >= 2 &&
-                        alt.length <= 160
-                    ) {
+                    if (!isBadTitle(alt)) {
                         return alt;
                     }
                 }
 
                 var own =
-                    getText(el);
+                    normalizeTitle(
+                        getText(el)
+                    );
 
-                if (own.length > 220) {
+                if (
+                    own.length > 220
+                ) {
 
                     own =
                         own.substring(
@@ -7722,7 +7828,11 @@ private fun collectAutoScanCandidates(
                         );
                 }
 
-                return cleanText(own);
+                if (isBadTitle(own)) {
+                    return "";
+                }
+
+                return normalizeTitle(own);
 
             } catch(e) {
 
@@ -7817,6 +7927,36 @@ private fun collectAutoScanCandidates(
             }
         }
 
+        function isSortOrRatingBlock(el) {
+
+            try {
+
+                var signal =
+                    getDeepSignal(el);
+
+                if (
+                    signal.indexOf("sort by") >= 0 ||
+                    signal.indexOf("comments") >= 0 && signal.indexOf("rating") >= 0 ||
+                    signal.indexOf("newest") >= 0 && signal.indexOf("random") >= 0 ||
+                    signal.indexOf("out of 5") >= 0 ||
+                    signal.indexOf("average") >= 0 && signal.indexOf("votes") >= 0 ||
+                    signal.indexOf("1 star") >= 0 ||
+                    signal.indexOf("2 star") >= 0 ||
+                    signal.indexOf("3 star") >= 0 ||
+                    signal.indexOf("4 star") >= 0 ||
+                    signal.indexOf("5 star") >= 0
+                ) {
+                    return true;
+                }
+
+                return false;
+
+            } catch(e) {
+
+                return false;
+            }
+        }
+
         function isCategoryOrNavigationBlock(el) {
 
             try {
@@ -7898,6 +8038,16 @@ private fun collectAutoScanCandidates(
                     current !== document.body
                 ) {
 
+                    if (isSortOrRatingBlock(current)) {
+
+                        current =
+                            current.parentElement;
+
+                        depth++;
+
+                        continue;
+                    }
+
                     var signal =
                         getSignal(current);
 
@@ -7914,8 +8064,7 @@ private fun collectAutoScanCandidates(
                         signal.indexOf("media") >= 0 ||
                         signal.indexOf("item") >= 0;
 
-                    var hasMediaSignal =
-                        deep.indexOf("posted by") >= 0 ||
+                    var hasImageOrPlay =
                         deep.indexOf("<img") >= 0 ||
                         deep.indexOf("thumbnail") >= 0 ||
                         deep.indexOf("thumb") >= 0 ||
@@ -7923,17 +8072,23 @@ private fun collectAutoScanCandidates(
                         deep.indexOf("play") >= 0 ||
                         deep.indexOf("watch") >= 0 ||
                         deep.indexOf("video") >= 0 ||
-                        deep.indexOf("player") >= 0 ||
-                        deep.indexOf("views") >= 0 ||
-                        deep.indexOf("votes") >= 0;
+                        deep.indexOf("player") >= 0;
+
+                    var hasPostSignal =
+                        deep.indexOf("posted by") >= 0 ||
+                        deep.indexOf("published") >= 0;
 
                     var title =
                         getBestTitle(current);
 
                     if (
                         hasContainerSignal &&
-                        hasMediaSignal &&
-                        title.length >= 2
+                        title.length >= 2 &&
+                        !isBadTitle(title) &&
+                        (
+                            hasImageOrPlay ||
+                            hasPostSignal
+                        )
                     ) {
                         return current;
                     }
@@ -7966,7 +8121,7 @@ private fun collectAutoScanCandidates(
 
                 var y =
                     Math.floor(
-                        rect.top + rect.height / 2
+                        rect.top + rect.height / 2 + window.scrollY
                     );
 
                 return "gel-row://" + encodeURIComponent(window.location.href) +
@@ -7984,14 +8139,33 @@ private fun collectAutoScanCandidates(
             try {
 
                 title =
-                    cleanText(title);
+                    normalizeTitle(title);
 
                 href =
                     String(href || "").trim();
 
                 if (
-                    title.length < 2 ||
+                    isBadTitle(title) ||
                     href.length < 5
+                ) {
+                    return;
+                }
+
+                var lowerHref =
+                    href.toLowerCase();
+
+                if (
+                    lowerHref.indexOf("facebook.com") >= 0 ||
+                    lowerHref.indexOf("twitter.com") >= 0 ||
+                    lowerHref.indexOf("instagram.com") >= 0 ||
+                    lowerHref.indexOf("telegram") >= 0 ||
+                    lowerHref.indexOf("whatsapp") >= 0 ||
+                    lowerHref.indexOf("wa.me") >= 0 ||
+                    lowerHref.indexOf("mailto:") >= 0 ||
+                    lowerHref.indexOf("tel:") >= 0 ||
+                    lowerHref.indexOf("?page=") >= 0 ||
+                    lowerHref.indexOf("&page=") >= 0 ||
+                    lowerHref.indexOf("#page/") >= 0
                 ) {
                     return;
                 }
@@ -8018,6 +8192,17 @@ private fun collectAutoScanCandidates(
         function looksLikeChannel(el, text, href) {
 
             try {
+
+                text =
+                    normalizeTitle(text);
+
+                if (isBadTitle(text)) {
+                    return false;
+                }
+
+                if (isSortOrRatingBlock(el)) {
+                    return false;
+                }
 
                 var cls =
                     String(el.className || "").toLowerCase();
@@ -8080,8 +8265,6 @@ private fun collectAutoScanCandidates(
 
                 // =====================================
                 // CATEGORY / MENU / SIDEBAR FILTER
-                // Category links are not channels.
-                // Media card wins only when it has real card signals.
                 // =====================================
 
                 if (
@@ -8247,9 +8430,7 @@ private fun collectAutoScanCandidates(
                         "[class*='video']",
                         "[class*='Video']",
                         "[class*='channel']",
-                        "[class*='Channel']",
-                        "[class*='thumb']",
-                        "[class*='Thumb']"
+                        "[class*='Channel']"
                     ].join(",")
                 )
             );
@@ -8262,6 +8443,10 @@ private fun collectAutoScanCandidates(
                     return;
                 }
 
+                if (isSortOrRatingBlock(card)) {
+                    return;
+                }
+
                 if (isCategoryOrNavigationBlock(card)) {
                     return;
                 }
@@ -8269,10 +8454,7 @@ private fun collectAutoScanCandidates(
                 var title =
                     getBestTitle(card);
 
-                if (
-                    title.length < 2 ||
-                    title.length > 180
-                ) {
+                if (isBadTitle(title)) {
                     return;
                 }
 
@@ -8288,9 +8470,7 @@ private fun collectAutoScanCandidates(
                     deep.indexOf("play") >= 0 ||
                     deep.indexOf("watch") >= 0 ||
                     deep.indexOf("video") >= 0 ||
-                    deep.indexOf("player") >= 0 ||
-                    deep.indexOf("views") >= 0 ||
-                    deep.indexOf("votes") >= 0;
+                    deep.indexOf("player") >= 0;
 
                 if (!hasMedia) {
                     return;
@@ -8370,6 +8550,10 @@ private fun collectAutoScanCandidates(
             try {
 
                 if (!isVisible(el)) {
+                    return;
+                }
+
+                if (isSortOrRatingBlock(el)) {
                     return;
                 }
 
@@ -8473,6 +8657,24 @@ private fun collectAutoScanCandidates(
                             !href.startsWith("http", true) &&
                                 !href.startsWith("gel-row://", true)
                             )
+                    ) {
+                        continue
+                    }
+
+                    val lowerTitle =
+                        title.lowercase()
+
+                    if (
+                        lowerTitle.contains("sort by") ||
+                        lowerTitle == "1 star" ||
+                        lowerTitle == "2 star" ||
+                        lowerTitle == "3 star" ||
+                        lowerTitle == "4 star" ||
+                        lowerTitle == "5 star" ||
+                        lowerTitle.contains("out of 5") ||
+                        lowerTitle.contains("average") ||
+                        lowerTitle.contains("votes") ||
+                        lowerTitle.contains("rating")
                     ) {
                         continue
                     }
@@ -8926,7 +9128,7 @@ ${allCandidates.distinctBy { it.href.lowercase() }.size}
 
 // =====================================
 // SCAN NEXT CHANNEL CANDIDATE
-// Opens each candidate URL and waits for stream detection
+// Opens each candidate URL or clicks gel-row candidate
 // =====================================
 
 private fun scanNextAutoChannel() {
@@ -8971,6 +9173,375 @@ ${candidate.href}
 
             """.trimIndent()
         )
+
+        // =====================================
+        // GEL ROW CANDIDATE
+        // gel-row://ENCODED_PAGE_URL?x=123&y=456
+        // Do NOT load gel-row:// as URL.
+        // Load original page if needed, then click x/y.
+        // =====================================
+
+        if (
+            candidate.href.startsWith(
+                "gel-row://",
+                true
+            )
+        ) {
+
+            try {
+
+                val raw =
+                    candidate.href.removePrefix(
+                        "gel-row://"
+                    )
+
+                val qIndex =
+                    raw.indexOf("?")
+
+                val encodedPageUrl =
+                    if (qIndex >= 0) {
+                        raw.substring(
+                            0,
+                            qIndex
+                        )
+                    } else {
+                        raw
+                    }
+
+                val pageUrl =
+                    Uri.decode(
+                        encodedPageUrl
+                    )
+
+                val rowUri =
+                    Uri.parse(
+                        candidate.href
+                    )
+
+                val x =
+                    rowUri.getQueryParameter("x")
+                        ?.toIntOrNull()
+                        ?: -1
+
+                val y =
+                    rowUri.getQueryParameter("y")
+                        ?.toIntOrNull()
+                        ?: -1
+
+                if (
+                    pageUrl.isBlank() ||
+                    !pageUrl.startsWith("http", true) ||
+                    x < 0 ||
+                    y < 0
+                ) {
+
+                    binding.contentMain.result.append(
+                        """
+
+AUTO SCAN:
+Invalid gel-row candidate.
+Skipping.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                    autoScanIndex++
+
+                    binding.contentMain.webview.postDelayed(
+                        {
+                            scanNextAutoChannel()
+                        },
+                        700
+                    )
+
+                    return
+                }
+
+                try {
+
+                    binding.contentMain.urlInput.setText(
+                        pageUrl
+                    )
+
+                    binding.contentMain.urlInput.setSelection(
+                        0
+                    )
+
+                    liveUrlInputText =
+                        pageUrl
+
+                } catch (_: Throwable) {}
+
+                val currentUrl =
+                    activeWebView.url.orEmpty()
+
+                val needsLoad =
+                    !currentUrl.equals(
+                        pageUrl,
+                        true
+                    )
+
+                if (needsLoad) {
+
+                    try {
+
+                        activeWebView.stopLoading()
+
+                        activeWebView.loadUrl(
+                            pageUrl,
+                            mapOf(
+                                "Cache-Control" to "no-cache",
+                                "Pragma" to "no-cache"
+                            )
+                        )
+
+                    } catch (_: Throwable) {
+
+                        autoScanIndex++
+
+                        binding.contentMain.webview.postDelayed(
+                            {
+                                scanNextAutoChannel()
+                            },
+                            900
+                        )
+
+                        return
+                    }
+                }
+
+                val loadDelay =
+                    if (needsLoad) {
+                        4200L
+                    } else {
+                        900L
+                    }
+
+                binding.contentMain.webview.postDelayed(
+                    {
+
+                        try {
+
+                            if (
+                                !autoScanRunning ||
+                                cloudflareChallengeActive
+                            ) {
+                                return@postDelayed
+                            }
+
+                            val js =
+                                """
+
+(function() {
+
+    try {
+
+        var docX =
+            $x;
+
+        var docY =
+            $y;
+
+        var targetScrollY =
+            Math.max(
+                0,
+                docY - Math.floor(window.innerHeight / 2)
+            );
+
+        window.scrollTo(
+            0,
+            targetScrollY
+        );
+
+        setTimeout(function() {
+
+            try {
+
+                var viewX =
+                    docX;
+
+                var viewY =
+                    docY - window.scrollY;
+
+                if (
+                    viewY < 20 ||
+                    viewY > window.innerHeight - 20
+                ) {
+
+                    viewY =
+                        Math.floor(
+                            window.innerHeight / 2
+                        );
+                }
+
+                var el =
+                    document.elementFromPoint(
+                        viewX,
+                        viewY
+                    );
+
+                if (!el) {
+                    return;
+                }
+
+                var clickable =
+                    el.closest(
+                        "a[href], button, [role='button'], [onclick], article, .post, .entry, .card, .item, .video, .channel, .tv-channel, [class*='post'], [class*='entry'], [class*='card'], [class*='video'], [class*='channel']"
+                    ) || el;
+
+                try {
+
+                    clickable.scrollIntoView({
+                        block: "center",
+                        inline: "center"
+                    });
+
+                } catch(e) {}
+
+                setTimeout(function() {
+
+                    try {
+
+                        clickable.click();
+
+                    } catch(e) {
+
+                        try {
+
+                            var evt =
+                                new MouseEvent(
+                                    "click",
+                                    {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        view: window
+                                    }
+                                );
+
+                            clickable.dispatchEvent(
+                                evt
+                            );
+
+                        } catch(e2) {}
+                    }
+
+                }, 250);
+
+            } catch(e) {}
+
+        }, 450);
+
+        return "OK";
+
+    } catch(e) {
+
+        return "ERR";
+    }
+
+})();
+
+                                """.trimIndent()
+
+                            activeWebView.evaluateJavascript(
+                                js
+                            ) { _ ->
+
+                                runOnUiThread {
+
+                                    binding.contentMain.result.append(
+                                        """
+
+AUTO SCAN:
+Row/card clicked.
+Waiting for stream...
+
+────────────────────
+
+                                        """.trimIndent()
+                                    )
+
+                                    runDeepMediaScan(
+                                        activeWebView
+                                    )
+
+                                    binding.contentMain.webview.postDelayed(
+                                        {
+
+                                            runDeepMediaScan(
+                                                activeWebView
+                                            )
+
+                                            finalizeCurrentAutoChannel(
+                                                candidate
+                                            )
+
+                                            autoScanIndex++
+
+                                            binding.contentMain.webview.postDelayed(
+                                                {
+                                                    scanNextAutoChannel()
+                                                },
+                                                900
+                                            )
+                                        },
+                                        4500
+                                    )
+                                }
+                            }
+
+                        } catch (t: Throwable) {
+
+                            Log.e(
+                                "AUTO_SCAN",
+                                "gel-row click failed",
+                                t
+                            )
+
+                            finalizeCurrentAutoChannel(
+                                candidate
+                            )
+
+                            autoScanIndex++
+
+                            binding.contentMain.webview.postDelayed(
+                                {
+                                    scanNextAutoChannel()
+                                },
+                                900
+                            )
+                        }
+                    },
+                    loadDelay
+                )
+
+                return
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "AUTO_SCAN",
+                    "gel-row handler failed",
+                    t
+                )
+
+                autoScanIndex++
+
+                binding.contentMain.webview.postDelayed(
+                    {
+                        scanNextAutoChannel()
+                    },
+                    900
+                )
+
+                return
+            }
+        }
+
+        // =====================================
+        // NORMAL URL CANDIDATE
+        // =====================================
 
         try {
 
@@ -9104,12 +9675,10 @@ Waiting for stream...
                                 """.trimIndent()
                             )
 
-                            // First scan after click
                             runDeepMediaScan(
                                 activeWebView
                             )
 
-                            // Second/final scan — not too slow
                             binding.contentMain.webview.postDelayed(
                                 {
 
