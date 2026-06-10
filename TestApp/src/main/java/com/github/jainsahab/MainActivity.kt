@@ -8119,30 +8119,57 @@ private fun collectAutoScanCandidates(
 
         function makeRowHref(el) {
 
-            try {
+    try {
 
-                var rect =
-                    el.getBoundingClientRect();
+        var target =
+            null;
 
-                var x =
-                    Math.floor(
-                        rect.left + rect.width / 2
-                    );
+        // Prefer real clickable/media target inside card
+        try {
 
-                var y =
-                    Math.floor(
-                        rect.top + rect.height / 2 + window.scrollY
-                    );
+            target =
+                el.querySelector(
+                    "a[href], img, button, [role='button'], [onclick], .play, [class*='play'], [class*='Play']"
+                );
 
-                return "gel-row://" + encodeURIComponent(window.location.href) +
-                    "?x=" + x +
-                    "&y=" + y;
+        } catch(e) {}
 
-            } catch(e) {
-
-                return "";
-            }
+        if (!target) {
+            target =
+                el;
         }
+
+        var rect =
+            target.getBoundingClientRect();
+
+        if (
+            rect.width < 10 ||
+            rect.height < 10
+        ) {
+
+            rect =
+                el.getBoundingClientRect();
+        }
+
+        var x =
+            Math.floor(
+                rect.left + rect.width / 2
+            );
+
+        var y =
+            Math.floor(
+                rect.top + rect.height / 2 + window.scrollY
+            );
+
+        return "gel-row://" + encodeURIComponent(window.location.href) +
+            "?x=" + x +
+            "&y=" + y;
+
+    } catch(e) {
+
+        return "";
+    }
+}
 
         function addCandidate(title, href) {
 
@@ -8419,79 +8446,147 @@ private fun collectAutoScanCandidates(
         // =====================================
 
         var cardNodes =
-            Array.prototype.slice.call(
-                document.querySelectorAll(
-                    [
-                        "article",
-                        ".post",
-                        ".entry",
-                        ".card",
-                        ".item",
-                        ".video",
-                        ".channel",
-                        ".tv-channel",
-                        ".media",
-                        "[class*='post']",
-                        "[class*='Post']",
-                        "[class*='entry']",
-                        "[class*='Entry']",
-                        "[class*='card']",
-                        "[class*='Card']",
-                        "[class*='video']",
-                        "[class*='Video']",
-                        "[class*='channel']",
-                        "[class*='Channel']"
-                    ].join(",")
-                )
-            );
+    Array.prototype.slice.call(
+        document.querySelectorAll(
+            [
+                "article",
+                ".post",
+                ".entry",
+                ".card",
+                ".item",
+                ".box",
+                ".grid",
+                ".video",
+                ".channel",
+                ".tv-channel",
+                ".media",
+                ".thumb",
+                ".thumbnail",
+                ".image",
+
+                "[class*='post']",
+                "[class*='Post']",
+                "[class*='entry']",
+                "[class*='Entry']",
+                "[class*='card']",
+                "[class*='Card']",
+                "[class*='item']",
+                "[class*='Item']",
+                "[class*='box']",
+                "[class*='Box']",
+                "[class*='grid']",
+                "[class*='Grid']",
+                "[class*='video']",
+                "[class*='Video']",
+                "[class*='channel']",
+                "[class*='Channel']",
+                "[class*='thumb']",
+                "[class*='Thumb']",
+                "[class*='thumbnail']",
+                "[class*='Thumbnail']",
+                "[class*='image']",
+                "[class*='Image']"
+            ].join(",")
+        )
+    );
 
         cardNodes.forEach(function(card) {
 
+    try {
+
+        if (!isVisible(card)) {
+            return;
+        }
+
+        if (isSortOrRatingBlock(card)) {
+            return;
+        }
+
+        var deep =
+            getDeepSignal(card);
+
+        var hasImage =
+            deep.indexOf("<img") >= 0 ||
+            deep.indexOf("thumbnail") >= 0 ||
+            deep.indexOf("thumb") >= 0 ||
+            deep.indexOf("poster") >= 0;
+
+        var hasClickSignal =
+            deep.indexOf("play") >= 0 ||
+            deep.indexOf("watch") >= 0 ||
+            deep.indexOf("video") >= 0 ||
+            deep.indexOf("player") >= 0 ||
+            deep.indexOf("posted by") >= 0 ||
+            deep.indexOf("published") >= 0;
+
+        if (
+            !hasImage &&
+            !hasClickSignal
+        ) {
+            return;
+        }
+
+        var title =
+            getBestTitle(card);
+
+        if (isBadTitle(title)) {
+
             try {
 
-                if (!isVisible(card)) {
-                    return;
+                var link =
+                    card.querySelector &&
+                    card.querySelector("a[href]");
+
+                if (link) {
+
+                    title =
+                        normalizeTitle(
+                            link.innerText ||
+                            link.textContent ||
+                            link.getAttribute("title") ||
+                            link.getAttribute("aria-label") ||
+                            ""
+                        );
                 }
 
-if (isSortOrRatingBlock(card)) {
-    return;
-}
+            } catch(e) {}
+        }
 
-var title =
-    getBestTitle(card);
+        if (isBadTitle(title)) {
 
-if (isBadTitle(title)) {
-    return;
-}
+            try {
 
-var deep =
-    getDeepSignal(card);
+                var img =
+                    card.querySelector &&
+                    card.querySelector("img");
 
-var hasMedia =
-    deep.indexOf("posted by") >= 0 ||
-    deep.indexOf("<img") >= 0 ||
-    deep.indexOf("thumbnail") >= 0 ||
-    deep.indexOf("thumb") >= 0 ||
-    deep.indexOf("poster") >= 0 ||
-    deep.indexOf("play") >= 0 ||
-    deep.indexOf("watch") >= 0 ||
-    deep.indexOf("video") >= 0 ||
-    deep.indexOf("player") >= 0;
+                if (img) {
 
-if (!hasMedia) {
-    return;
-}
-
-var href =
-    makeRowHref(card);
-
-addCandidate(
-    title,
-    href
-);
+                    title =
+                        normalizeTitle(
+                            img.getAttribute("alt") ||
+                            img.getAttribute("title") ||
+                            ""
+                        );
+                }
 
             } catch(e) {}
-        });
+        }
+
+        if (isBadTitle(title)) {
+            return;
+        }
+
+        var href =
+            makeRowHref(card);
+
+        addCandidate(
+            title,
+            href
+        );
+
+    } catch(e) {}
+});
 
         // =====================================
         // PASS 2 — LINK / BUTTON COLLECTOR
