@@ -6687,6 +6687,7 @@ private fun showAutoScanStopButton() {
 
     if (autoScanStopButton != null) {
         return
+    }
     
     val button =
         Button(this).apply {
