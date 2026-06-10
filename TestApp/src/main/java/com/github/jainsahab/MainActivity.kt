@@ -20583,7 +20583,9 @@ val cdnType =
 
 // =====================================
 // EXTRA PLAYABLE LINKS
-// Show only clean/exportable playable links
+// Show only clean/exportable playable links.
+// During Auto Scan, hide BEST STREAM to avoid
+// previous-channel best stream leaking into logs.
 // =====================================
 
 val extraPlayableLinks =
@@ -20607,22 +20609,25 @@ val extraPlayableLinks =
             append("\n\n")
         }
 
-        val cleanBestStreamUrl =
-            cleanDetectedUrl(
-                getCleanBestStreamUrl()
-            )
+        if (!autoScanRunning) {
 
-        if (
-            cleanBestStreamUrl.isNotBlank() &&
-            isExportableStream(
-                cleanBestStreamUrl
-            )
-        ) {
+            val cleanBestStreamUrl =
+                cleanDetectedUrl(
+                    getCleanBestStreamUrl()
+                )
 
-            append("⭐ BEST STREAM")
-            append("\n")
-            append(cleanBestStreamUrl)
-            append("\n\n")
+            if (
+                cleanBestStreamUrl.isNotBlank() &&
+                isExportableStream(
+                    cleanBestStreamUrl
+                )
+            ) {
+
+                append("⭐ BEST STREAM")
+                append("\n")
+                append(cleanBestStreamUrl)
+                append("\n\n")
+            }
         }
     }
 
