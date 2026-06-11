@@ -25391,23 +25391,33 @@ private fun collectPlayableStreamUrls(): List<String> {
         )
 
         if (bestStreamUrl.isNotBlank()) {
-            rawStreams.add(bestStreamUrl)
+            rawStreams.add(
+                bestStreamUrl
+            )
         }
 
         if (bestLiveUrl.isNotBlank()) {
-            rawStreams.add(bestLiveUrl)
+            rawStreams.add(
+                bestLiveUrl
+            )
         }
 
         if (youtubeWatchUrl.isNotBlank()) {
-            rawStreams.add(youtubeWatchUrl)
+            rawStreams.add(
+                youtubeWatchUrl
+            )
         }
 
         if (youtubeDashVideoUrl.isNotBlank()) {
-            rawStreams.add(youtubeDashVideoUrl)
+            rawStreams.add(
+                youtubeDashVideoUrl
+            )
         }
 
         if (youtubeDashAudioUrl.isNotBlank()) {
-            rawStreams.add(youtubeDashAudioUrl)
+            rawStreams.add(
+                youtubeDashAudioUrl
+            )
         }
 
         val resultText =
@@ -25420,13 +25430,14 @@ private fun collectPlayableStreamUrls(): List<String> {
             "(https?://[^\\s\"'<>]+)"
                 .toRegex()
 
-        regex.findAll(resultText)
-            .forEach { match ->
+        regex.findAll(
+            resultText
+        ).forEach { match ->
 
-                rawStreams.add(
-                    match.value
-                )
-            }
+            rawStreams.add(
+                match.value
+            )
+        }
 
     } catch (_: Throwable) {}
 
@@ -25446,30 +25457,58 @@ private fun collectPlayableStreamUrls(): List<String> {
         } catch (_: Throwable) {}
     }
 
-    val playable =
+    val cleanedStreams =
         expandedStreams
-            .map { url ->
+            .mapNotNull { rawUrl ->
 
-                cleanDetectedPlayableUrl(
-                    repeatedlyDecodeUrl(
-                        url
-                    )
-                )
-            }
-            .filter { url ->
+                try {
 
-                url.isNotBlank() &&
-                    url.startsWith(
-                        "http",
-                        true
-                    ) &&
-                    !isWrapperOrTrackerUrl(
-                        url
-                    ) &&
-                    isExportableStream(
-                        url
-                    )
+                    val decoded =
+                        repeatedlyDecodeUrl(
+                            rawUrl
+                        )
+
+                    val playableClean =
+                        cleanDetectedPlayableUrl(
+                            decoded
+                        )
+
+                    val dailymotionClean =
+                        cleanDailymotionUrlForExport(
+                            playableClean
+                        )
+
+                    val finalClean =
+                        cleanDetectedUrl(
+                            dailymotionClean
+                        ).trim()
+
+                    if (
+                        finalClean.isBlank() ||
+                        !finalClean.startsWith(
+                            "http",
+                            true
+                        ) ||
+                        isWrapperOrTrackerUrl(
+                            finalClean
+                        ) ||
+                        !isExportableStream(
+                            finalClean
+                        )
+                    ) {
+                        null
+                    } else {
+                        finalClean
+                    }
+
+                } catch (_: Throwable) {
+
+                    null
+                }
             }
+
+    val playable =
+        cleanedStreams
             .map { url ->
 
                 val key =
@@ -25478,56 +25517,106 @@ private fun collectPlayableStreamUrls(): List<String> {
                         val lower =
                             url.lowercase()
 
-                        if (
-                            lower.contains("googlevideo.com") ||
-                            lower.contains("videoplayback")
-                        ) {
+                        when {
 
-                            val uri =
-                                Uri.parse(url)
+                            lower.contains(
+                                "googlevideo.com"
+                            ) ||
+                                lower.contains(
+                                    "videoplayback"
+                                ) -> {
 
-                            val id =
-                                uri.getQueryParameter("id")
-                                    ?.substringBefore(".")
-                                    .orEmpty()
+                                val uri =
+                                    Uri.parse(
+                                        url
+                                    )
 
-                            val itag =
-                                uri.getQueryParameter("itag")
-                                    .orEmpty()
+                                val id =
+                                    uri.getQueryParameter(
+                                        "id"
+                                    )
+                                        ?.substringBefore(
+                                            "."
+                                        )
+                                        .orEmpty()
 
-                            val mime =
-                                uri.getQueryParameter("mime")
-                                    .orEmpty()
+                                val itag =
+                                    uri.getQueryParameter(
+                                        "itag"
+                                    )
+                                        .orEmpty()
 
-                            val source =
-                                uri.getQueryParameter("source")
-                                    .orEmpty()
+                                val mime =
+                                    uri.getQueryParameter(
+                                        "mime"
+                                    )
+                                        .orEmpty()
 
-                            "googlevideo://$id/$itag/$mime/$source"
+                                val source =
+                                    uri.getQueryParameter(
+                                        "source"
+                                    )
+                                        .orEmpty()
 
-                        } else if (
-                            lower.contains("youtube.com/watch") ||
-                            lower.contains("youtu.be/") ||
-                            lower.contains("youtube.com/live") ||
-                            lower.contains("youtube.com/c/")
-                        ) {
-
-                            val uri =
-                                Uri.parse(url)
-
-                            val v =
-                                uri.getQueryParameter("v")
-                                    .orEmpty()
-
-                            if (v.isNotBlank()) {
-                                "youtube://watch/$v"
-                            } else {
-                                url.substringBefore("#").trim()
+                                "googlevideo://$id/$itag/$mime/$source"
                             }
 
-                        } else {
+                            lower.contains(
+                                "youtube.com/watch"
+                            ) ||
+                                lower.contains(
+                                    "youtu.be/"
+                                ) ||
+                                lower.contains(
+                                    "youtube.com/live"
+                                ) ||
+                                lower.contains(
+                                    "youtube.com/c/"
+                                ) -> {
 
-                            url.substringBefore("#").trim()
+                                val uri =
+                                    Uri.parse(
+                                        url
+                                    )
+
+                                val v =
+                                    uri.getQueryParameter(
+                                        "v"
+                                    )
+                                        .orEmpty()
+
+                                if (v.isNotBlank()) {
+                                    "youtube://watch/$v"
+                                } else {
+                                    url.substringBefore(
+                                        "#"
+                                    ).trim()
+                                }
+                            }
+
+                            lower.contains(
+                                "dailymotion.com/cdn/manifest/video/"
+                            ) &&
+                                lower.contains(
+                                    ".m3u8"
+                                ) -> {
+
+                                url.substringBefore(
+                                    "?"
+                                )
+                                    .substringBefore(
+                                        "#"
+                                    )
+                                    .trim()
+                                    .lowercase()
+                            }
+
+                            else -> {
+
+                                url.substringBefore(
+                                    "#"
+                                ).trim()
+                            }
                         }
 
                     } catch (_: Throwable) {
@@ -25540,6 +25629,7 @@ private fun collectPlayableStreamUrls(): List<String> {
             .distinctBy { pair ->
 
                 pair.first
+                    .lowercase()
             }
             .map { pair ->
 
@@ -25552,27 +25642,41 @@ private fun collectPlayableStreamUrls(): List<String> {
             val lower =
                 url.lowercase()
 
-            lower.contains(".m3u8") ||
-                lower.contains("manifest/hls") ||
-                lower.contains("hls_playlist") ||
-                lower.contains("hlsmanifesturl")
+            lower.contains(
+                ".m3u8"
+            ) ||
+                lower.contains(
+                    "manifest/hls"
+                ) ||
+                lower.contains(
+                    "hls_playlist"
+                ) ||
+                lower.contains(
+                    "hlsmanifesturl"
+                )
         }
 
-    return if (hasM3u8) {
+    val noSegments =
+        if (hasM3u8) {
 
-        playable.filter { url ->
+            playable.filter { url ->
 
-            !isTsMediaSegmentUrl(
-                url
-            )
+                !isTsMediaSegmentUrl(
+                    url
+                )
+            }
+
+        } else {
+
+            playable
         }
 
-    } else {
+    return noSegments
+        .distinctBy { url ->
 
-        playable
-    }
+            url.lowercase()
+        }
 }
-
 
 // =====================================
 // CLEAN BEST STREAM URL
@@ -26341,6 +26445,31 @@ private fun showDetectedStreamsDialog() {
 
         val streamList =
             collectPlayableStreamUrls()
+                .mapNotNull { rawUrl ->
+
+                    val cleanUrl =
+                        cleanDailymotionUrlForExport(
+                            rawUrl
+                        ).let { cleaned ->
+                            cleanDetectedUrl(
+                                cleaned
+                            )
+                        }.trim()
+
+                    if (
+                        cleanUrl.isBlank() ||
+                        !isExportableStream(
+                            cleanUrl
+                        )
+                    ) {
+                        null
+                    } else {
+                        cleanUrl
+                    }
+                }
+                .distinctBy { url ->
+                    url.lowercase()
+                }
 
         if (streamList.isEmpty()) {
 
