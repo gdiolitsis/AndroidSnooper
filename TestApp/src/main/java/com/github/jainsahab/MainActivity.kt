@@ -6753,7 +6753,7 @@ ${cleanDetectedUrl(youtubeDashAudioUrl)}
 
 // =====================================
 // DAILYMOTION CLEAN EXPORT HELPER
-// Keeps stable manifest / removes ad-session-gdpr junk
+// Keeps clean Dailymotion streams / removes ad-session-gdpr junk
 // =====================================
 
 private fun cleanDailymotionUrlForExport(
@@ -6778,7 +6778,7 @@ private fun cleanDailymotionUrlForExport(
             return clean
         }
 
-        // Temporary signed CDN link — bad for stable export
+        // CUT only temporary signed cdndirector links
         if (
             lower.contains("cdndirector.dailymotion.com") &&
             (
@@ -6790,11 +6790,15 @@ private fun cleanDailymotionUrlForExport(
             return ""
         }
 
-        // Plain cdndirector without token is also weaker than manifest
+        // KEEP clean cdndirector live stream
         if (
-            lower.contains("cdndirector.dailymotion.com")
+            lower.contains("cdndirector.dailymotion.com") &&
+            lower.contains("/cdn/live/video/") &&
+            lower.contains(".m3u8")
         ) {
-            return ""
+            return clean.substringBefore("?")
+                .substringBefore("#")
+                .trim()
         }
 
         // Hard ad/session/consent/error junk
@@ -6842,7 +6846,7 @@ private fun cleanDailymotionUrlForExport(
             }
         }
 
-        // Prefer stable manifest base for Dailymotion
+        // KEEP clean Dailymotion manifest base
         if (
             lower.contains("/cdn/manifest/video/") &&
             lower.contains(".m3u8")
@@ -6862,6 +6866,8 @@ private fun cleanDailymotionUrlForExport(
 
 // =====================================
 // BUTTON OUTLINE STYLE
+// Keeps gray button background + bold black text
+// Adds only colored thick outline
 // =====================================
 
 private fun applyButtonOutline(
@@ -6870,34 +6876,47 @@ private fun applyButtonOutline(
 ) {
     try {
 
+        val strokeWidthPx =
+            5
+
+        val cornerRadiusPx =
+            8f
+
         val drawable =
             android.graphics.drawable.GradientDrawable().apply {
 
                 shape =
                     android.graphics.drawable.GradientDrawable.RECTANGLE
 
+                // Keep button background gray
                 setColor(
-                    android.graphics.Color.TRANSPARENT
+                    android.graphics.Color.rgb(
+                        224,
+                        224,
+                        224
+                    )
                 )
 
+                // Thicker outline
                 setStroke(
-                    3,
+                    strokeWidthPx,
                     borderColor
                 )
 
                 cornerRadius =
-                    8f
+                    cornerRadiusPx
             }
 
         button.background =
             drawable
 
+        // Keep text black + bold
         button.setTextColor(
-            borderColor
+            android.graphics.Color.BLACK
         )
 
-        button.isAllCaps =
-            false
+        button.typeface =
+            android.graphics.Typeface.DEFAULT_BOLD
 
     } catch (_: Throwable) {}
 }
