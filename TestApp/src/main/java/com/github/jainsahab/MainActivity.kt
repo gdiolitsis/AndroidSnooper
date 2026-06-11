@@ -6752,6 +6752,115 @@ ${cleanDetectedUrl(youtubeDashAudioUrl)}
 } // END onCreate()
 
 // =====================================
+// DAILYMOTION CLEAN EXPORT HELPER
+// Keeps stable manifest / removes ad-session-gdpr junk
+// =====================================
+
+private fun cleanDailymotionUrlForExport(
+    url: String
+): String {
+
+    try {
+
+        val clean: String =
+            cleanDetectedUrl(
+                url
+            ).trim()
+
+        val lower: String =
+            clean.lowercase()
+
+        if (
+            !lower.contains("dailymotion.com") &&
+            !lower.contains("dmxleo.dailymotion.com") &&
+            !lower.contains("cdndirector.dailymotion.com")
+        ) {
+            return clean
+        }
+
+        // Temporary signed CDN link — bad for stable export
+        if (
+            lower.contains("cdndirector.dailymotion.com") &&
+            (
+                lower.contains("sec=") ||
+                lower.contains("dmts=") ||
+                lower.contains("dmv1st=")
+            )
+        ) {
+            return ""
+        }
+
+        // Plain cdndirector without token is also weaker than manifest
+        if (
+            lower.contains("cdndirector.dailymotion.com")
+        ) {
+            return ""
+        }
+
+        // Hard ad/session/consent/error junk
+        if (
+            lower.contains("error=") ||
+            lower.contains("reader_gdpr") ||
+            lower.contains("gdpr_binary_consent") ||
+            lower.contains("gdpr_comes_from_infopack") ||
+            lower.contains("reader_us_privacy") ||
+            lower.contains("cookie_sync") ||
+            lower.contains("vmap") ||
+            lower.contains("monetization") ||
+            lower.contains("ciid=") ||
+            lower.contains("cidx=") ||
+            lower.contains("sidx=") ||
+            lower.contains("vididx=") ||
+            lower.contains("imal=") ||
+            lower.contains("3pcb=") ||
+            lower.contains("rap=") ||
+            lower.contains("apo=") ||
+            lower.contains("pdm=") ||
+            lower.contains("pbm=") ||
+            lower.contains("bs=") ||
+            lower.contains("rid=")
+        ) {
+
+            val base: String =
+                clean.substringBefore("?")
+                    .substringBefore("#")
+                    .trim()
+
+            return if (
+                base.contains(
+                    "/cdn/manifest/video/",
+                    true
+                ) &&
+                base.contains(
+                    ".m3u8",
+                    true
+                )
+            ) {
+                base
+            } else {
+                ""
+            }
+        }
+
+        // Prefer stable manifest base for Dailymotion
+        if (
+            lower.contains("/cdn/manifest/video/") &&
+            lower.contains(".m3u8")
+        ) {
+            return clean.substringBefore("?")
+                .substringBefore("#")
+                .trim()
+        }
+
+        return clean
+
+    } catch (_: Throwable) {
+
+        return ""
+    }
+}
+
+// =====================================
 // BUTTON OUTLINE STYLE
 // =====================================
 
