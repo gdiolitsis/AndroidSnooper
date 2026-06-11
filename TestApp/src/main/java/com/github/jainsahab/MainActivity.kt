@@ -2102,6 +2102,78 @@ binding.root
 
 )
 
+// =====================================
+// GEL BUTTON OUTLINE COLORS
+// Green outline for actions / Red outline for CLEAR
+// =====================================
+
+try {
+
+    val green =
+        android.graphics.Color.rgb(
+            0,
+            170,
+            80
+        )
+
+    val red =
+        android.graphics.Color.rgb(
+            210,
+            0,
+            0
+        )
+
+    // TOP BUTTONS — GREEN
+    applyButtonOutline(
+        binding.contentMain.openBrowser,
+        green
+    )
+
+    applyButtonOutline(
+        binding.contentMain.openChrome,
+        green
+    )
+
+    applyButtonOutline(
+        binding.contentMain.btnAll,
+        green
+    )
+
+    applyButtonOutline(
+        binding.contentMain.btnVideos,
+        green
+    )
+
+    applyButtonOutline(
+        binding.contentMain.btnAudio,
+        green
+    )
+
+    // TOP CLEAR — RED
+    applyButtonOutline(
+        binding.contentMain.btnClear,
+        red
+    )
+
+    // RESULT PANEL BUTTONS — GREEN
+    applyButtonOutline(
+        binding.contentMain.btnResultsToggle,
+        green
+    )
+
+    applyButtonOutline(
+        binding.contentMain.btnResultCopy,
+        green
+    )
+
+    // RESULT CLEAR — RED
+    applyButtonOutline(
+        binding.contentMain.btnResultClear,
+        red
+    )
+
+} catch (_: Throwable) {}
+
 loadSavedChannels()
 
 window.setSoftInputMode(
@@ -6678,6 +6750,48 @@ ${cleanDetectedUrl(youtubeDashAudioUrl)}
 } // END result long press listener
 
 } // END onCreate()
+
+// =====================================
+// BUTTON OUTLINE STYLE
+// =====================================
+
+private fun applyButtonOutline(
+    button: Button,
+    borderColor: Int
+) {
+    try {
+
+        val drawable =
+            android.graphics.drawable.GradientDrawable().apply {
+
+                shape =
+                    android.graphics.drawable.GradientDrawable.RECTANGLE
+
+                setColor(
+                    android.graphics.Color.TRANSPARENT
+                )
+
+                setStroke(
+                    3,
+                    borderColor
+                )
+
+                cornerRadius =
+                    8f
+            }
+
+        button.background =
+            drawable
+
+        button.setTextColor(
+            borderColor
+        )
+
+        button.isAllCaps =
+            false
+
+    } catch (_: Throwable) {}
+}
 
 // =====================================
 // FLOATING STOP AUTO SCAN BUTTON
