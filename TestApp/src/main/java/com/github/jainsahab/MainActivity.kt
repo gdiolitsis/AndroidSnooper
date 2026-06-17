@@ -53,6 +53,18 @@ private lateinit var binding:
 private var liveUrlInputText =
     ""
 
+private var externalBrowserReturnPending =
+    false
+
+private var externalBrowserOpenedAt =
+    0L
+
+private var externalBrowserReturnUrl =
+    ""
+
+private var externalBrowserReturnDialogVisible =
+    false
+
 // =====================================
 // BROWSER HISTORY / BOOKMARKS / MENU IDS
 // =====================================
@@ -4314,18 +4326,9 @@ $finalUrl
                 }  
             }  
 
-        val browserIntent =  
-Intent(  
-    Intent.ACTION_VIEW,  
-    Uri.parse(finalUrl)  
-)
-
-startActivity(
-Intent.createChooser(
-browserIntent,
-"Open With Browser"
-)
-)
+        openExternalBrowserWithAnalyzerReturn(
+            finalUrl
+        )
 }
 
 // =====================================
@@ -27908,22 +27911,8 @@ private fun openCurrentPageInExternalBrowser() {
             return
         }
 
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW,
-                Uri.parse(url)
-            ).apply {
-
-                addCategory(
-                    Intent.CATEGORY_BROWSABLE
-                )
-            }
-
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Open With Browser"
-            )
+        openExternalBrowserWithAnalyzerReturn(
+            url
         )
 
     } catch (t: Throwable) {
@@ -27940,6 +27929,186 @@ private fun openCurrentPageInExternalBrowser() {
             Toast.LENGTH_SHORT
         ).show()
     }
+}
+
+// =====================================
+// EXTERNAL BROWSER WITH ANALYZER RETURN
+// =====================================
+
+private fun openExternalBrowserWithAnalyzerReturn(
+    url: String
+) {
+
+    try {
+
+        val cleanUrl =
+            url.trim()
+
+        if (
+            cleanUrl.isBlank() ||
+            (
+                !cleanUrl.startsWith(
+                    "http://",
+                    true
+                ) &&
+                !cleanUrl.startsWith(
+                    "https://",
+                    true
+                )
+            )
+        ) {
+
+            Toast.makeText(
+                this,
+                "Invalid browser URL",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        externalBrowserReturnUrl =
+            cleanUrl
+
+        externalBrowserReturnPending =
+            true
+
+        externalBrowserOpenedAt =
+            System.currentTimeMillis()
+
+        externalBrowserReturnDialogVisible =
+            false
+
+        val intent =
+            Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse(
+                    cleanUrl
+                )
+            ).apply {
+
+                addCategory(
+                    Intent.CATEGORY_BROWSABLE
+                )
+            }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Open With Browser"
+            )
+        )
+
+    } catch (t: Throwable) {
+
+        externalBrowserReturnPending =
+            false
+
+        Log.e(
+            "OPEN_EXTERNAL_BROWSER",
+            "failed",
+            t
+        )
+
+        Toast.makeText(
+            this,
+            "Cannot open browser",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+private fun showReturnToAnalyzerDialog() {
+
+    if (
+        !externalBrowserReturnPending ||
+        externalBrowserReturnDialogVisible ||
+        isFinishing ||
+        isDestroyed
+    ) {
+        return
+    }
+
+    val url =
+        externalBrowserReturnUrl
+            .trim()
+
+    if (url.isBlank()) {
+
+        externalBrowserReturnPending =
+            false
+
+        return
+    }
+
+    externalBrowserReturnDialogVisible =
+        true
+
+    androidx.appcompat.app.AlertDialog.Builder(this)
+        .setTitle(
+            "Return to GEL Analyzer"
+        )
+        .setMessage(
+            "The page was opened in the external browser.\n\n" +
+                "Return this URL to the Analyzer?"
+        )
+        .setPositiveButton(
+            "CONTINUE TO ANALYZER"
+        ) { _, _ ->
+
+            externalBrowserReturnPending =
+                false
+
+            externalBrowserReturnDialogVisible =
+                false
+
+            binding.contentMain.urlInput.setText(
+                url
+            )
+
+            binding.contentMain.urlInput.setSelection(
+                0
+            )
+
+            liveUrlInputText =
+                url
+
+            try {
+
+                binding.contentMain.webview.stopLoading()
+
+                binding.contentMain.webview.loadUrl(
+                    url
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "RETURN_TO_ANALYZER",
+                    "Analyzer reload failed",
+                    t
+                )
+            }
+        }
+        .setNegativeButton(
+            "KEEP CURRENT PAGE"
+        ) { _, _ ->
+
+            externalBrowserReturnPending =
+                false
+
+            externalBrowserReturnDialogVisible =
+                false
+        }
+        .setOnCancelListener {
+
+            externalBrowserReturnPending =
+                false
+
+            externalBrowserReturnDialogVisible =
+                false
+        }
+        .show()
 }
 
 // =====================================
@@ -28086,6 +28255,44 @@ private fun clearBrowserData() {
 // =====================================  
 // MENU  
 // =====================================
+
+override fun onResume() {
+
+    super.onResume()
+
+    if (!externalBrowserReturnPending) {
+        return
+    }
+
+    val elapsed =
+        System.currentTimeMillis() -
+            externalBrowserOpenedAt
+
+    val delay =
+        if (elapsed >= 900L) {
+            250L
+        } else {
+            900L - elapsed
+        }
+
+    binding.root.postDelayed(
+        {
+
+            try {
+
+                if (
+                    externalBrowserReturnPending &&
+                    !externalBrowserReturnDialogVisible
+                ) {
+
+                    showReturnToAnalyzerDialog()
+                }
+
+            } catch (_: Throwable) {}
+        },
+        delay
+    )
+}
 
 override fun onCreateOptionsMenu(
     menu: Menu
