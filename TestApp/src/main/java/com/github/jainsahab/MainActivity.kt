@@ -324,10 +324,6 @@ private val cloudflareFallbackRunnable =
 
         try {
 
-            if (!cloudflareChallengeActive) {
-                return@Runnable
-            }
-
             val activeWebView =
                 popupWebView
                     ?: binding.contentMain.webview
@@ -337,35 +333,132 @@ private val cloudflareFallbackRunnable =
                     ?.trim()
                     .orEmpty()
 
-            if (currentUrl.isBlank()) {
-                return@Runnable
-            }
-
-            val host =
-                try {
-
-                    Uri.parse(currentUrl)
-                        .host
-                        ?.lowercase()
-                        .orEmpty()
-
-                } catch (_: Throwable) {
-
-                    ""
-                }
-
             if (
-                host.isBlank() ||
-                cloudflareFallbackShownHosts.contains(host)
+                currentUrl.isBlank() ||
+                currentUrl.equals(
+                    "about:blank",
+                    true
+                )
             ) {
                 return@Runnable
             }
 
-            cloudflareFallbackShownHosts.add(host)
+            activeWebView.evaluateJavascript(
+                """
+(function() {
 
-            showCloudflareBrowserFallback(
-                currentUrl
-            )
+    try {
+
+        var title =
+            String(document.title || "").toLowerCase();
+
+        var body =
+            String(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
+            ).toLowerCase();
+
+        var html =
+            String(
+                document.documentElement
+                    ? document.documentElement.outerHTML || ""
+                    : ""
+            ).toLowerCase();
+
+        var explicitMarker =
+            html.indexOf("cf-chl-") >= 0 ||
+            html.indexOf("challenge-platform") >= 0 ||
+            html.indexOf("cf-turnstile") >= 0 ||
+            html.indexOf("challenges.cloudflare.com") >= 0 ||
+            html.indexOf("cf_clearance") >= 0 ||
+            html.indexOf("cdn-cgi/challenge") >= 0;
+
+        var cloudflareBrand =
+            html.indexOf("cloudflare") >= 0 ||
+            body.indexOf("cloudflare") >= 0;
+
+        var challengeText =
+            body.indexOf("verify you are human") >= 0 ||
+            body.indexOf("checking your browser") >= 0 ||
+            body.indexOf("performing security verification") >= 0 ||
+            body.indexOf("please wait while we verify") >= 0 ||
+            body.indexOf("verification in progress") >= 0 ||
+            body.indexOf("πραγματοποιείται επαλήθευση ασφαλείας") >= 0 ||
+            body.indexOf("γίνεται επαλήθευση") >= 0 ||
+            body.indexOf("επαληθεύει ότι δεν είστε bot") >= 0 ||
+            body.indexOf("επαληθεύει ότι δεν είσαι bot") >= 0;
+
+        var waitingTitle =
+            title.indexOf("just a moment") >= 0 ||
+            title.indexOf("attention required") >= 0 ||
+            title.indexOf("επαλήθευση") >= 0;
+
+        return (
+            explicitMarker ||
+            (challengeText && cloudflareBrand) ||
+            (waitingTitle && cloudflareBrand)
+        )
+            ? "challenge"
+            : "clear";
+
+    } catch(e) {
+
+        return "clear";
+    }
+})();
+                """.trimIndent()
+            ) { result ->
+
+                try {
+
+                    val challenge =
+                        result?.contains(
+                            "challenge",
+                            true
+                        ) == true
+
+                    if (!challenge) {
+                        return@evaluateJavascript
+                    }
+
+                    cloudflareChallengeActive =
+                        true
+
+                    val host =
+                        try {
+
+                            Uri.parse(
+                                currentUrl
+                            )
+                                .host
+                                ?.lowercase()
+                                .orEmpty()
+
+                        } catch (_: Throwable) {
+
+                            ""
+                        }
+
+                    if (
+                        host.isBlank() ||
+                        cloudflareFallbackShownHosts.contains(
+                            host
+                        )
+                    ) {
+                        return@evaluateJavascript
+                    }
+
+                    cloudflareFallbackShownHosts.add(
+                        host
+                    )
+
+                    showCloudflareBrowserFallback(
+                        currentUrl
+                    )
+
+                } catch (_: Throwable) {}
+            }
 
         } catch (_: Throwable) {}
     }
@@ -12727,6 +12820,15 @@ private fun detectCloudflareChallengeAndSchedule(
 
     try {
 
+        uiHandler.removeCallbacks(
+            cloudflareFallbackRunnable
+        )
+
+        uiHandler.postDelayed(
+            cloudflareFallbackRunnable,
+            15000L
+        )
+
         if (
             view == null ||
             url.isNullOrBlank() ||
@@ -12774,7 +12876,11 @@ private fun detectCloudflareChallengeAndSchedule(
             body.indexOf("checking your browser") >= 0 ||
             body.indexOf("performing security verification") >= 0 ||
             body.indexOf("verification successful") >= 0 ||
-            body.indexOf("please wait while we verify") >= 0;
+            body.indexOf("please wait while we verify") >= 0 ||
+            body.indexOf("πραγματοποιείται επαλήθευση ασφαλείας") >= 0 ||
+            body.indexOf("γίνεται επαλήθευση") >= 0 ||
+            body.indexOf("επαληθεύει ότι δεν είστε bot") >= 0 ||
+            body.indexOf("επαληθεύει ότι δεν είσαι bot") >= 0;
 
         var waitingTitle =
             title.indexOf("just a moment") >= 0 ||
