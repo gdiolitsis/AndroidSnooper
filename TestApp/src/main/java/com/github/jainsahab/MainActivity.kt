@@ -316,6 +316,134 @@ private var cloudflareChallengeActive =
 private var lastCloudflareChallengeTime =
     0L
 
+private val cloudflareRecoveryAttemptedHosts =
+    mutableSetOf<String>()
+
+private val cloudflareRecoveryRunnable =
+    Runnable {
+
+        try {
+
+            if (!cloudflareChallengeActive) {
+                return@Runnable
+            }
+
+            val activeWebView =
+                popupWebView
+                    ?: binding.contentMain.webview
+
+            val currentUrl =
+                activeWebView.url
+                    ?.trim()
+                    .orEmpty()
+
+            if (currentUrl.isBlank()) {
+                return@Runnable
+            }
+
+            val host =
+                try {
+
+                    Uri.parse(
+                        currentUrl
+                    )
+                        .host
+                        ?.lowercase()
+                        .orEmpty()
+
+                } catch (_: Throwable) {
+
+                    ""
+                }
+
+            if (
+                host.isBlank() ||
+                cloudflareRecoveryAttemptedHosts.contains(
+                    host
+                )
+            ) {
+                return@Runnable
+            }
+
+            activeWebView.evaluateJavascript(
+                """
+(function() {
+
+    try {
+
+        var title =
+            String(document.title || "").toLowerCase();
+
+        var body =
+            String(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
+            ).toLowerCase();
+
+        var html =
+            String(
+                document.documentElement
+                    ? document.documentElement.outerHTML || ""
+                    : ""
+            ).toLowerCase();
+
+        var challenge =
+            html.indexOf("cf-chl-") >= 0 ||
+            html.indexOf("challenge-platform") >= 0 ||
+            html.indexOf("cf-turnstile") >= 0 ||
+            html.indexOf("challenges.cloudflare.com") >= 0 ||
+            title.indexOf("just a moment") >= 0 ||
+            body.indexOf("verify you are human") >= 0 ||
+            body.indexOf("checking your browser") >= 0 ||
+            body.indexOf("performing security verification") >= 0;
+
+        return challenge
+            ? "challenge"
+            : "clear";
+
+    } catch(e) {
+
+        return "challenge";
+    }
+})();
+                """.trimIndent()
+            ) { result ->
+
+                try {
+
+                    val stillChallenge =
+                        (
+                            result?.contains(
+                                "challenge",
+                                true
+                            ) == true
+                        )
+
+                    if (!stillChallenge) {
+
+                        setCloudflareChallengeMode(
+                            false
+                        )
+
+                        return@evaluateJavascript
+                    }
+
+                    cloudflareRecoveryAttemptedHosts.add(
+                        host
+                    )
+
+                    clearCloudflareChallengeStateAndReload(
+                        activeWebView,
+                        currentUrl
+                    )
+
+                } catch (_: Throwable) {}
+            }
+
+        } catch (_: Throwable) {}
+    }
+
 private val cloudflareChallengeRecheckRunnable =
     object : Runnable {
 
@@ -4043,6 +4171,8 @@ cloudflareChallengeActive =
 
 lastCloudflareChallengeTime =
     0L
+
+cloudflareRecoveryAttemptedHosts.clear()
 
 streamScores.clear()
 streamValidation.clear()
@@ -12634,6 +12764,101 @@ private fun clearTsFallbackBecausePlaylistFound() {
 // CLOUDFLARE / VERIFY PAGE DETECTOR
 // =====================================
 
+private fun clearCloudflareChallengeStateAndReload(
+    view: WebView,
+    url: String
+) {
+
+    try {
+
+        val cookieManager =
+            CookieManager.getInstance()
+
+        val rawCookies =
+            cookieManager
+                .getCookie(
+                    url
+                )
+                .orEmpty()
+
+        rawCookies
+            .split(";")
+            .mapNotNull { cookie ->
+
+                cookie
+                    .substringBefore("=")
+                    .trim()
+                    .takeIf { name ->
+
+                        name.startsWith(
+                            "__cf",
+                            true
+                        ) ||
+                        name.startsWith(
+                            "cf_",
+                            true
+                        ) ||
+                        name.contains(
+                            "turnstile",
+                            true
+                        )
+                    }
+            }
+            .distinct()
+            .forEach { name ->
+
+                try {
+
+                    cookieManager.setCookie(
+                        url,
+                        "$name=; Max-Age=0; Path=/; Secure; SameSite=None"
+                    )
+
+                } catch (_: Throwable) {}
+            }
+
+        try {
+
+            cookieManager.flush()
+
+        } catch (_: Throwable) {}
+
+        try {
+
+            view.stopLoading()
+            view.clearCache(true)
+
+        } catch (_: Throwable) {}
+
+        view.postDelayed(
+            {
+
+                try {
+
+                    view.loadUrl(
+                        url
+                    )
+
+                } catch (_: Throwable) {}
+            },
+            450L
+        )
+
+        Log.e(
+            "CLOUDFLARE_RECOVERY",
+            "One clean challenge retry started for $url"
+        )
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "CLOUDFLARE_RECOVERY",
+            "Recovery failed",
+            t
+        )
+    }
+}
+
 private fun isCloudflareChallengeRequestUrl(
     url: String?
 ): Boolean {
@@ -12747,14 +12972,22 @@ private fun setCloudflareChallengeMode(
         cloudflareChallengeRecheckRunnable
     )
 
+    activeWebView.removeCallbacks(
+        cloudflareRecoveryRunnable
+    )
+
     if (active) {
 
         lastCloudflareChallengeTime =
             System.currentTimeMillis()
 
-        // No recurring DOM polling while Cloudflare is executing.
-        // The challenge page must keep the WebView main thread free.
-        // Completion is detected by the normal page reload/navigation flow.
+        // Give Cloudflare enough time to complete normally.
+        // If it remains stuck, perform one clean session retry
+        // for this host only. No repeating reload loop.
+        activeWebView.postDelayed(
+            cloudflareRecoveryRunnable,
+            18000L
+        )
 
     } else {
 
