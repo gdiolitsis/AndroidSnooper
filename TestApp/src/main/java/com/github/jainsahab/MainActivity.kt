@@ -3379,24 +3379,8 @@ if (isBlockedPage) {
                     )
                 ) {
 
-                    if (!cloudflareClearanceConfirmed) {
-
-                        runOnUiThread {
-
-                            if (
-                                !confirmCloudflareClearance(
-                                    view,
-                                    view?.url
-                                )
-                            ) {
-
-                                setCloudflareChallengeMode(
-                                    true
-                                )
-                            }
-                        }
-                    }
-
+                    // Cloudflare subresources must pass untouched.
+                    // Never restart verification state from shouldInterceptRequest().
                     return null
                 }
 
@@ -3709,24 +3693,8 @@ binding.contentMain.webview.webChromeClient =
                             )
                         ) {
 
-                            if (!cloudflareClearanceConfirmed) {
-
-                                runOnUiThread {
-
-                                    if (
-                                        !confirmCloudflareClearance(
-                                            view,
-                                            view?.url
-                                        )
-                                    ) {
-
-                                        setCloudflareChallengeMode(
-                                            true
-                                        )
-                                    }
-                                }
-                            }
-
+                            // Cloudflare subresources must pass untouched.
+                            // Never restart verification state from shouldInterceptRequest().
                             return null
                         }
 
