@@ -304,6 +304,10 @@ private var cloudflareQuarantineUntil =
 private var lastCloudflareChallengeTime =
     0L
 
+@Volatile
+private var cloudflareClearanceConfirmed =
+    false
+
 private val cloudflareResumeRunnable =
     Runnable {
 
@@ -2863,6 +2867,11 @@ override fun onPageFinished(
                 return
             }
 
+            confirmCloudflareClearance(
+                view,
+                url
+            )
+
             if (cloudflareChallengeActive) {
 
                 inspectCloudflareState(
@@ -3370,11 +3379,22 @@ if (isBlockedPage) {
                     )
                 ) {
 
-                    runOnUiThread {
+                    if (!cloudflareClearanceConfirmed) {
 
-                        setCloudflareChallengeMode(
-                            true
-                        )
+                        runOnUiThread {
+
+                            if (
+                                !confirmCloudflareClearance(
+                                    view,
+                                    view?.url
+                                )
+                            ) {
+
+                                setCloudflareChallengeMode(
+                                    true
+                                )
+                            }
+                        }
                     }
 
                     return null
@@ -3689,11 +3709,22 @@ binding.contentMain.webview.webChromeClient =
                             )
                         ) {
 
-                            runOnUiThread {
+                            if (!cloudflareClearanceConfirmed) {
 
-                                setCloudflareChallengeMode(
-                                    true
-                                )
+                                runOnUiThread {
+
+                                    if (
+                                        !confirmCloudflareClearance(
+                                            view,
+                                            view?.url
+                                        )
+                                    ) {
+
+                                        setCloudflareChallengeMode(
+                                            true
+                                        )
+                                    }
+                                }
                             }
 
                             return null
@@ -3728,6 +3759,11 @@ binding.contentMain.webview.webChromeClient =
                     try {
 
                         if (!url.isNullOrBlank()) {
+
+                            confirmCloudflareClearance(
+                                view,
+                                url
+                            )
 
                             if (cloudflareChallengeActive) {
 
@@ -3934,6 +3970,9 @@ pagePlaylistFound =
 pendingTsFallback.clear()
 
 cloudflareChallengeActive =
+    false
+
+cloudflareClearanceConfirmed =
     false
 
 cloudflareQuarantineUntil =
@@ -12582,6 +12621,91 @@ private fun isCloudflareLikePage(
     )
 }
 
+private fun hasCloudflareClearanceCookie(
+    url: String?
+): Boolean {
+
+    return try {
+
+        val cookies =
+            CookieManager
+                .getInstance()
+                .getCookie(
+                    url.orEmpty()
+                )
+                .orEmpty()
+
+        cookies.contains(
+            "cf_clearance=",
+            true
+        )
+
+    } catch (_: Throwable) {
+
+        false
+    }
+}
+
+private fun confirmCloudflareClearance(
+    view: WebView?,
+    url: String?
+): Boolean {
+
+    if (
+        cloudflareClearanceConfirmed ||
+        !hasCloudflareClearanceCookie(
+            url
+        )
+    ) {
+        return cloudflareClearanceConfirmed
+    }
+
+    cloudflareClearanceConfirmed =
+        true
+
+    try {
+
+        CookieManager
+            .getInstance()
+            .flush()
+
+    } catch (_: Throwable) {}
+
+    cloudflareChallengeActive =
+        false
+
+    cloudflareQuarantineUntil =
+        System.currentTimeMillis() +
+            8000L
+
+    lastCloudflareChallengeTime =
+        System.currentTimeMillis()
+
+    webUserInteracting =
+        true
+
+    val activeWebView =
+        view
+            ?: popupWebView
+            ?: binding.contentMain.webview
+
+    activeWebView.removeCallbacks(
+        cloudflareResumeRunnable
+    )
+
+    activeWebView.postDelayed(
+        cloudflareResumeRunnable,
+        8100L
+    )
+
+    Log.e(
+        "CLOUDFLARE_GUARD",
+        "cf_clearance confirmed -> redirect quarantine"
+    )
+
+    return true
+}
+
 private fun isCloudflareWorkPaused(): Boolean {
 
     return (
@@ -12604,6 +12728,10 @@ private fun setCloudflareChallengeMode(
     )
 
     if (active) {
+
+        if (cloudflareClearanceConfirmed) {
+            return
+        }
 
         cloudflareChallengeActive =
             true
@@ -12667,6 +12795,15 @@ private fun inspectCloudflareState(
         if (
             view == null ||
             url.isNullOrBlank()
+        ) {
+            return
+        }
+
+        if (
+            confirmCloudflareClearance(
+                view,
+                url
+            )
         ) {
             return
         }
