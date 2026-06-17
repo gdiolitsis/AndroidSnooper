@@ -364,6 +364,161 @@ private val cloudflareResumeRunnable =
         } catch (_: Throwable) {}
     }
     
+
+private val cloudflareSuccessWatcher =
+    object : Runnable {
+
+        override fun run() {
+
+            try {
+
+                if (
+                    !cloudflareChallengeActive ||
+                    cloudflareClearanceConfirmed
+                ) {
+                    return
+                }
+
+                val activeWebView =
+                    popupWebView
+                        ?: binding.contentMain.webview
+
+                if (
+                    hasCloudflareClearanceCookie(
+                        activeWebView.url
+                    )
+                ) {
+
+                    cloudflareClearanceConfirmed =
+                        true
+
+                    try {
+
+                        CookieManager
+                            .getInstance()
+                            .flush()
+
+                    } catch (_: Throwable) {}
+
+                    setCloudflareChallengeMode(
+                        false
+                    )
+
+                    return
+                }
+
+                activeWebView.evaluateJavascript(
+                    """
+(function() {
+
+    try {
+
+        var token = "";
+
+        var responseNode =
+            document.querySelector(
+                'input[name="cf-turnstile-response"], textarea[name="cf-turnstile-response"]'
+            );
+
+        if (responseNode) {
+            token = String(responseNode.value || "").trim();
+        }
+
+        var checked = false;
+
+        var checkedNode =
+            document.querySelector(
+                '[aria-checked="true"], input[type="checkbox"]:checked'
+            );
+
+        if (checkedNode) {
+            checked = true;
+        }
+
+        var body =
+            String(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
+            ).toLowerCase();
+
+        var successText =
+            body.indexOf("verification successful") >= 0 ||
+            body.indexOf("success") >= 0 ||
+            body.indexOf("επιτυχής επαλήθευση") >= 0;
+
+        return (
+            token.length > 20 ||
+            checked ||
+            successText
+        )
+            ? "success"
+            : "waiting";
+
+    } catch(e) {
+
+        return "waiting";
+    }
+})();
+                    """.trimIndent()
+                ) { result ->
+
+                    try {
+
+                        val success =
+                            result?.contains(
+                                "success",
+                                true
+                            ) == true
+
+                        if (success) {
+
+                            cloudflareClearanceConfirmed =
+                                true
+
+                            try {
+
+                                CookieManager
+                                    .getInstance()
+                                    .flush()
+
+                            } catch (_: Throwable) {}
+
+                            setCloudflareChallengeMode(
+                                false
+                            )
+
+                        } else {
+
+                            activeWebView.postDelayed(
+                                this,
+                                700L
+                            )
+                        }
+
+                    } catch (_: Throwable) {
+
+                        activeWebView.postDelayed(
+                            this,
+                            700L
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {
+
+                try {
+
+                    binding.contentMain.webview.postDelayed(
+                        this,
+                        700L
+                    )
+
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+
 // =====================================
 // CLEAR WEB INTERACTION FLAG
 // =====================================
@@ -4012,8 +4167,16 @@ binding.contentMain.webview.removeCallbacks(
     cloudflareResumeRunnable
 )
 
+binding.contentMain.webview.removeCallbacks(
+    cloudflareSuccessWatcher
+)
+
 popupWebView?.removeCallbacks(
     cloudflareResumeRunnable
+)
+
+popupWebView?.removeCallbacks(
+    cloudflareSuccessWatcher
 )
 
 lastCloudflareChallengeTime =
@@ -12757,6 +12920,10 @@ private fun setCloudflareChallengeMode(
         cloudflareResumeRunnable
     )
 
+    activeWebView.removeCallbacks(
+        cloudflareSuccessWatcher
+    )
+
     if (active) {
 
         if (cloudflareClearanceConfirmed) {
@@ -12777,6 +12944,11 @@ private fun setCloudflareChallengeMode(
 
         binding.contentMain.webview.removeCallbacks(
             clearWebInteractionRunnable
+        )
+
+        activeWebView.postDelayed(
+            cloudflareSuccessWatcher,
+            500L
         )
 
         Log.e(
