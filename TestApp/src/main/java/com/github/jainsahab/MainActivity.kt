@@ -12677,7 +12677,7 @@ private fun confirmCloudflareClearance(
 private fun isCloudflareWorkPaused(): Boolean {
 
     return (
-        isCloudflareWorkPaused() ||
+        cloudflareChallengeActive ||
         System.currentTimeMillis() <
             cloudflareQuarantineUntil
     )
@@ -12724,7 +12724,7 @@ private fun setCloudflareChallengeMode(
 
     } else {
 
-        if (!isCloudflareWorkPaused()) {
+        if (!cloudflareChallengeActive) {
             return
         }
 
