@@ -162,28 +162,12 @@ private val systemWebViewUserAgent: String by lazy {
 
     try {
 
-        val rawUserAgent =
-            WebSettings.getDefaultUserAgent(
-                this
-            )
-
-        // Keep the real installed Chrome/WebView version, but remove
-        // the two embedded-WebView markers that frequently cause
-        // Cloudflare Turnstile / Managed Challenge to remain stuck.
-        rawUserAgent
-            .replace(
-                "; wv",
-                ""
-            )
-            .replace(
-                " Version/4.0",
-                ""
-            )
-            .replace(
-                Regex("\\s+"),
-                " "
-            )
-            .trim()
+        // Use the authentic installed Android System WebView identity.
+        // Cloudflare compares several browser signals; altering only
+        // selected UA markers can create an inconsistent fingerprint.
+        WebSettings.getDefaultUserAgent(
+            this
+        )
 
     } catch (_: Throwable) {
 
@@ -3234,6 +3218,18 @@ if (isCloudflarePage) {
     )
 
     return@evaluateJavascript
+}
+
+if (cloudflareChallengeActive) {
+
+    setCloudflareChallengeMode(
+        false
+    )
+
+    Log.e(
+        "CLOUDFLARE_GUARD",
+        "Challenge cleared -> scanner resumed"
+    )
 }
 
 val isBlockedPage =
@@ -12756,12 +12752,9 @@ private fun setCloudflareChallengeMode(
         lastCloudflareChallengeTime =
             System.currentTimeMillis()
 
-        // This flag belongs only to real touch events.
-        // Cloudflare remains touchable and scrollable.
-        activeWebView.postDelayed(
-            cloudflareChallengeRecheckRunnable,
-            1200L
-        )
+        // No recurring DOM polling while Cloudflare is executing.
+        // The challenge page must keep the WebView main thread free.
+        // Completion is detected by the normal page reload/navigation flow.
 
     } else {
 
