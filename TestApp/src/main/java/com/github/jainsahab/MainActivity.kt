@@ -162,9 +162,28 @@ private val systemWebViewUserAgent: String by lazy {
 
     try {
 
-        WebSettings.getDefaultUserAgent(
-            this
-        )
+        val rawUserAgent =
+            WebSettings.getDefaultUserAgent(
+                this
+            )
+
+        // Keep the real installed Chrome/WebView version, but remove
+        // the two embedded-WebView markers that frequently cause
+        // Cloudflare Turnstile / Managed Challenge to remain stuck.
+        rawUserAgent
+            .replace(
+                "; wv",
+                ""
+            )
+            .replace(
+                " Version/4.0",
+                ""
+            )
+            .replace(
+                Regex("\\s+"),
+                " "
+            )
+            .trim()
 
     } catch (_: Throwable) {
 
