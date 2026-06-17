@@ -316,35 +316,23 @@ private var cloudflareChallengeActive =
 private var lastCloudflareChallengeTime =
     0L
 
-private val cloudflareFallbackShownHosts =
-    mutableSetOf<String>()
+private val cloudflareChallengeRecheckRunnable =
+    object : Runnable {
 
-private val cloudflareFallbackRunnable =
-    Runnable {
+        override fun run() {
 
-        try {
+            try {
 
-            val activeWebView =
-                popupWebView
-                    ?: binding.contentMain.webview
+                if (!cloudflareChallengeActive) {
+                    return
+                }
 
-            val currentUrl =
-                activeWebView.url
-                    ?.trim()
-                    .orEmpty()
+                val activeWebView =
+                    popupWebView
+                        ?: binding.contentMain.webview
 
-            if (
-                currentUrl.isBlank() ||
-                currentUrl.equals(
-                    "about:blank",
-                    true
-                )
-            ) {
-                return@Runnable
-            }
-
-            activeWebView.evaluateJavascript(
-                """
+                activeWebView.evaluateJavascript(
+                    """
 (function() {
 
     try {
@@ -371,98 +359,114 @@ private val cloudflareFallbackRunnable =
             html.indexOf("challenge-platform") >= 0 ||
             html.indexOf("cf-turnstile") >= 0 ||
             html.indexOf("challenges.cloudflare.com") >= 0 ||
-            html.indexOf("cf_clearance") >= 0 ||
-            html.indexOf("cdn-cgi/challenge") >= 0;
+            html.indexOf("cf_clearance") >= 0;
 
-        var cloudflareBrand =
-            html.indexOf("cloudflare") >= 0 ||
-            body.indexOf("cloudflare") >= 0;
+        var humanChallenge =
+            (
+                body.indexOf("verify you are human") >= 0 ||
+                body.indexOf("checking your browser") >= 0 ||
+                body.indexOf("performing security verification") >= 0
+            ) &&
+            (
+                html.indexOf("cloudflare") >= 0 ||
+                html.indexOf("turnstile") >= 0 ||
+                explicitMarker
+            );
 
-        var challengeText =
-            body.indexOf("verify you are human") >= 0 ||
-            body.indexOf("checking your browser") >= 0 ||
-            body.indexOf("performing security verification") >= 0 ||
-            body.indexOf("please wait while we verify") >= 0 ||
-            body.indexOf("verification in progress") >= 0 ||
-            body.indexOf("πραγματοποιείται επαλήθευση ασφαλείας") >= 0 ||
-            body.indexOf("γίνεται επαλήθευση") >= 0 ||
-            body.indexOf("επαληθεύει ότι δεν είστε bot") >= 0 ||
-            body.indexOf("επαληθεύει ότι δεν είσαι bot") >= 0;
-
-        var waitingTitle =
-            title.indexOf("just a moment") >= 0 ||
-            title.indexOf("attention required") >= 0 ||
-            title.indexOf("επαλήθευση") >= 0;
+        var waitingPage =
+            title.indexOf("just a moment") >= 0 &&
+            (
+                html.indexOf("cloudflare") >= 0 ||
+                explicitMarker
+            );
 
         return (
             explicitMarker ||
-            (challengeText && cloudflareBrand) ||
-            (waitingTitle && cloudflareBrand)
+            humanChallenge ||
+            waitingPage
         )
             ? "challenge"
             : "clear";
 
     } catch(e) {
 
-        return "clear";
+        return "challenge";
     }
 })();
-                """.trimIndent()
-            ) { result ->
+                    """.trimIndent()
+                ) { result ->
+
+                    try {
+
+                        val stillChallenge =
+                            (
+                                result?.contains(
+                                    "challenge",
+                                    true
+                                ) == true
+                            )
+
+                        if (stillChallenge) {
+
+                            activeWebView.removeCallbacks(
+                                this
+                            )
+
+                            activeWebView.postDelayed(
+                                this,
+                                2000L
+                            )
+
+                        } else {
+
+                            setCloudflareChallengeMode(
+                                false
+                            )
+
+                            activeWebView.postDelayed(
+                                {
+
+                                    try {
+
+                                        if (
+                                            !webUserInteracting &&
+                                            !cloudflareChallengeActive
+                                        ) {
+
+                                            runDeepMediaScan(
+                                                activeWebView
+                                            )
+                                        }
+
+                                    } catch (_: Throwable) {}
+                                },
+                                500L
+                            )
+                        }
+
+                    } catch (_: Throwable) {
+
+                        activeWebView.postDelayed(
+                            this,
+                            2000L
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {
 
                 try {
 
-                    val challenge =
-                        result?.contains(
-                            "challenge",
-                            true
-                        ) == true
-
-                    if (!challenge) {
-                        return@evaluateJavascript
-                    }
-
-                    cloudflareChallengeActive =
-                        true
-
-                    val host =
-                        try {
-
-                            Uri.parse(
-                                currentUrl
-                            )
-                                .host
-                                ?.lowercase()
-                                .orEmpty()
-
-                        } catch (_: Throwable) {
-
-                            ""
-                        }
-
-                    if (
-                        host.isBlank() ||
-                        cloudflareFallbackShownHosts.contains(
-                            host
-                        )
-                    ) {
-                        return@evaluateJavascript
-                    }
-
-                    cloudflareFallbackShownHosts.add(
-                        host
-                    )
-
-                    showCloudflareBrowserFallback(
-                        currentUrl
+                    binding.contentMain.webview.postDelayed(
+                        this,
+                        2000L
                     )
 
                 } catch (_: Throwable) {}
             }
-
-        } catch (_: Throwable) {}
+        }
     }
-
+    
 // =====================================
 // CLEAR WEB INTERACTION FLAG
 // =====================================
@@ -2982,46 +2986,6 @@ override fun onPageFinished(
             }
 
             // =====================================
-            // CLOUDFLARE DEDICATED DETECTOR
-            // Independent from media / DOM diagnostics
-            // =====================================
-
-            detectCloudflareChallengeAndSchedule(
-                view,
-                url
-            )
-
-            view?.postDelayed(
-                {
-                    detectCloudflareChallengeAndSchedule(
-                        view,
-                        url
-                    )
-                },
-                800L
-            )
-
-            view?.postDelayed(
-                {
-                    detectCloudflareChallengeAndSchedule(
-                        view,
-                        url
-                    )
-                },
-                2500L
-            )
-
-            view?.postDelayed(
-                {
-                    detectCloudflareChallengeAndSchedule(
-                        view,
-                        url
-                    )
-                },
-                6000L
-            )
-
-            // =====================================
             // UPDATE URL BAR
             // Show URL from beginning
             // =====================================
@@ -3888,45 +3852,6 @@ binding.contentMain.webview.webChromeClient =
                                 url
 
                             // =====================================
-                            // CLOUDFLARE DEDICATED DETECTOR
-                            // =====================================
-
-                            detectCloudflareChallengeAndSchedule(
-                                view,
-                                url
-                            )
-
-                            view?.postDelayed(
-                                {
-                                    detectCloudflareChallengeAndSchedule(
-                                        view,
-                                        url
-                                    )
-                                },
-                                800L
-                            )
-
-                            view?.postDelayed(
-                                {
-                                    detectCloudflareChallengeAndSchedule(
-                                        view,
-                                        url
-                                    )
-                                },
-                                2500L
-                            )
-
-                            view?.postDelayed(
-                                {
-                                    detectCloudflareChallengeAndSchedule(
-                                        view,
-                                        url
-                                    )
-                                },
-                                6000L
-                            )
-
-                            // =====================================
                             // SAVE POPUP PAGE TO HISTORY
                             // =====================================
 
@@ -4118,12 +4043,6 @@ cloudflareChallengeActive =
 
 lastCloudflareChallengeTime =
     0L
-
-cloudflareFallbackShownHosts.clear()
-
-uiHandler.removeCallbacks(
-    cloudflareFallbackRunnable
-)
 
 streamScores.clear()
 streamValidation.clear()
@@ -12813,131 +12732,6 @@ private fun isCloudflareLikePage(
     )
 }
 
-private fun detectCloudflareChallengeAndSchedule(
-    view: WebView?,
-    url: String?
-) {
-
-    try {
-
-        uiHandler.removeCallbacks(
-            cloudflareFallbackRunnable
-        )
-
-        uiHandler.postDelayed(
-            cloudflareFallbackRunnable,
-            15000L
-        )
-
-        if (
-            view == null ||
-            url.isNullOrBlank() ||
-            url.equals(
-                "about:blank",
-                true
-            )
-        ) {
-            return
-        }
-
-        view.evaluateJavascript(
-            """
-(function() {
-
-    try {
-
-        var title =
-            String(document.title || "").toLowerCase();
-
-        var body =
-            String(
-                document.body
-                    ? document.body.innerText || ""
-                    : ""
-            ).toLowerCase();
-
-        var html =
-            String(
-                document.documentElement
-                    ? document.documentElement.outerHTML || ""
-                    : ""
-            ).toLowerCase();
-
-        var explicitMarker =
-            html.indexOf("cf-chl-") >= 0 ||
-            html.indexOf("challenge-platform") >= 0 ||
-            html.indexOf("cf-turnstile") >= 0 ||
-            html.indexOf("challenges.cloudflare.com") >= 0 ||
-            html.indexOf("cf_clearance") >= 0 ||
-            html.indexOf("cdn-cgi/challenge") >= 0;
-
-        var challengeText =
-            body.indexOf("verify you are human") >= 0 ||
-            body.indexOf("checking your browser") >= 0 ||
-            body.indexOf("performing security verification") >= 0 ||
-            body.indexOf("verification successful") >= 0 ||
-            body.indexOf("please wait while we verify") >= 0 ||
-            body.indexOf("πραγματοποιείται επαλήθευση ασφαλείας") >= 0 ||
-            body.indexOf("γίνεται επαλήθευση") >= 0 ||
-            body.indexOf("επαληθεύει ότι δεν είστε bot") >= 0 ||
-            body.indexOf("επαληθεύει ότι δεν είσαι bot") >= 0;
-
-        var waitingTitle =
-            title.indexOf("just a moment") >= 0 ||
-            title.indexOf("attention required") >= 0;
-
-        var cloudflareBrand =
-            html.indexOf("cloudflare") >= 0 ||
-            body.indexOf("cloudflare") >= 0;
-
-        return (
-            explicitMarker ||
-            (challengeText && cloudflareBrand) ||
-            (waitingTitle && cloudflareBrand)
-        )
-            ? "challenge"
-            : "clear";
-
-    } catch(e) {
-
-        return "clear";
-    }
-})();
-            """.trimIndent()
-        ) { result ->
-
-            try {
-
-                val challenge =
-                    result?.contains(
-                        "challenge",
-                        true
-                    ) == true
-
-                if (challenge) {
-
-                    setCloudflareChallengeMode(
-                        true
-                    )
-
-                    Log.e(
-                        "CLOUDFLARE_GUARD",
-                        "Dedicated challenge detector activated fallback timer"
-                    )
-
-                } else {
-
-                    // Do not clear an active challenge from one early DOM sample.
-                    // Cloudflare often injects its challenge elements after
-                    // onPageFinished has already fired.
-                }
-
-            } catch (_: Throwable) {}
-        }
-
-    } catch (_: Throwable) {}
-}
-
 private fun setCloudflareChallengeMode(
     active: Boolean
 ) {
@@ -12949,315 +12743,23 @@ private fun setCloudflareChallengeMode(
         popupWebView
             ?: binding.contentMain.webview
 
-    uiHandler.removeCallbacks(
-        cloudflareFallbackRunnable
+    activeWebView.removeCallbacks(
+        cloudflareChallengeRecheckRunnable
     )
 
     if (active) {
 
-        if (lastCloudflareChallengeTime <= 0L) {
+        lastCloudflareChallengeTime =
+            System.currentTimeMillis()
 
-            lastCloudflareChallengeTime =
-                System.currentTimeMillis()
-
-            // Start only once. Repeated challenge detections must not
-            // keep postponing the fallback menu forever.
-            uiHandler.postDelayed(
-                cloudflareFallbackRunnable,
-                15000L
-            )
-        }
+        // No recurring DOM polling while Cloudflare is executing.
+        // The challenge page must keep the WebView main thread free.
+        // Completion is detected by the normal page reload/navigation flow.
 
     } else {
 
         lastCloudflareChallengeTime =
             0L
-    }
-}
-
-// =====================================
-// CLOUDFLARE — FULL BROWSER FALLBACK
-// =====================================
-
-private fun showCloudflareBrowserFallback(
-    url: String
-) {
-
-    try {
-
-        if (
-            isFinishing ||
-            isDestroyed
-        ) {
-            return
-        }
-
-        val box =
-            LinearLayout(this).apply {
-
-                orientation =
-                    LinearLayout.VERTICAL
-
-                setPadding(
-                    dpToPx(18),
-                    dpToPx(18),
-                    dpToPx(18),
-                    dpToPx(16)
-                )
-
-                val background =
-                    android.graphics.drawable.GradientDrawable().apply {
-
-                        setColor(
-                            android.graphics.Color.rgb(
-                                8,
-                                8,
-                                8
-                            )
-                        )
-
-                        cornerRadius =
-                            dpToPx(16).toFloat()
-
-                        setStroke(
-                            dpToPx(3),
-                            android.graphics.Color.rgb(
-                                255,
-                                215,
-                                0
-                            )
-                        )
-                    }
-
-                setBackground(
-                    background
-                )
-            }
-
-        val title =
-            TextView(this).apply {
-
-                text =
-                    "CLOUDFLARE VERIFICATION"
-
-                setTextColor(
-                    android.graphics.Color.WHITE
-                )
-
-                textSize =
-                    18f
-
-                gravity =
-                    Gravity.CENTER
-
-                setTypeface(
-                    typeface,
-                    android.graphics.Typeface.BOLD
-                )
-
-                setPadding(
-                    0,
-                    0,
-                    0,
-                    dpToPx(12)
-                )
-            }
-
-        val message =
-            TextView(this).apply {
-
-                text =
-                    "This website requires a full browser to complete verification.\n\n" +
-                    "Open it in the secure browser, complete the check, then use Copy or Share in the browser when you need to bring a page, image or link back to GEL Analyzer."
-
-                setTextColor(
-                    android.graphics.Color.rgb(
-                        0,
-                        255,
-                        156
-                    )
-                )
-
-                textSize =
-                    14f
-
-                setLineSpacing(
-                    0f,
-                    1.15f
-                )
-
-                setPadding(
-                    0,
-                    0,
-                    0,
-                    dpToPx(12)
-                )
-            }
-
-        val openButton =
-            Button(this).apply {
-
-                text =
-                    "OPEN SECURE BROWSER"
-
-                isAllCaps =
-                    false
-
-                setTextColor(
-                    android.graphics.Color.rgb(
-                        0,
-                        255,
-                        127
-                    )
-                )
-
-                gravity =
-                    Gravity.CENTER
-
-                includeFontPadding =
-                    false
-
-                setPadding(
-                    dpToPx(10),
-                    0,
-                    dpToPx(10),
-                    0
-                )
-            }
-
-        val copyButton =
-            Button(this).apply {
-
-                text =
-                    "COPY URL"
-
-                isAllCaps =
-                    false
-
-                setTextColor(
-                    android.graphics.Color.WHITE
-                )
-
-                gravity =
-                    Gravity.CENTER
-
-                includeFontPadding =
-                    false
-
-                setPadding(
-                    dpToPx(10),
-                    0,
-                    dpToPx(10),
-                    0
-                )
-            }
-
-        val stayButton =
-            Button(this).apply {
-
-                text =
-                    "KEEP WEBVIEW OPEN"
-
-                isAllCaps =
-                    false
-
-                setTextColor(
-                    android.graphics.Color.WHITE
-                )
-
-                gravity =
-                    Gravity.CENTER
-
-                includeFontPadding =
-                    false
-
-                setPadding(
-                    dpToPx(10),
-                    0,
-                    dpToPx(10),
-                    0
-                )
-            }
-
-        val buttonParams =
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(64)
-            ).apply {
-
-                setMargins(
-                    0,
-                    dpToPx(7),
-                    0,
-                    0
-                )
-            }
-
-        box.addView(title)
-        box.addView(message)
-        box.addView(openButton, buttonParams)
-        box.addView(copyButton, LinearLayout.LayoutParams(buttonParams))
-        box.addView(stayButton, LinearLayout.LayoutParams(buttonParams))
-
-        val dialog =
-            androidx.appcompat.app.AlertDialog.Builder(this)
-                .setView(box)
-                .setCancelable(true)
-                .create()
-
-        openButton.setOnClickListener {
-
-            dialog.dismiss()
-
-            openWithExternalBrowser(
-                url
-            )
-        }
-
-        copyButton.setOnClickListener {
-
-            try {
-
-                val clipboard =
-                    getSystemService(
-                        CLIPBOARD_SERVICE
-                    ) as ClipboardManager
-
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(
-                        "cloudflare_url",
-                        url
-                    )
-                )
-
-                Toast.makeText(
-                    this,
-                    "URL copied",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-            } catch (_: Throwable) {}
-        }
-
-        stayButton.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
-
-        dialog.window?.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(
-                android.graphics.Color.TRANSPARENT
-            )
-        )
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "CLOUDFLARE_FALLBACK",
-            "dialog failed",
-            t
-        )
     }
 }
 
