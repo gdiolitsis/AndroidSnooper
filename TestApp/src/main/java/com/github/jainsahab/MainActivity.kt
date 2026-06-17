@@ -158,6 +158,20 @@ private val mobileUserAgent =
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
         "Chrome/137.0.0.0 Mobile Safari/537.36"
 
+private val systemWebViewUserAgent: String by lazy {
+
+    try {
+
+        WebSettings.getDefaultUserAgent(
+            this
+        )
+
+    } catch (_: Throwable) {
+
+        mobileUserAgent
+    }
+}
+
 // =====================================
 // RESULTS PANEL STATE
 // 0 = collapsed, 1 = normal, 2 = expanded
@@ -298,6 +312,157 @@ private var cloudflareChallengeActive =
 
 private var lastCloudflareChallengeTime =
     0L
+
+private val cloudflareChallengeRecheckRunnable =
+    object : Runnable {
+
+        override fun run() {
+
+            try {
+
+                if (!cloudflareChallengeActive) {
+                    return
+                }
+
+                val activeWebView =
+                    popupWebView
+                        ?: binding.contentMain.webview
+
+                activeWebView.evaluateJavascript(
+                    """
+(function() {
+
+    try {
+
+        var title =
+            String(document.title || "").toLowerCase();
+
+        var body =
+            String(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
+            ).toLowerCase();
+
+        var html =
+            String(
+                document.documentElement
+                    ? document.documentElement.outerHTML || ""
+                    : ""
+            ).toLowerCase();
+
+        var explicitMarker =
+            html.indexOf("cf-chl-") >= 0 ||
+            html.indexOf("challenge-platform") >= 0 ||
+            html.indexOf("cf-turnstile") >= 0 ||
+            html.indexOf("challenges.cloudflare.com") >= 0 ||
+            html.indexOf("cf_clearance") >= 0;
+
+        var humanChallenge =
+            (
+                body.indexOf("verify you are human") >= 0 ||
+                body.indexOf("checking your browser") >= 0 ||
+                body.indexOf("performing security verification") >= 0
+            ) &&
+            (
+                html.indexOf("cloudflare") >= 0 ||
+                html.indexOf("turnstile") >= 0 ||
+                explicitMarker
+            );
+
+        var waitingPage =
+            title.indexOf("just a moment") >= 0 &&
+            (
+                html.indexOf("cloudflare") >= 0 ||
+                explicitMarker
+            );
+
+        return (
+            explicitMarker ||
+            humanChallenge ||
+            waitingPage
+        )
+            ? "challenge"
+            : "clear";
+
+    } catch(e) {
+
+        return "challenge";
+    }
+})();
+                    """.trimIndent()
+                ) { result ->
+
+                    try {
+
+                        val stillChallenge =
+                            result
+                                ?.contains(
+                                    "challenge",
+                                    true
+                                )
+                                == true
+
+                        if (stillChallenge) {
+
+                            activeWebView.removeCallbacks(
+                                this
+                            )
+
+                            activeWebView.postDelayed(
+                                this,
+                                2000L
+                            )
+
+                        } else {
+
+                            setCloudflareChallengeMode(
+                                false
+                            )
+
+                            activeWebView.postDelayed(
+                                {
+
+                                    try {
+
+                                        if (
+                                            !webUserInteracting &&
+                                            !cloudflareChallengeActive
+                                        ) {
+
+                                            runDeepMediaScan(
+                                                activeWebView
+                                            )
+                                        }
+
+                                    } catch (_: Throwable) {}
+                                },
+                                500L
+                            )
+                        }
+
+                    } catch (_: Throwable) {
+
+                        activeWebView.postDelayed(
+                            this,
+                            2000L
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {
+
+                try {
+
+                    binding.contentMain.webview.postDelayed(
+                        this,
+                        2000L
+                    )
+
+                } catch (_: Throwable) {}
+            }
+        }
+    }
     
 // =====================================
 // CLEAR WEB INTERACTION FLAG
@@ -1683,6 +1848,10 @@ private fun installCookieConsentWatcher(
             url.equals(
                 "about:blank",
                 true
+            ) ||
+            cloudflareChallengeActive ||
+            isCloudflareChallengeRequestUrl(
+                url
             )
         ) {
             return
@@ -2383,7 +2552,7 @@ binding.contentMain.webview.settings.apply {
     // =====================================
 
     userAgentString =
-        desktopUserAgent
+        systemWebViewUserAgent
 }
 
 // =====================================
@@ -2764,6 +2933,17 @@ binding.contentMain.webview.webViewClient =
 
         if (!url.isNullOrBlank()) {
 
+            if (
+                isCloudflareChallengeRequestUrl(
+                    url
+                )
+            ) {
+
+                setCloudflareChallengeMode(
+                    true
+                )
+            }
+
             binding.contentMain.urlInput.setText(
                 url
             )
@@ -3142,14 +3322,22 @@ if (isBlockedPage) {
             // DETECT PAGE URL
             // =====================================
 
-            handleInterceptedMediaUrl(
-                url,
-                null
-            )
+            if (
+                !cloudflareChallengeActive &&
+                !isCloudflareChallengeRequestUrl(
+                    url
+                )
+            ) {
 
-            detectAndSaveUrl(
-                url
-            )
+                handleInterceptedMediaUrl(
+                    url,
+                    null
+                )
+
+                detectAndSaveUrl(
+                    url
+                )
+            }
 
             // =====================================
             // ENABLE PAGE TEXT SELECTION
@@ -3253,7 +3441,13 @@ if (isBlockedPage) {
 
             return try {
 
-                if (url.isNotBlank()) {
+                if (
+                    url.isNotBlank() &&
+                    !cloudflareChallengeActive &&
+                    !isCloudflareChallengeRequestUrl(
+                        url
+                    )
+                ) {
 
                     handleInterceptedMediaUrl(
                         url,
@@ -3282,7 +3476,13 @@ if (isBlockedPage) {
 
             try {
 
-                if (url.isNotBlank()) {
+                if (
+                    url.isNotBlank() &&
+                    !cloudflareChallengeActive &&
+                    !isCloudflareChallengeRequestUrl(
+                        url
+                    )
+                ) {
 
                     handleInterceptedMediaUrl(
                         url,
@@ -3546,10 +3746,18 @@ binding.contentMain.webview.webChromeClient =
                             liveUrlInputText =
                                 popupUrl
 
-                            handleInterceptedMediaUrl(
-                                popupUrl,
-                                request
-                            )
+                            if (
+                                !cloudflareChallengeActive &&
+                                !isCloudflareChallengeRequestUrl(
+                                    popupUrl
+                                )
+                            ) {
+
+                                handleInterceptedMediaUrl(
+                                    popupUrl,
+                                    request
+                                )
+                            }
                         }
 
                         false
@@ -3573,7 +3781,13 @@ binding.contentMain.webview.webChromeClient =
 
                     try {
 
-                        if (popupUrl.isNotBlank()) {
+                        if (
+                            popupUrl.isNotBlank() &&
+                            !cloudflareChallengeActive &&
+                            !isCloudflareChallengeRequestUrl(
+                                popupUrl
+                            )
+                        ) {
 
                             handleInterceptedMediaUrl(
                                 popupUrl,
@@ -3599,6 +3813,17 @@ binding.contentMain.webview.webChromeClient =
                     try {
 
                         if (!url.isNullOrBlank()) {
+
+                            if (
+                                isCloudflareChallengeRequestUrl(
+                                    url
+                                )
+                            ) {
+
+                                setCloudflareChallengeMode(
+                                    true
+                                )
+                            }
 
                             binding.contentMain.urlInput.setText(
                                 url
@@ -3633,14 +3858,22 @@ binding.contentMain.webview.webChromeClient =
 
                             } catch (_: Throwable) {}
 
-                            handleInterceptedMediaUrl(
-                                url,
-                                null
-                            )
+                            if (
+                                !cloudflareChallengeActive &&
+                                !isCloudflareChallengeRequestUrl(
+                                    url
+                                )
+                            ) {
 
-                            detectAndSaveUrl(
-                                url
-                            )
+                                handleInterceptedMediaUrl(
+                                    url,
+                                    null
+                                )
+
+                                detectAndSaveUrl(
+                                    url
+                                )
+                            }
 
                             if (
     !webUserInteracting &&
@@ -12386,29 +12619,102 @@ private fun clearTsFallbackBecausePlaylistFound() {
 // CLOUDFLARE / VERIFY PAGE DETECTOR
 // =====================================
 
+private fun isCloudflareChallengeRequestUrl(
+    url: String?
+): Boolean {
+
+    val lower =
+        url
+            .orEmpty()
+            .lowercase()
+
+    return (
+        lower.contains(
+            "challenges.cloudflare.com"
+        ) ||
+        lower.contains(
+            "/cdn-cgi/challenge-platform/"
+        ) ||
+        lower.contains(
+            "/cdn-cgi/challenge/"
+        ) ||
+        lower.contains(
+            "cf-chl-"
+        ) ||
+        lower.contains(
+            "cf_turnstile"
+        ) ||
+        lower.contains(
+            "turnstile"
+        )
+    )
+}
+
 private fun isCloudflareLikePage(
     url: String?,
     diagnosticText: String = ""
 ): Boolean {
 
-    val combined =
+    val lowerUrl =
+        url
+            .orEmpty()
+            .lowercase()
+
+    val lowerText =
+        diagnosticText
+            .lowercase()
+
+    val explicitUrlMarker =
+        isCloudflareChallengeRequestUrl(
+            lowerUrl
+        )
+
+    val explicitTextMarker =
+        lowerText.contains(
+            "cloudflare"
+        ) ||
+        lowerText.contains(
+            "cf-chl"
+        ) ||
+        lowerText.contains(
+            "cf_clearance"
+        ) ||
+        lowerText.contains(
+            "challenge-platform"
+        ) ||
+        lowerText.contains(
+            "cf-turnstile"
+        ) ||
+        lowerText.contains(
+            "challenges.cloudflare.com"
+        )
+
+    val humanChallenge =
         (
-            url.orEmpty() +
-                " " +
-                diagnosticText
-            ).lowercase()
+            lowerText.contains(
+                "checking your browser"
+            ) ||
+            lowerText.contains(
+                "verify you are human"
+            ) ||
+            lowerText.contains(
+                "performing security verification"
+            )
+        ) &&
+        explicitTextMarker
+
+    val waitingPage =
+        lowerText.contains(
+            "just a moment"
+        ) &&
+        explicitTextMarker
 
     return (
-        combined.contains("cloudflare") ||
-            combined.contains("cf-chl") ||
-            combined.contains("cf_clearance") ||
-            combined.contains("checking your browser") ||
-            combined.contains("verify you are human") ||
-            combined.contains("verification") ||
-            combined.contains("just a moment") ||
-            combined.contains("challenge-platform") ||
-            combined.contains("turnstile")
-        )
+        explicitUrlMarker ||
+        explicitTextMarker ||
+        humanChallenge ||
+        waitingPage
+    )
 }
 
 private fun setCloudflareChallengeMode(
@@ -12418,30 +12724,30 @@ private fun setCloudflareChallengeMode(
     cloudflareChallengeActive =
         active
 
+    val activeWebView =
+        popupWebView
+            ?: binding.contentMain.webview
+
+    activeWebView.removeCallbacks(
+        cloudflareChallengeRecheckRunnable
+    )
+
     if (active) {
 
         lastCloudflareChallengeTime =
             System.currentTimeMillis()
 
-        webUserInteracting =
-            true
-
-        binding.contentMain.webview.removeCallbacks(
-            clearWebInteractionRunnable
+        // This flag belongs only to real touch events.
+        // Cloudflare remains touchable and scrollable.
+        activeWebView.postDelayed(
+            cloudflareChallengeRecheckRunnable,
+            1200L
         )
 
-        binding.contentMain.webview.postDelayed(
-            {
+    } else {
 
-                cloudflareChallengeActive =
-                    false
-
-                webUserInteracting =
-                    false
-
-            },
-            12000
-        )
+        lastCloudflareChallengeTime =
+            0L
     }
 }
 
@@ -12455,6 +12761,15 @@ private fun handleInterceptedMediaUrl(
 ) {
 
     try {
+
+        if (
+            cloudflareChallengeActive ||
+            isCloudflareChallengeRequestUrl(
+                url
+            )
+        ) {
+            return
+        }
 
         val lower =
             url.lowercase()
@@ -27653,7 +27968,7 @@ private fun setWebViewUserAgentAndReload(
             if (desktop) {
                 desktopUserAgent
             } else {
-                mobileUserAgent
+                systemWebViewUserAgent
             }
 
         popupWebView?.settings?.userAgentString =
