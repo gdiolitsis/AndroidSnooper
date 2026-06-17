@@ -396,12 +396,12 @@ private val cloudflareChallengeRecheckRunnable =
                     try {
 
                         val stillChallenge =
-                            result
-                                ?.contains(
+                            (
+                                result?.contains(
                                     "challenge",
                                     true
-                                )
-                                == true
+                                ) == true
+                            )
 
                         if (stillChallenge) {
 
