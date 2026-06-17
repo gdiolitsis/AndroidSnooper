@@ -2889,6 +2889,16 @@ override fun onPageFinished(
             }
 
             // =====================================
+            // CLOUDFLARE DEDICATED DETECTOR
+            // Independent from media / DOM diagnostics
+            // =====================================
+
+            detectCloudflareChallengeAndSchedule(
+                view,
+                url
+            )
+
+            // =====================================
             // UPDATE URL BAR
             // Show URL from beginning
             // =====================================
@@ -3755,6 +3765,15 @@ binding.contentMain.webview.webChromeClient =
                                 url
 
                             // =====================================
+                            // CLOUDFLARE DEDICATED DETECTOR
+                            // =====================================
+
+                            detectCloudflareChallengeAndSchedule(
+                                view,
+                                url
+                            )
+
+                            // =====================================
                             // SAVE POPUP PAGE TO HISTORY
                             // =====================================
 
@@ -3948,6 +3967,10 @@ lastCloudflareChallengeTime =
     0L
 
 cloudflareFallbackShownHosts.clear()
+
+uiHandler.removeCallbacks(
+    cloudflareFallbackRunnable
+)
 
 streamScores.clear()
 streamValidation.clear()
@@ -12637,6 +12660,118 @@ private fun isCloudflareLikePage(
     )
 }
 
+private fun detectCloudflareChallengeAndSchedule(
+    view: WebView?,
+    url: String?
+) {
+
+    try {
+
+        if (
+            view == null ||
+            url.isNullOrBlank() ||
+            url.equals(
+                "about:blank",
+                true
+            )
+        ) {
+            return
+        }
+
+        view.evaluateJavascript(
+            """
+(function() {
+
+    try {
+
+        var title =
+            String(document.title || "").toLowerCase();
+
+        var body =
+            String(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
+            ).toLowerCase();
+
+        var html =
+            String(
+                document.documentElement
+                    ? document.documentElement.outerHTML || ""
+                    : ""
+            ).toLowerCase();
+
+        var explicitMarker =
+            html.indexOf("cf-chl-") >= 0 ||
+            html.indexOf("challenge-platform") >= 0 ||
+            html.indexOf("cf-turnstile") >= 0 ||
+            html.indexOf("challenges.cloudflare.com") >= 0 ||
+            html.indexOf("cf_clearance") >= 0 ||
+            html.indexOf("cdn-cgi/challenge") >= 0;
+
+        var challengeText =
+            body.indexOf("verify you are human") >= 0 ||
+            body.indexOf("checking your browser") >= 0 ||
+            body.indexOf("performing security verification") >= 0 ||
+            body.indexOf("verification successful") >= 0 ||
+            body.indexOf("please wait while we verify") >= 0;
+
+        var waitingTitle =
+            title.indexOf("just a moment") >= 0 ||
+            title.indexOf("attention required") >= 0;
+
+        var cloudflareBrand =
+            html.indexOf("cloudflare") >= 0 ||
+            body.indexOf("cloudflare") >= 0;
+
+        return (
+            explicitMarker ||
+            (challengeText && cloudflareBrand) ||
+            (waitingTitle && cloudflareBrand)
+        )
+            ? "challenge"
+            : "clear";
+
+    } catch(e) {
+
+        return "clear";
+    }
+})();
+            """.trimIndent()
+        ) { result ->
+
+            try {
+
+                val challenge =
+                    result?.contains(
+                        "challenge",
+                        true
+                    ) == true
+
+                if (challenge) {
+
+                    setCloudflareChallengeMode(
+                        true
+                    )
+
+                    Log.e(
+                        "CLOUDFLARE_GUARD",
+                        "Dedicated challenge detector activated fallback timer"
+                    )
+
+                } else if (cloudflareChallengeActive) {
+
+                    setCloudflareChallengeMode(
+                        false
+                    )
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (_: Throwable) {}
+}
+
 private fun setCloudflareChallengeMode(
     active: Boolean
 ) {
@@ -12648,7 +12783,7 @@ private fun setCloudflareChallengeMode(
         popupWebView
             ?: binding.contentMain.webview
 
-    activeWebView.removeCallbacks(
+    uiHandler.removeCallbacks(
         cloudflareFallbackRunnable
     )
 
@@ -12657,9 +12792,9 @@ private fun setCloudflareChallengeMode(
         lastCloudflareChallengeTime =
             System.currentTimeMillis()
 
-        // Give the embedded WebView a fair chance first.
-        // If Cloudflare remains active, offer a real browser fallback.
-        activeWebView.postDelayed(
+        // Schedule on the Activity main handler, not on the WebView.
+        // Even if the page renderer stalls, the GEL fallback menu still appears.
+        uiHandler.postDelayed(
             cloudflareFallbackRunnable,
             15000L
         )
