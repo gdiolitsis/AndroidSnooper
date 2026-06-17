@@ -2898,6 +2898,36 @@ override fun onPageFinished(
                 url
             )
 
+            view?.postDelayed(
+                {
+                    detectCloudflareChallengeAndSchedule(
+                        view,
+                        url
+                    )
+                },
+                800L
+            )
+
+            view?.postDelayed(
+                {
+                    detectCloudflareChallengeAndSchedule(
+                        view,
+                        url
+                    )
+                },
+                2500L
+            )
+
+            view?.postDelayed(
+                {
+                    detectCloudflareChallengeAndSchedule(
+                        view,
+                        url
+                    )
+                },
+                6000L
+            )
+
             // =====================================
             // UPDATE URL BAR
             // Show URL from beginning
@@ -3771,6 +3801,36 @@ binding.contentMain.webview.webChromeClient =
                             detectCloudflareChallengeAndSchedule(
                                 view,
                                 url
+                            )
+
+                            view?.postDelayed(
+                                {
+                                    detectCloudflareChallengeAndSchedule(
+                                        view,
+                                        url
+                                    )
+                                },
+                                800L
+                            )
+
+                            view?.postDelayed(
+                                {
+                                    detectCloudflareChallengeAndSchedule(
+                                        view,
+                                        url
+                                    )
+                                },
+                                2500L
+                            )
+
+                            view?.postDelayed(
+                                {
+                                    detectCloudflareChallengeAndSchedule(
+                                        view,
+                                        url
+                                    )
+                                },
+                                6000L
                             )
 
                             // =====================================
@@ -12759,11 +12819,11 @@ private fun detectCloudflareChallengeAndSchedule(
                         "Dedicated challenge detector activated fallback timer"
                     )
 
-                } else if (cloudflareChallengeActive) {
+                } else {
 
-                    setCloudflareChallengeMode(
-                        false
-                    )
+                    // Do not clear an active challenge from one early DOM sample.
+                    // Cloudflare often injects its challenge elements after
+                    // onPageFinished has already fired.
                 }
 
             } catch (_: Throwable) {}
@@ -12789,15 +12849,18 @@ private fun setCloudflareChallengeMode(
 
     if (active) {
 
-        lastCloudflareChallengeTime =
-            System.currentTimeMillis()
+        if (lastCloudflareChallengeTime <= 0L) {
 
-        // Schedule on the Activity main handler, not on the WebView.
-        // Even if the page renderer stalls, the GEL fallback menu still appears.
-        uiHandler.postDelayed(
-            cloudflareFallbackRunnable,
-            15000L
-        )
+            lastCloudflareChallengeTime =
+                System.currentTimeMillis()
+
+            // Start only once. Repeated challenge detections must not
+            // keep postponing the fallback menu forever.
+            uiHandler.postDelayed(
+                cloudflareFallbackRunnable,
+                15000L
+            )
+        }
 
     } else {
 
