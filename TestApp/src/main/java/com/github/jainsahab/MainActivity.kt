@@ -8439,6 +8439,96 @@ if (
             }
         }
 
+
+
+        function getFreeLiveSportsPlayerHref(el) {
+
+            try {
+
+                var host =
+                    String(window.location.hostname || "").toLowerCase();
+
+                if (host.indexOf("freelivesports.tv") < 0) {
+                    return "";
+                }
+
+                if (!el) {
+                    return "";
+                }
+
+                var signal =
+                    "";
+
+                try {
+                    signal += " " + String(el.outerHTML || "");
+                } catch(e) {}
+
+                try {
+
+                    var all =
+                        el.querySelectorAll &&
+                        el.querySelectorAll("a[href], [data-channel], [data-channel-id], [data-id], [data-url], [data-href], [onclick]");
+
+                    if (all) {
+
+                        for (var i = 0; i < all.length; i++) {
+
+                            var n = all[i];
+
+                            signal += " " + String(n.href || "");
+                            signal += " " + String(n.getAttribute("href") || "");
+                            signal += " " + String(n.getAttribute("data-channel") || "");
+                            signal += " " + String(n.getAttribute("data-channel-id") || "");
+                            signal += " " + String(n.getAttribute("data-id") || "");
+                            signal += " " + String(n.getAttribute("data-url") || "");
+                            signal += " " + String(n.getAttribute("data-href") || "");
+                            signal += " " + String(n.getAttribute("onclick") || "");
+                        }
+                    }
+
+                } catch(e) {}
+
+                signal =
+                    String(signal || "")
+                        .replace(/&amp;/g, "&")
+                        .replace(/\\u0026/g, "&");
+
+                var full =
+                    signal.match(
+                        /https?:\/\/watch\.freelivesports\.tv\/pages\/discover\/e\/live-tv\?channel=[0-9a-f]{24}/i
+                    );
+
+                if (full && full[0]) {
+                    return full[0];
+                }
+
+                var channelParam =
+                    signal.match(
+                        /channel=([0-9a-f]{24})/i
+                    );
+
+                if (channelParam && channelParam[1]) {
+                    return "https://watch.freelivesports.tv/pages/discover/e/live-tv?channel=" + channelParam[1];
+                }
+
+                var ids =
+                    signal.match(
+                        /[0-9a-f]{24}/ig
+                    );
+
+                if (ids && ids.length > 0) {
+
+                    return "https://watch.freelivesports.tv/pages/discover/e/live-tv?channel=" + ids[0];
+                }
+
+                return "";
+
+            } catch(e) {
+
+                return "";
+            }
+        }
+
         function getSignal(el) {
 
             try {
@@ -8991,6 +9081,84 @@ if (
         }
 
         // =====================================
+        // PASS 0 — FREELIVESPORTS DIRECT PLAYER RESOLVER
+        // Human behavior: card tap opens watch.freelivesports.tv
+        // with a channel id. Prefer this real player URL over
+        // synthetic coordinate clicks.
+        // =====================================
+
+        try {
+
+            if (
+                String(window.location.hostname || "")
+                    .toLowerCase()
+                    .indexOf("freelivesports.tv") >= 0
+            ) {
+
+                var flsNodes =
+                    Array.prototype.slice.call(
+                        document.querySelectorAll(
+                            [
+                                "a[href]",
+                                "article",
+                                ".card",
+                                ".item",
+                                ".channel",
+                                ".video",
+                                "[class*='card']",
+                                "[class*='Card']",
+                                "[class*='item']",
+                                "[class*='Item']",
+                                "[class*='channel']",
+                                "[class*='Channel']",
+                                "[class*='video']",
+                                "[class*='Video']",
+                                "[data-channel]",
+                                "[data-channel-id]",
+                                "[data-id]",
+                                "[onclick]"
+                            ].join(",")
+                        )
+                    );
+
+                flsNodes.forEach(function(node) {
+
+                    try {
+
+                        if (!isVisible(node)) {
+                            return;
+                        }
+
+                        var directHref =
+                            getFreeLiveSportsPlayerHref(node);
+
+                        if (!directHref) {
+                            return;
+                        }
+
+                        var title =
+                            getBestTitle(node);
+
+                        if (isBadTitle(title)) {
+                            title = getText(node);
+                        }
+
+                        if (isBadTitle(title)) {
+                            title = "FREELIVESPORTS CHANNEL";
+                        }
+
+                        addCandidate(
+                            title,
+                            directHref
+                        );
+
+                    } catch(e) {}
+                });
+            }
+
+        } catch(e) {}
+
+        // =====================================
         // PASS 1 — MEDIA CARD COLLECTOR
         // Finds real cards even when category links exist everywhere.
         // =====================================
@@ -9136,7 +9304,13 @@ if (
         // =====================================
 
         var href =
-            getHref(card);
+            getFreeLiveSportsPlayerHref(card);
+
+        if (!href) {
+
+            href =
+                getHref(card);
+        }
 
         if (
             !href ||
@@ -10794,7 +10968,7 @@ Waiting for stream...
                     )
                 }
             },
-            6500
+            2500
         )
 
     } catch (t: Throwable) {
