@@ -8671,46 +8671,15 @@ if (
 
     try {
 
-        // FIRST PRIORITY: real link inside the card.
-        // This restores the simple one-click behaviour used by sites
-        // where a channel card navigates directly to a player page.
-        try {
-
-            var link =
-                el.matches && el.matches("a[href]")
-                    ? el
-                    : (el.querySelector && el.querySelector("a[href]"));
-
-            if (link) {
-
-                var href =
-                    String(
-                        link.href ||
-                        link.getAttribute("href") ||
-                        ""
-                    ).trim();
-
-                if (
-                    href &&
-                    href !== "#" &&
-                    href.toLowerCase().indexOf("javascript:") !== 0
-                ) {
-                    return href;
-                }
-            }
-
-        } catch(e) {}
-
         var target =
             null;
 
-        // SECOND PRIORITY: true click target for cards without href.
-        // This keeps Teleon-style / second-click cards working.
+        // Prefer real clickable/media target inside card
         try {
 
             target =
                 el.querySelector(
-                    "button, [role='button'], [onclick], img, .play, [class*='play'], [class*='Play']"
+                    "a[href], img, button, [role='button'], [onclick], .play, [class*='play'], [class*='Play']"
                 );
 
         } catch(e) {}
@@ -9158,8 +9127,26 @@ if (
             return;
         }
 
+        // =====================================
+        // NAVIGATION-AWARE POLICY
+        // Prefer the real card link first.
+        // FreeLiveSports-style sites use:
+        // CARD LINK -> PLAYER PAGE -> AUTO START STREAM.
+        // Only fall back to coordinate click when no clean href exists.
+        // =====================================
+
         var href =
-            makeRowHref(card);
+            getHref(card);
+
+        if (
+            !href ||
+            href === "#" ||
+            !looksLikeChannel(card, title, href)
+        ) {
+
+            href =
+                makeRowHref(card);
+        }
 
         addCandidate(
             title,
@@ -9400,6 +9387,25 @@ if (
                     } else {
                         parsed
                     }
+                        // Prefer normal href candidates before gel-row fallbacks.
+                        // This preserves simple card-link navigation for sites that
+                        // load a separate player page after one human-like click.
+                        .sortedWith(
+                            compareBy<AutoScanCandidate> { item ->
+                                if (
+                                    item.href.startsWith(
+                                        "gel-row://",
+                                        true
+                                    )
+                                ) {
+                                    1
+                                } else {
+                                    0
+                                }
+                            }.thenBy { item ->
+                                item.title.lowercase()
+                            }
+                        )
                         .distinctBy { item ->
 
     if (
@@ -10671,6 +10677,18 @@ Waiting for stream...
             return
         }
 
+        binding.contentMain.result.append(
+            """
+
+AUTO SCAN:
+Direct link opened.
+Waiting for player page / stream requests...
+
+────────────────────
+
+            """.trimIndent()
+        )
+
         binding.contentMain.webview.postDelayed(
             {
 
@@ -10776,7 +10794,7 @@ Waiting for stream...
                     )
                 }
             },
-            10000
+            6500
         )
 
     } catch (t: Throwable) {
