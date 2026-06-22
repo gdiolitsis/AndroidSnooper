@@ -53,18 +53,6 @@ private lateinit var binding:
 private var liveUrlInputText =
     ""
 
-private var externalBrowserReturnPending =
-    false
-
-private var externalBrowserOpenedAt =
-    0L
-
-private var externalBrowserReturnUrl =
-    ""
-
-private var externalBrowserReturnDialogVisible =
-    false
-
 // =====================================
 // BROWSER HISTORY / BOOKMARKS / MENU IDS
 // =====================================
@@ -169,23 +157,6 @@ private val mobileUserAgent =
     "Mozilla/5.0 (Linux; Android 13) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
         "Chrome/137.0.0.0 Mobile Safari/537.36"
-
-private val systemWebViewUserAgent: String by lazy {
-
-    try {
-
-        // Use the authentic installed Android System WebView identity.
-        // Cloudflare compares several browser signals; altering only
-        // selected UA markers can create an inconsistent fingerprint.
-        WebSettings.getDefaultUserAgent(
-            this
-        )
-
-    } catch (_: Throwable) {
-
-        mobileUserAgent
-    }
-}
 
 // =====================================
 // RESULTS PANEL STATE
@@ -327,157 +298,6 @@ private var cloudflareChallengeActive =
 
 private var lastCloudflareChallengeTime =
     0L
-
-private val cloudflareChallengeRecheckRunnable =
-    object : Runnable {
-
-        override fun run() {
-
-            try {
-
-                if (!cloudflareChallengeActive) {
-                    return
-                }
-
-                val activeWebView =
-                    popupWebView
-                        ?: binding.contentMain.webview
-
-                activeWebView.evaluateJavascript(
-                    """
-(function() {
-
-    try {
-
-        var title =
-            String(document.title || "").toLowerCase();
-
-        var body =
-            String(
-                document.body
-                    ? document.body.innerText || ""
-                    : ""
-            ).toLowerCase();
-
-        var html =
-            String(
-                document.documentElement
-                    ? document.documentElement.outerHTML || ""
-                    : ""
-            ).toLowerCase();
-
-        var explicitMarker =
-            html.indexOf("cf-chl-") >= 0 ||
-            html.indexOf("challenge-platform") >= 0 ||
-            html.indexOf("cf-turnstile") >= 0 ||
-            html.indexOf("challenges.cloudflare.com") >= 0 ||
-            html.indexOf("cf_clearance") >= 0;
-
-        var humanChallenge =
-            (
-                body.indexOf("verify you are human") >= 0 ||
-                body.indexOf("checking your browser") >= 0 ||
-                body.indexOf("performing security verification") >= 0
-            ) &&
-            (
-                html.indexOf("cloudflare") >= 0 ||
-                html.indexOf("turnstile") >= 0 ||
-                explicitMarker
-            );
-
-        var waitingPage =
-            title.indexOf("just a moment") >= 0 &&
-            (
-                html.indexOf("cloudflare") >= 0 ||
-                explicitMarker
-            );
-
-        return (
-            explicitMarker ||
-            humanChallenge ||
-            waitingPage
-        )
-            ? "challenge"
-            : "clear";
-
-    } catch(e) {
-
-        return "challenge";
-    }
-})();
-                    """.trimIndent()
-                ) { result ->
-
-                    try {
-
-                        val stillChallenge =
-                            (
-                                result?.contains(
-                                    "challenge",
-                                    true
-                                ) == true
-                            )
-
-                        if (stillChallenge) {
-
-                            activeWebView.removeCallbacks(
-                                this
-                            )
-
-                            activeWebView.postDelayed(
-                                this,
-                                2000L
-                            )
-
-                        } else {
-
-                            setCloudflareChallengeMode(
-                                false
-                            )
-
-                            activeWebView.postDelayed(
-                                {
-
-                                    try {
-
-                                        if (
-                                            !webUserInteracting &&
-                                            !cloudflareChallengeActive
-                                        ) {
-
-                                            runDeepMediaScan(
-                                                activeWebView
-                                            )
-                                        }
-
-                                    } catch (_: Throwable) {}
-                                },
-                                500L
-                            )
-                        }
-
-                    } catch (_: Throwable) {
-
-                        activeWebView.postDelayed(
-                            this,
-                            2000L
-                        )
-                    }
-                }
-
-            } catch (_: Throwable) {
-
-                try {
-
-                    binding.contentMain.webview.postDelayed(
-                        this,
-                        2000L
-                    )
-
-                } catch (_: Throwable) {}
-            }
-        }
-    }
     
 // =====================================
 // CLEAR WEB INTERACTION FLAG
@@ -1863,10 +1683,6 @@ private fun installCookieConsentWatcher(
             url.equals(
                 "about:blank",
                 true
-            ) ||
-            cloudflareChallengeActive ||
-            isCloudflareChallengeRequestUrl(
-                url
             )
         ) {
             return
@@ -2567,7 +2383,7 @@ binding.contentMain.webview.settings.apply {
     // =====================================
 
     userAgentString =
-        systemWebViewUserAgent
+        desktopUserAgent
 }
 
 // =====================================
@@ -2948,17 +2764,6 @@ binding.contentMain.webview.webViewClient =
 
         if (!url.isNullOrBlank()) {
 
-            if (
-                isCloudflareChallengeRequestUrl(
-                    url
-                )
-            ) {
-
-                setCloudflareChallengeMode(
-                    true
-                )
-            }
-
             binding.contentMain.urlInput.setText(
                 url
             )
@@ -3232,18 +3037,6 @@ if (isCloudflarePage) {
     return@evaluateJavascript
 }
 
-if (cloudflareChallengeActive) {
-
-    setCloudflareChallengeMode(
-        false
-    )
-
-    Log.e(
-        "CLOUDFLARE_GUARD",
-        "Challenge cleared -> scanner resumed"
-    )
-}
-
 val isBlockedPage =
     cleanResult.contains(
         "BLANK / BLOCKED / PROTECTED PAGE",
@@ -3349,22 +3142,14 @@ if (isBlockedPage) {
             // DETECT PAGE URL
             // =====================================
 
-            if (
-                !cloudflareChallengeActive &&
-                !isCloudflareChallengeRequestUrl(
-                    url
-                )
-            ) {
+            handleInterceptedMediaUrl(
+                url,
+                null
+            )
 
-                handleInterceptedMediaUrl(
-                    url,
-                    null
-                )
-
-                detectAndSaveUrl(
-                    url
-                )
-            }
+            detectAndSaveUrl(
+                url
+            )
 
             // =====================================
             // ENABLE PAGE TEXT SELECTION
@@ -3468,13 +3253,7 @@ if (isBlockedPage) {
 
             return try {
 
-                if (
-                    url.isNotBlank() &&
-                    !cloudflareChallengeActive &&
-                    !isCloudflareChallengeRequestUrl(
-                        url
-                    )
-                ) {
+                if (url.isNotBlank()) {
 
                     handleInterceptedMediaUrl(
                         url,
@@ -3503,13 +3282,7 @@ if (isBlockedPage) {
 
             try {
 
-                if (
-                    url.isNotBlank() &&
-                    !cloudflareChallengeActive &&
-                    !isCloudflareChallengeRequestUrl(
-                        url
-                    )
-                ) {
+                if (url.isNotBlank()) {
 
                     handleInterceptedMediaUrl(
                         url,
@@ -3773,18 +3546,10 @@ binding.contentMain.webview.webChromeClient =
                             liveUrlInputText =
                                 popupUrl
 
-                            if (
-                                !cloudflareChallengeActive &&
-                                !isCloudflareChallengeRequestUrl(
-                                    popupUrl
-                                )
-                            ) {
-
-                                handleInterceptedMediaUrl(
-                                    popupUrl,
-                                    request
-                                )
-                            }
+                            handleInterceptedMediaUrl(
+                                popupUrl,
+                                request
+                            )
                         }
 
                         false
@@ -3808,13 +3573,7 @@ binding.contentMain.webview.webChromeClient =
 
                     try {
 
-                        if (
-                            popupUrl.isNotBlank() &&
-                            !cloudflareChallengeActive &&
-                            !isCloudflareChallengeRequestUrl(
-                                popupUrl
-                            )
-                        ) {
+                        if (popupUrl.isNotBlank()) {
 
                             handleInterceptedMediaUrl(
                                 popupUrl,
@@ -3840,17 +3599,6 @@ binding.contentMain.webview.webChromeClient =
                     try {
 
                         if (!url.isNullOrBlank()) {
-
-                            if (
-                                isCloudflareChallengeRequestUrl(
-                                    url
-                                )
-                            ) {
-
-                                setCloudflareChallengeMode(
-                                    true
-                                )
-                            }
 
                             binding.contentMain.urlInput.setText(
                                 url
@@ -3885,22 +3633,14 @@ binding.contentMain.webview.webChromeClient =
 
                             } catch (_: Throwable) {}
 
-                            if (
-                                !cloudflareChallengeActive &&
-                                !isCloudflareChallengeRequestUrl(
-                                    url
-                                )
-                            ) {
+                            handleInterceptedMediaUrl(
+                                url,
+                                null
+                            )
 
-                                handleInterceptedMediaUrl(
-                                    url,
-                                    null
-                                )
-
-                                detectAndSaveUrl(
-                                    url
-                                )
-                            }
+                            detectAndSaveUrl(
+                                url
+                            )
 
                             if (
     !webUserInteracting &&
@@ -4326,9 +4066,18 @@ $finalUrl
                 }  
             }  
 
-        openExternalBrowserWithAnalyzerReturn(
-            finalUrl
-        )
+        val browserIntent =  
+Intent(  
+    Intent.ACTION_VIEW,  
+    Uri.parse(finalUrl)  
+)
+
+startActivity(
+Intent.createChooser(
+browserIntent,
+"Open With Browser"
+)
+)
 }
 
 // =====================================
@@ -9758,6 +9507,191 @@ private fun collectCurrentPlayableStreamsForAutoScan(): List<String> {
         }
 }
 
+
+// =====================================
+// AUTO SCAN WAIT HELPER
+// Doubled stream wait time, but exits early when a new stream is found.
+// =====================================
+
+private fun waitForAutoScanStreamOrTimeout(
+    candidate: AutoScanCandidate,
+    activeWebView: WebView,
+    maxWaitMs: Long = 9000L,
+    pollMs: Long = 800L
+) {
+
+    try {
+
+        val startedAt =
+            System.currentTimeMillis()
+
+        var finished =
+            false
+
+        fun finishAndGoNext() {
+
+            if (finished) {
+                return
+            }
+
+            finished =
+                true
+
+            finalizeCurrentAutoChannel(
+                candidate
+            )
+
+            autoScanIndex++
+
+            binding.contentMain.webview.postDelayed(
+                {
+                    scanNextAutoChannel()
+                },
+                700
+            )
+        }
+
+        fun hasNewStream(): Boolean {
+
+            return try {
+
+                collectCurrentPlayableStreamsForAutoScan()
+                    .map { stream ->
+                        cleanDetectedUrl(
+                            stream
+                        )
+                    }
+                    .any { stream ->
+
+                        stream.isNotBlank() &&
+                            isExportableStream(
+                                stream
+                            ) &&
+                            !autoScanKnownBefore.contains(
+                                stream.lowercase()
+                            )
+                    }
+
+            } catch (_: Throwable) {
+
+                false
+            }
+        }
+
+        fun poll() {
+
+            try {
+
+                if (
+                    finished ||
+                    !autoScanRunning
+                ) {
+                    return
+                }
+
+                if (cloudflareChallengeActive) {
+
+                    binding.contentMain.webview.postDelayed(
+                        {
+                            poll()
+                        },
+                        pollMs
+                    )
+
+                    return
+                }
+
+                try {
+
+                    runDeepMediaScan(
+                        activeWebView
+                    )
+
+                } catch (_: Throwable) {}
+
+                val elapsed =
+                    System.currentTimeMillis() - startedAt
+
+                if (hasNewStream()) {
+
+                    binding.contentMain.result.append(
+                        """
+
+AUTO SCAN:
+Stream found early.
+Moving to next channel.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                    finishAndGoNext()
+                    return
+                }
+
+                if (elapsed >= maxWaitMs) {
+
+                    binding.contentMain.result.append(
+                        """
+
+AUTO SCAN:
+Stream wait timeout reached.
+Moving to next channel.
+
+────────────────────
+
+                        """.trimIndent()
+                    )
+
+                    finishAndGoNext()
+                    return
+                }
+
+                binding.contentMain.webview.postDelayed(
+                    {
+                        poll()
+                    },
+                    pollMs
+                )
+
+            } catch (t: Throwable) {
+
+                Log.e(
+                    "AUTO_SCAN",
+                    "wait helper failed",
+                    t
+                )
+
+                finishAndGoNext()
+            }
+        }
+
+        poll()
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "AUTO_SCAN",
+            "wait helper start failed",
+            t
+        )
+
+        finalizeCurrentAutoChannel(
+            candidate
+        )
+
+        autoScanIndex++
+
+        binding.contentMain.webview.postDelayed(
+            {
+                scanNextAutoChannel()
+            },
+            900
+        )
+    }
+}
+
 // =====================================
 // START AUTO CHANNEL SCAN
 // With country pagination support
@@ -10493,27 +10427,10 @@ Waiting for stream...
                                         activeWebView
                                     )
 
-                                    binding.contentMain.webview.postDelayed(
-                                        {
-
-                                            runDeepMediaScan(
-                                                activeWebView
-                                            )
-
-                                            finalizeCurrentAutoChannel(
-                                                candidate
-                                            )
-
-                                            autoScanIndex++
-
-                                            binding.contentMain.webview.postDelayed(
-                                                {
-                                                    scanNextAutoChannel()
-                                                },
-                                                900
-                                            )
-                                        },
-                                        4500
+                                    waitForAutoScanStreamOrTimeout(
+                                        candidate = candidate,
+                                        activeWebView = activeWebView,
+                                        maxWaitMs = 9000L
                                     )
                                 }
                             }
@@ -10632,23 +10549,10 @@ Waiting for stream...
                             activeWebView
                         )
 
-                        binding.contentMain.webview.postDelayed(
-                            {
-
-                                finalizeCurrentAutoChannel(
-                                    candidate
-                                )
-
-                                autoScanIndex++
-
-                                binding.contentMain.webview.postDelayed(
-                                    {
-                                        scanNextAutoChannel()
-                                    },
-                                    900
-                                )
-                            },
-                            2500
+                        waitForAutoScanStreamOrTimeout(
+                            candidate = candidate,
+                            activeWebView = activeWebView,
+                            maxWaitMs = 9000L
                         )
 
                         return@postDelayed
@@ -10706,27 +10610,10 @@ Waiting for stream...
                                 activeWebView
                             )
 
-                            binding.contentMain.webview.postDelayed(
-                                {
-
-                                    runDeepMediaScan(
-                                        activeWebView
-                                    )
-
-                                    finalizeCurrentAutoChannel(
-                                        candidate
-                                    )
-
-                                    autoScanIndex++
-
-                                    binding.contentMain.webview.postDelayed(
-                                        {
-                                            scanNextAutoChannel()
-                                        },
-                                        900
-                                    )
-                                },
-                                4500
+                            waitForAutoScanStreamOrTimeout(
+                                candidate = candidate,
+                                activeWebView = activeWebView,
+                                maxWaitMs = 9000L
                             )
                         }
                     }
@@ -12637,102 +12524,29 @@ private fun clearTsFallbackBecausePlaylistFound() {
 // CLOUDFLARE / VERIFY PAGE DETECTOR
 // =====================================
 
-private fun isCloudflareChallengeRequestUrl(
-    url: String?
-): Boolean {
-
-    val lower =
-        url
-            .orEmpty()
-            .lowercase()
-
-    return (
-        lower.contains(
-            "challenges.cloudflare.com"
-        ) ||
-        lower.contains(
-            "/cdn-cgi/challenge-platform/"
-        ) ||
-        lower.contains(
-            "/cdn-cgi/challenge/"
-        ) ||
-        lower.contains(
-            "cf-chl-"
-        ) ||
-        lower.contains(
-            "cf_turnstile"
-        ) ||
-        lower.contains(
-            "turnstile"
-        )
-    )
-}
-
 private fun isCloudflareLikePage(
     url: String?,
     diagnosticText: String = ""
 ): Boolean {
 
-    val lowerUrl =
-        url
-            .orEmpty()
-            .lowercase()
-
-    val lowerText =
-        diagnosticText
-            .lowercase()
-
-    val explicitUrlMarker =
-        isCloudflareChallengeRequestUrl(
-            lowerUrl
-        )
-
-    val explicitTextMarker =
-        lowerText.contains(
-            "cloudflare"
-        ) ||
-        lowerText.contains(
-            "cf-chl"
-        ) ||
-        lowerText.contains(
-            "cf_clearance"
-        ) ||
-        lowerText.contains(
-            "challenge-platform"
-        ) ||
-        lowerText.contains(
-            "cf-turnstile"
-        ) ||
-        lowerText.contains(
-            "challenges.cloudflare.com"
-        )
-
-    val humanChallenge =
+    val combined =
         (
-            lowerText.contains(
-                "checking your browser"
-            ) ||
-            lowerText.contains(
-                "verify you are human"
-            ) ||
-            lowerText.contains(
-                "performing security verification"
-            )
-        ) &&
-        explicitTextMarker
-
-    val waitingPage =
-        lowerText.contains(
-            "just a moment"
-        ) &&
-        explicitTextMarker
+            url.orEmpty() +
+                " " +
+                diagnosticText
+            ).lowercase()
 
     return (
-        explicitUrlMarker ||
-        explicitTextMarker ||
-        humanChallenge ||
-        waitingPage
-    )
+        combined.contains("cloudflare") ||
+            combined.contains("cf-chl") ||
+            combined.contains("cf_clearance") ||
+            combined.contains("checking your browser") ||
+            combined.contains("verify you are human") ||
+            combined.contains("verification") ||
+            combined.contains("just a moment") ||
+            combined.contains("challenge-platform") ||
+            combined.contains("turnstile")
+        )
 }
 
 private fun setCloudflareChallengeMode(
@@ -12742,27 +12556,30 @@ private fun setCloudflareChallengeMode(
     cloudflareChallengeActive =
         active
 
-    val activeWebView =
-        popupWebView
-            ?: binding.contentMain.webview
-
-    activeWebView.removeCallbacks(
-        cloudflareChallengeRecheckRunnable
-    )
-
     if (active) {
 
         lastCloudflareChallengeTime =
             System.currentTimeMillis()
 
-        // No recurring DOM polling while Cloudflare is executing.
-        // The challenge page must keep the WebView main thread free.
-        // Completion is detected by the normal page reload/navigation flow.
+        webUserInteracting =
+            true
 
-    } else {
+        binding.contentMain.webview.removeCallbacks(
+            clearWebInteractionRunnable
+        )
 
-        lastCloudflareChallengeTime =
-            0L
+        binding.contentMain.webview.postDelayed(
+            {
+
+                cloudflareChallengeActive =
+                    false
+
+                webUserInteracting =
+                    false
+
+            },
+            12000
+        )
     }
 }
 
@@ -12776,15 +12593,6 @@ private fun handleInterceptedMediaUrl(
 ) {
 
     try {
-
-        if (
-            cloudflareChallengeActive ||
-            isCloudflareChallengeRequestUrl(
-                url
-            )
-        ) {
-            return
-        }
 
         val lower =
             url.lowercase()
@@ -27059,8 +26867,111 @@ private fun showDetectedStreamsDialog() {
             labels = streamList,
             urls = streamList,
             allowSave = true,
-            allowDelete = false,
-            onDeleteSelected = null
+            allowDelete = true,
+            onDeleteSelected = { selectedUrls ->
+
+                try {
+
+                    selectedUrls.forEach { selectedUrl ->
+
+                        detectedStreams.remove(
+                            selectedUrl
+                        )
+
+                        detectedVideos.remove(
+                            selectedUrl
+                        )
+
+                        detectedAudio.remove(
+                            selectedUrl
+                        )
+
+                        detectedMasterStreams.remove(
+                            selectedUrl
+                        )
+
+                        detectedM3uLists.remove(
+                            selectedUrl
+                        )
+
+                        streamInfoSnapshots.remove(
+                            selectedUrl
+                        )
+
+                        streamSources.remove(
+                            selectedUrl
+                        )
+
+                        streamValidation.remove(
+                            selectedUrl
+                        )
+
+                        streamHeaders.remove(
+                            selectedUrl
+                        )
+
+                        streamTokens.remove(
+                            selectedUrl
+                        )
+
+                        streamResolution.remove(
+                            selectedUrl
+                        )
+
+                        streamBandwidth.remove(
+                            selectedUrl
+                        )
+
+                        streamCodec.remove(
+                            selectedUrl
+                        )
+
+                        hlsVerdicts.remove(
+                            selectedUrl
+                        )
+
+                        streamHitCounter.remove(
+                            selectedUrl
+                        )
+                    }
+
+                    if (
+                        selectedUrls.any { item ->
+                            item.equals(
+                                bestStreamUrl,
+                                true
+                            )
+                        }
+                    ) {
+                        bestStreamUrl =
+                            ""
+                    }
+
+                    if (
+                        selectedUrls.any { item ->
+                            item.equals(
+                                bestLiveUrl,
+                                true
+                            )
+                        }
+                    ) {
+                        bestLiveUrl =
+                            ""
+                    }
+
+                    lastSelectedUrl =
+                        ""
+
+                    Toast.makeText(
+                        this,
+                        "Deleted ${selectedUrls.size} stream(s)",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    showDetectedStreamsDialog()
+
+                } catch (_: Throwable) {}
+            }
         )
 
     } catch (t: Throwable) {
@@ -27911,80 +27822,10 @@ private fun openCurrentPageInExternalBrowser() {
             return
         }
 
-        openExternalBrowserWithAnalyzerReturn(
-            url
-        )
-
-    } catch (t: Throwable) {
-
-        Log.e(
-            "OPEN_EXTERNAL_BROWSER",
-            "failed",
-            t
-        )
-
-        Toast.makeText(
-            this,
-            "Cannot open browser",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-}
-
-// =====================================
-// EXTERNAL BROWSER WITH ANALYZER RETURN
-// =====================================
-
-private fun openExternalBrowserWithAnalyzerReturn(
-    url: String
-) {
-
-    try {
-
-        val cleanUrl =
-            url.trim()
-
-        if (
-            cleanUrl.isBlank() ||
-            (
-                !cleanUrl.startsWith(
-                    "http://",
-                    true
-                ) &&
-                !cleanUrl.startsWith(
-                    "https://",
-                    true
-                )
-            )
-        ) {
-
-            Toast.makeText(
-                this,
-                "Invalid browser URL",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return
-        }
-
-        externalBrowserReturnUrl =
-            cleanUrl
-
-        externalBrowserReturnPending =
-            true
-
-        externalBrowserOpenedAt =
-            System.currentTimeMillis()
-
-        externalBrowserReturnDialogVisible =
-            false
-
         val intent =
             Intent(
                 Intent.ACTION_VIEW,
-                Uri.parse(
-                    cleanUrl
-                )
+                Uri.parse(url)
             ).apply {
 
                 addCategory(
@@ -28001,9 +27842,6 @@ private fun openExternalBrowserWithAnalyzerReturn(
 
     } catch (t: Throwable) {
 
-        externalBrowserReturnPending =
-            false
-
         Log.e(
             "OPEN_EXTERNAL_BROWSER",
             "failed",
@@ -28016,99 +27854,6 @@ private fun openExternalBrowserWithAnalyzerReturn(
             Toast.LENGTH_SHORT
         ).show()
     }
-}
-
-private fun showReturnToAnalyzerDialog() {
-
-    if (
-        !externalBrowserReturnPending ||
-        externalBrowserReturnDialogVisible ||
-        isFinishing ||
-        isDestroyed
-    ) {
-        return
-    }
-
-    val url =
-        externalBrowserReturnUrl
-            .trim()
-
-    if (url.isBlank()) {
-
-        externalBrowserReturnPending =
-            false
-
-        return
-    }
-
-    externalBrowserReturnDialogVisible =
-        true
-
-    androidx.appcompat.app.AlertDialog.Builder(this)
-        .setTitle(
-            "Return to GEL Analyzer"
-        )
-        .setMessage(
-            "The page was opened in the external browser.\n\n" +
-                "Return this URL to the Analyzer?"
-        )
-        .setPositiveButton(
-            "CONTINUE TO ANALYZER"
-        ) { _, _ ->
-
-            externalBrowserReturnPending =
-                false
-
-            externalBrowserReturnDialogVisible =
-                false
-
-            binding.contentMain.urlInput.setText(
-                url
-            )
-
-            binding.contentMain.urlInput.setSelection(
-                0
-            )
-
-            liveUrlInputText =
-                url
-
-            try {
-
-                binding.contentMain.webview.stopLoading()
-
-                binding.contentMain.webview.loadUrl(
-                    url
-                )
-
-            } catch (t: Throwable) {
-
-                Log.e(
-                    "RETURN_TO_ANALYZER",
-                    "Analyzer reload failed",
-                    t
-                )
-            }
-        }
-        .setNegativeButton(
-            "KEEP CURRENT PAGE"
-        ) { _, _ ->
-
-            externalBrowserReturnPending =
-                false
-
-            externalBrowserReturnDialogVisible =
-                false
-        }
-        .setOnCancelListener {
-
-            externalBrowserReturnPending =
-                false
-
-            externalBrowserReturnDialogVisible =
-                false
-        }
-        .show()
 }
 
 // =====================================
@@ -28149,7 +27894,7 @@ private fun setWebViewUserAgentAndReload(
             if (desktop) {
                 desktopUserAgent
             } else {
-                systemWebViewUserAgent
+                mobileUserAgent
             }
 
         popupWebView?.settings?.userAgentString =
@@ -28255,44 +28000,6 @@ private fun clearBrowserData() {
 // =====================================  
 // MENU  
 // =====================================
-
-override fun onResume() {
-
-    super.onResume()
-
-    if (!externalBrowserReturnPending) {
-        return
-    }
-
-    val elapsed =
-        System.currentTimeMillis() -
-            externalBrowserOpenedAt
-
-    val delay =
-        if (elapsed >= 900L) {
-            250L
-        } else {
-            900L - elapsed
-        }
-
-    binding.root.postDelayed(
-        {
-
-            try {
-
-                if (
-                    externalBrowserReturnPending &&
-                    !externalBrowserReturnDialogVisible
-                ) {
-
-                    showReturnToAnalyzerDialog()
-                }
-
-            } catch (_: Throwable) {}
-        },
-        delay
-    )
-}
 
 override fun onCreateOptionsMenu(
     menu: Menu
