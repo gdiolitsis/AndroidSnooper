@@ -9836,6 +9836,140 @@ private fun waitForAutoScanStreamOrTimeout(
                     : ""
             ).toLowerCase();
 
+        // =====================================
+        // AUTO SCAN COOKIE CONSENT GUARD
+        // If a cookie popup blocks the first human-like card click,
+        // dismiss it and retry the SAME candidate once the page is free.
+        // This is not Teleon logic. It only clears the obstacle that
+        // prevents the normal single card tap from reaching the player.
+        // =====================================
+
+        try {
+
+            var cookieWords =
+                /cookie|cookies|consent|privacy|gdpr|preferenc|accept|reject|allow/i;
+
+            var actionWords =
+                /reject all|reject|accept all|accept|allow all|allow|agree|i agree|got it|continue|save choices|confirm choices|confirm my choices/i;
+
+            var selectors = [
+                "#onetrust-accept-btn-handler",
+                "#onetrust-reject-all-handler",
+                ".onetrust-accept-btn-handler",
+                ".onetrust-reject-all-handler",
+                "#accept-recommended-btn-handler",
+                "#save-preference-btn-handler",
+                "button",
+                "[role='button']",
+                "input[type='button']",
+                "input[type='submit']",
+                "a"
+            ];
+
+            var nodes =
+                Array.prototype.slice.call(
+                    document.querySelectorAll(
+                        selectors.join(",")
+                    )
+                );
+
+            var best = null;
+            var bestScore = 0;
+
+            nodes.forEach(function(el) {
+
+                try {
+
+                    var rect =
+                        el.getBoundingClientRect();
+
+                    if (
+                        rect.width < 20 ||
+                        rect.height < 10 ||
+                        rect.bottom < 0 ||
+                        rect.top > window.innerHeight
+                    ) {
+                        return;
+                    }
+
+                    var style =
+                        window.getComputedStyle(el);
+
+                    if (
+                        style.display === "none" ||
+                        style.visibility === "hidden" ||
+                        style.opacity === "0"
+                    ) {
+                        return;
+                    }
+
+                    var text =
+                        String(
+                            (el.innerText || "") + " " +
+                            (el.textContent || "") + " " +
+                            (el.value || "") + " " +
+                            (el.id || "") + " " +
+                            (el.className || "") + " " +
+                            (el.getAttribute("aria-label") || "") + " " +
+                            (el.getAttribute("title") || "")
+                        ).toLowerCase();
+
+                    var parentText = "";
+
+                    try {
+                        parentText =
+                            String(
+                                el.closest("div, section, aside, form, [role='dialog']")
+                                    ? el.closest("div, section, aside, form, [role='dialog']").innerText || ""
+                                    : ""
+                            ).toLowerCase();
+                    } catch(e) {}
+
+                    if (
+                        !cookieWords.test(text + " " + parentText) ||
+                        !actionWords.test(text)
+                    ) {
+                        return;
+                    }
+
+                    var score = 1;
+
+                    // Prefer reject/necessary when available so we do not
+                    // blindly accept tracking cookies.
+                    if (text.indexOf("reject") >= 0) score += 10;
+                    if (text.indexOf("necessary") >= 0) score += 8;
+                    if (text.indexOf("save") >= 0) score += 6;
+                    if (text.indexOf("accept") >= 0) score += 4;
+                    if (text.indexOf("agree") >= 0) score += 3;
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = el;
+                    }
+
+                } catch(e) {}
+            });
+
+            if (best) {
+
+                try {
+                    best.click();
+                } catch(e) {
+                    try {
+                        best.dispatchEvent(
+                            new MouseEvent(
+                                "click",
+                                { bubbles: true, cancelable: true, view: window }
+                            )
+                        );
+                    } catch(e2) {}
+                }
+
+                return "cookie-dismissed";
+            }
+
+        } catch(e) {}
+
         if (
             text.indexOf("there is no stream available") >= 0 ||
             text.indexOf("there are no streams available") >= 0 ||
@@ -9862,6 +9996,47 @@ private fun waitForAutoScanStreamOrTimeout(
                             finished ||
                             !autoScanRunning
                         ) {
+                            return@evaluateJavascript
+                        }
+
+                        val cookieDismissed =
+                            result?.contains(
+                                "cookie-dismissed",
+                                true
+                            ) == true
+
+                        if (cookieDismissed) {
+
+                            binding.contentMain.result.append(
+                                """
+
+AUTO SCAN:
+Cookie popup dismissed.
+Retrying same card click.
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            finished =
+                                true
+
+                            try {
+
+                                CookieManager
+                                    .getInstance()
+                                    .flush()
+
+                            } catch (_: Throwable) {}
+
+                            activeWebView.postDelayed(
+                                {
+                                    scanNextAutoChannel()
+                                },
+                                1200L
+                            )
+
                             return@evaluateJavascript
                         }
 
