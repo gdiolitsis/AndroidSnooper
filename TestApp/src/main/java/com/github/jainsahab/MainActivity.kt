@@ -345,6 +345,16 @@ private val streamHeaders =
 
 private val detectedM3uLists =
     java.util.concurrent.CopyOnWriteArraySet<String>()
+
+// =====================================
+// DELETED DETECTED STREAMS FILTER
+// Keeps selected deleted streams hidden even if they still exist
+// inside the result text panel or secondary caches.
+// Cleared on every new analyzer load.
+// =====================================
+
+private val deletedDetectedStreams =
+    java.util.concurrent.CopyOnWriteArraySet<String>()
   
 private var lastSelectedUrl =
     ""
@@ -3784,6 +3794,7 @@ detectedAudio.clear()
 detectedMasterStreams.clear()
 detectedChannels.clear()
 detectedM3uLists.clear()
+deletedDetectedStreams.clear()
 
 pagePlaylistFound =
     false
@@ -9510,14 +9521,14 @@ private fun collectCurrentPlayableStreamsForAutoScan(): List<String> {
 
 // =====================================
 // AUTO SCAN WAIT HELPER
-// Doubled stream wait time, but exits early when a new stream is found.
+// Long wait for slow pages, but exits early when a new stream is found.
 // =====================================
 
 private fun waitForAutoScanStreamOrTimeout(
     candidate: AutoScanCandidate,
     activeWebView: WebView,
-    maxWaitMs: Long = 9000L,
-    pollMs: Long = 800L
+    maxWaitMs: Long = 20000L,
+    pollMs: Long = 700L
 ) {
 
     try {
@@ -10275,9 +10286,9 @@ Skipping.
 
                 val loadDelay =
                     if (needsLoad) {
-                        4200L
+                        6500L
                     } else {
-                        900L
+                        1200L
                     }
 
                 binding.contentMain.webview.postDelayed(
@@ -10430,7 +10441,7 @@ Waiting for stream...
                                     waitForAutoScanStreamOrTimeout(
                                         candidate = candidate,
                                         activeWebView = activeWebView,
-                                        maxWaitMs = 9000L
+                                        maxWaitMs = 20000L
                                     )
                                 }
                             }
@@ -10552,7 +10563,7 @@ Waiting for stream...
                         waitForAutoScanStreamOrTimeout(
                             candidate = candidate,
                             activeWebView = activeWebView,
-                            maxWaitMs = 9000L
+                            maxWaitMs = 20000L
                         )
 
                         return@postDelayed
@@ -10571,24 +10582,21 @@ Waiting for stream...
 
 AUTO SCAN:
 No play button found.
-Skipping wait.
+Waiting for delayed stream anyway...
 
 ────────────────────
 
                                     """.trimIndent()
                                 )
 
-                                finalizeCurrentAutoChannel(
-                                    candidate
+                                runDeepMediaScan(
+                                    activeWebView
                                 )
 
-                                autoScanIndex++
-
-                                binding.contentMain.webview.postDelayed(
-                                    {
-                                        scanNextAutoChannel()
-                                    },
-                                    700
+                                waitForAutoScanStreamOrTimeout(
+                                    candidate = candidate,
+                                    activeWebView = activeWebView,
+                                    maxWaitMs = 20000L
                                 )
 
                                 return@runOnUiThread
@@ -10613,7 +10621,7 @@ Waiting for stream...
                             waitForAutoScanStreamOrTimeout(
                                 candidate = candidate,
                                 activeWebView = activeWebView,
-                                maxWaitMs = 9000L
+                                maxWaitMs = 20000L
                             )
                         }
                     }
@@ -10636,7 +10644,7 @@ Waiting for stream...
                     )
                 }
             },
-            4200
+            6500
         )
 
     } catch (t: Throwable) {
@@ -25724,6 +25732,256 @@ private fun expandDetectedStreamCandidate(
 }
 
 // =====================================
+// DELETED DETECTED STREAM HELPERS
+// Important: Detected Streams menu also scans the visible result
+// panel text, so deletion must blacklist normalized URLs too.
+// =====================================
+
+private fun buildDetectedStreamDeleteKeys(
+    rawUrl: String
+): Set<String> {
+
+    val keys =
+        mutableSetOf<String>()
+
+    try {
+
+        val candidates =
+            mutableListOf<String>()
+
+        candidates.add(
+            rawUrl
+        )
+
+        try {
+
+            candidates.addAll(
+                expandDetectedStreamCandidate(
+                    rawUrl
+                )
+            )
+
+        } catch (_: Throwable) {}
+
+        candidates.forEach { candidate ->
+
+            try {
+
+                val decoded =
+                    repeatedlyDecodeUrl(
+                        candidate
+                    )
+
+                val playableClean =
+                    cleanDetectedPlayableUrl(
+                        decoded
+                    )
+
+                val dailymotionClean =
+                    cleanDailymotionUrlForExport(
+                        playableClean
+                    )
+
+                val finalClean =
+                    cleanDetectedUrl(
+                        dailymotionClean
+                    ).trim()
+
+                listOf(
+                    candidate,
+                    decoded,
+                    playableClean,
+                    dailymotionClean,
+                    finalClean
+                ).forEach { item ->
+
+                    val key =
+                        item
+                            .trim()
+                            .lowercase()
+
+                    if (key.isNotBlank()) {
+                        keys.add(
+                            key
+                        )
+                    }
+
+                    val noFragment =
+                        key.substringBefore(
+                            "#"
+                        ).trim()
+
+                    if (noFragment.isNotBlank()) {
+                        keys.add(
+                            noFragment
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+    } catch (_: Throwable) {}
+
+    return keys
+}
+
+private fun isDeletedDetectedStreamUrl(
+    rawUrl: String
+): Boolean {
+
+    return try {
+
+        val keys =
+            buildDetectedStreamDeleteKeys(
+                rawUrl
+            )
+
+        keys.any { key ->
+            deletedDetectedStreams.contains(
+                key
+            )
+        }
+
+    } catch (_: Throwable) {
+
+        false
+    }
+}
+
+private fun removeDetectedStreamEverywhere(
+    rawUrl: String
+) {
+
+    try {
+
+        val deleteKeys =
+            buildDetectedStreamDeleteKeys(
+                rawUrl
+            )
+
+        if (deleteKeys.isEmpty()) {
+            return
+        }
+
+        deletedDetectedStreams.addAll(
+            deleteKeys
+        )
+
+        fun shouldRemove(
+            candidate: String
+        ): Boolean {
+
+            return try {
+
+                val candidateKeys =
+                    buildDetectedStreamDeleteKeys(
+                        candidate
+                    )
+
+                candidateKeys.any { key ->
+                    deleteKeys.contains(
+                        key
+                    )
+                }
+
+            } catch (_: Throwable) {
+
+                false
+            }
+        }
+
+        listOf(
+            detectedStreams,
+            detectedVideos,
+            detectedImages,
+            detectedAudio,
+            detectedMasterStreams,
+            detectedM3uLists
+        ).forEach { set ->
+
+            try {
+
+                set.toList().forEach { item ->
+
+                    if (shouldRemove(item)) {
+                        set.remove(
+                            item
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+        listOf(
+            streamInfoSnapshots,
+            streamSources,
+            streamValidation,
+            streamHeaders,
+            streamTokens,
+            streamResolution,
+            streamBandwidth,
+            streamCodec,
+            streamHitCounter,
+            streamScores
+        ).forEach { map ->
+
+            try {
+
+                map.keys.toList().forEach { key ->
+
+                    if (shouldRemove(key)) {
+                        map.remove(
+                            key
+                        )
+                    }
+                }
+
+            } catch (_: Throwable) {}
+        }
+
+        if (shouldRemove(bestStreamUrl)) {
+            bestStreamUrl =
+                ""
+        }
+
+        if (shouldRemove(bestLiveUrl)) {
+            bestLiveUrl =
+                ""
+        }
+
+        if (shouldRemove(youtubeWatchUrl)) {
+            youtubeWatchUrl =
+                ""
+        }
+
+        if (shouldRemove(youtubeDashVideoUrl)) {
+            youtubeDashVideoUrl =
+                ""
+        }
+
+        if (shouldRemove(youtubeDashAudioUrl)) {
+            youtubeDashAudioUrl =
+                ""
+        }
+
+        if (shouldRemove(lastSelectedUrl)) {
+            lastSelectedUrl =
+                ""
+        }
+
+    } catch (t: Throwable) {
+
+        Log.e(
+            "DELETE_STREAM",
+            "remove failed",
+            t
+        )
+    }
+}
+
+// =====================================
 // COLLECT PLAYABLE STREAM URLS FOR MENU
 // Clean version:
 // - removes trackers / translate / analytics wrappers
@@ -25868,6 +26126,9 @@ private fun collectPlayableStreamUrls(): List<String> {
                         !finalClean.startsWith(
                             "http",
                             true
+                        ) ||
+                        isDeletedDetectedStreamUrl(
+                            finalClean
                         ) ||
                         isWrapperOrTrackerUrl(
                             finalClean
@@ -26874,63 +27135,7 @@ private fun showDetectedStreamsDialog() {
 
                     selectedUrls.forEach { selectedUrl ->
 
-                        detectedStreams.remove(
-                            selectedUrl
-                        )
-
-                        detectedVideos.remove(
-                            selectedUrl
-                        )
-
-                        detectedAudio.remove(
-                            selectedUrl
-                        )
-
-                        detectedMasterStreams.remove(
-                            selectedUrl
-                        )
-
-                        detectedM3uLists.remove(
-                            selectedUrl
-                        )
-
-                        streamInfoSnapshots.remove(
-                            selectedUrl
-                        )
-
-                        streamSources.remove(
-                            selectedUrl
-                        )
-
-                        streamValidation.remove(
-                            selectedUrl
-                        )
-
-                        streamHeaders.remove(
-                            selectedUrl
-                        )
-
-                        streamTokens.remove(
-                            selectedUrl
-                        )
-
-                        streamResolution.remove(
-                            selectedUrl
-                        )
-
-                        streamBandwidth.remove(
-                            selectedUrl
-                        )
-
-                        streamCodec.remove(
-                            selectedUrl
-                        )
-
-                        hlsVerdicts.remove(
-                            selectedUrl
-                        )
-
-                        streamHitCounter.remove(
+                        removeDetectedStreamEverywhere(
                             selectedUrl
                         )
                     }
