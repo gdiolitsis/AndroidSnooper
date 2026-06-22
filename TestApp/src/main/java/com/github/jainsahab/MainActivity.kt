@@ -8671,15 +8671,46 @@ if (
 
     try {
 
+        // FIRST PRIORITY: real link inside the card.
+        // This restores the simple one-click behaviour used by sites
+        // where a channel card navigates directly to a player page.
+        try {
+
+            var link =
+                el.matches && el.matches("a[href]")
+                    ? el
+                    : (el.querySelector && el.querySelector("a[href]"));
+
+            if (link) {
+
+                var href =
+                    String(
+                        link.href ||
+                        link.getAttribute("href") ||
+                        ""
+                    ).trim();
+
+                if (
+                    href &&
+                    href !== "#" &&
+                    href.toLowerCase().indexOf("javascript:") !== 0
+                ) {
+                    return href;
+                }
+            }
+
+        } catch(e) {}
+
         var target =
             null;
 
-        // Prefer real clickable/media target inside card
+        // SECOND PRIORITY: true click target for cards without href.
+        // This keeps Teleon-style / second-click cards working.
         try {
 
             target =
                 el.querySelector(
-                    "a[href], img, button, [role='button'], [onclick], .play, [class*='play'], [class*='Play']"
+                    "button, [role='button'], [onclick], img, .play, [class*='play'], [class*='Play']"
                 );
 
         } catch(e) {}
@@ -9521,13 +9552,13 @@ private fun collectCurrentPlayableStreamsForAutoScan(): List<String> {
 
 // =====================================
 // AUTO SCAN WAIT HELPER
-// Long wait for slow pages, but exits early when a new stream is found.
+// Balanced wait for slow pages, exits early when stream or no-stream message appears.
 // =====================================
 
 private fun waitForAutoScanStreamOrTimeout(
     candidate: AutoScanCandidate,
     activeWebView: WebView,
-    maxWaitMs: Long = 20000L,
+    maxWaitMs: Long = 15000L,
     pollMs: Long = 700L
 ) {
 
@@ -9612,21 +9643,87 @@ private fun waitForAutoScanStreamOrTimeout(
                     return
                 }
 
-                try {
+                activeWebView.evaluateJavascript(
+                    """
+(function() {
 
-                    runDeepMediaScan(
-                        activeWebView
-                    )
+    try {
 
-                } catch (_: Throwable) {}
+        var text =
+            String(
+                document.body
+                    ? document.body.innerText || ""
+                    : ""
+            ).toLowerCase();
 
-                val elapsed =
-                    System.currentTimeMillis() - startedAt
+        if (
+            text.indexOf("there is no stream available") >= 0 ||
+            text.indexOf("there are no streams available") >= 0 ||
+            text.indexOf("no stream available") >= 0 ||
+            text.indexOf("stream unavailable") >= 0 ||
+            text.indexOf("stream is unavailable") >= 0
+        ) {
+            return "no-stream";
+        }
 
-                if (hasNewStream()) {
+        return "keep-waiting";
 
-                    binding.contentMain.result.append(
-                        """
+    } catch(e) {
+
+        return "keep-waiting";
+    }
+})();
+                    """.trimIndent()
+                ) { result ->
+
+                    try {
+
+                        if (
+                            finished ||
+                            !autoScanRunning
+                        ) {
+                            return@evaluateJavascript
+                        }
+
+                        val noStreamMessage =
+                            result?.contains(
+                                "no-stream",
+                                true
+                            ) == true
+
+                        if (noStreamMessage) {
+
+                            binding.contentMain.result.append(
+                                """
+
+AUTO SCAN:
+No stream available message detected.
+Moving to next channel.
+
+────────────────────
+
+                                """.trimIndent()
+                            )
+
+                            finishAndGoNext()
+                            return@evaluateJavascript
+                        }
+
+                        try {
+
+                            runDeepMediaScan(
+                                activeWebView
+                            )
+
+                        } catch (_: Throwable) {}
+
+                        val elapsed =
+                            System.currentTimeMillis() - startedAt
+
+                        if (hasNewStream()) {
+
+                            binding.contentMain.result.append(
+                                """
 
 AUTO SCAN:
 Stream found early.
@@ -9634,17 +9731,17 @@ Moving to next channel.
 
 ────────────────────
 
-                        """.trimIndent()
-                    )
+                                """.trimIndent()
+                            )
 
-                    finishAndGoNext()
-                    return
-                }
+                            finishAndGoNext()
+                            return@evaluateJavascript
+                        }
 
-                if (elapsed >= maxWaitMs) {
+                        if (elapsed >= maxWaitMs) {
 
-                    binding.contentMain.result.append(
-                        """
+                            binding.contentMain.result.append(
+                                """
 
 AUTO SCAN:
 Stream wait timeout reached.
@@ -9652,19 +9749,31 @@ Moving to next channel.
 
 ────────────────────
 
-                        """.trimIndent()
-                    )
+                                """.trimIndent()
+                            )
 
-                    finishAndGoNext()
-                    return
+                            finishAndGoNext()
+                            return@evaluateJavascript
+                        }
+
+                        binding.contentMain.webview.postDelayed(
+                            {
+                                poll()
+                            },
+                            pollMs
+                        )
+
+                    } catch (t: Throwable) {
+
+                        Log.e(
+                            "AUTO_SCAN",
+                            "wait helper callback failed",
+                            t
+                        )
+
+                        finishAndGoNext()
+                    }
                 }
-
-                binding.contentMain.webview.postDelayed(
-                    {
-                        poll()
-                    },
-                    pollMs
-                )
 
             } catch (t: Throwable) {
 
@@ -10118,16 +10227,39 @@ try {
     youtubeDashAudioUrl =
         ""
 
+    detectedStreams.clear()
+    detectedVideos.clear()
+    detectedAudio.clear()
+    detectedMasterStreams.clear()
+    detectedChannels.clear()
+    detectedM3uLists.clear()
+
+    streamInfoSnapshots.clear()
+    streamHitCounter.clear()
+    streamValidation.clear()
+    streamSources.clear()
+    streamHeaders.clear()
+    streamTokens.clear()
+    streamResolution.clear()
+    streamBandwidth.clear()
+    streamCodec.clear()
+    hlsVerdicts.clear()
+
+    pagePlaylistFound =
+        false
+
+    pendingTsFallback.clear()
+
+    lastDeepScanTime =
+        0L
+
 } catch (_: Throwable) {}      
 
+        // Fresh per-candidate scan.
+        // Do not treat previously detected streams as baseline,
+        // otherwise pages that auto-load the stream after entering
+        // can be falsely marked as NO STREAM FOUND.
         autoScanKnownBefore.clear()
-
-        autoScanKnownBefore.addAll(
-            collectCurrentPlayableStreamsForAutoScan()
-                .map { item ->
-                    item.lowercase()
-                }
-        )
 
         val activeWebView =
             popupWebView
@@ -10286,9 +10418,9 @@ Skipping.
 
                 val loadDelay =
                     if (needsLoad) {
-                        6500L
+                        10000L
                     } else {
-                        1200L
+                        2000L
                     }
 
                 binding.contentMain.webview.postDelayed(
@@ -10441,7 +10573,7 @@ Waiting for stream...
                                     waitForAutoScanStreamOrTimeout(
                                         candidate = candidate,
                                         activeWebView = activeWebView,
-                                        maxWaitMs = 20000L
+                                        maxWaitMs = 15000L
                                     )
                                 }
                             }
@@ -10563,7 +10695,7 @@ Waiting for stream...
                         waitForAutoScanStreamOrTimeout(
                             candidate = candidate,
                             activeWebView = activeWebView,
-                            maxWaitMs = 20000L
+                            maxWaitMs = 15000L
                         )
 
                         return@postDelayed
@@ -10596,7 +10728,7 @@ Waiting for delayed stream anyway...
                                 waitForAutoScanStreamOrTimeout(
                                     candidate = candidate,
                                     activeWebView = activeWebView,
-                                    maxWaitMs = 20000L
+                                    maxWaitMs = 15000L
                                 )
 
                                 return@runOnUiThread
@@ -10621,7 +10753,7 @@ Waiting for stream...
                             waitForAutoScanStreamOrTimeout(
                                 candidate = candidate,
                                 activeWebView = activeWebView,
-                                maxWaitMs = 20000L
+                                maxWaitMs = 15000L
                             )
                         }
                     }
@@ -10644,7 +10776,7 @@ Waiting for stream...
                     )
                 }
             },
-            6500
+            10000
         )
 
     } catch (t: Throwable) {
