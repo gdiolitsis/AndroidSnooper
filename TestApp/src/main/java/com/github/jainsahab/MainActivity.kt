@@ -28539,9 +28539,9 @@ private fun copyCurrentPageUrl() {
 }
 
 // =====================================
-// FIND IN PAGE — ANR SAFE
-// Searches one occurrence at a time with window.find().
-// It never asks WebView to collect/highlight every match.
+// FIND IN PAGE — LARGE DOCUMENT SAFE
+// Custom one-match-at-a-time JavaScript search.
+// Avoids WebView.findAllAsync() and unsupported window.find().
 // =====================================
 
 private fun showFindInPageDialog() {
@@ -28609,7 +28609,7 @@ private fun showFindInPageDialog() {
                     if (query.isBlank()) {
 
                         Toast.makeText(
-                            this,
+                            this@MainActivity,
                             "Enter search text",
                             Toast.LENGTH_SHORT
                         ).show()
@@ -28626,32 +28626,139 @@ private fun showFindInPageDialog() {
                             query
                         )
 
-                    val resetScript =
+                    val resetValue =
                         if (resetSearch) {
-                            "window.getSelection().removeAllRanges();"
+                            "true"
                         } else {
-                            ""
+                            "false"
                         }
 
                     val script =
                         """
-                        (function() {
-                            try {
-                                $resetScript
-                                var found = window.find(
-                                    $quotedQuery,
-                                    false,
-                                    false,
-                                    true,
-                                    false,
-                                    true,
-                                    false
-                                );
-                                return found ? "FOUND" : "NOT_FOUND";
-                            } catch (e) {
-                                return "ERROR";
-                            }
-                        })();
+(function() {
+    try {
+        var query = $quotedQuery;
+        var reset = $resetValue;
+
+        if (!query) {
+            return "EMPTY";
+        }
+
+        var body = document.body;
+
+        if (!body) {
+            return "NO_BODY";
+        }
+
+        var fullText = body.innerText || body.textContent || "";
+        var lowerText = fullText.toLocaleLowerCase();
+        var lowerQuery = String(query).toLocaleLowerCase();
+
+        if (
+            reset ||
+            window.__gelFindQuery !== lowerQuery ||
+            typeof window.__gelFindPosition !== "number"
+        ) {
+            window.__gelFindQuery = lowerQuery;
+            window.__gelFindPosition = 0;
+        }
+
+        var start = lowerText.indexOf(
+            lowerQuery,
+            window.__gelFindPosition
+        );
+
+        var wrapped = false;
+
+        if (start < 0 && window.__gelFindPosition > 0) {
+            start = lowerText.indexOf(lowerQuery, 0);
+            wrapped = start >= 0;
+        }
+
+        if (start < 0) {
+            return "NOT_FOUND";
+        }
+
+        var end = start + lowerQuery.length;
+        window.__gelFindPosition = end;
+
+        var walker = document.createTreeWalker(
+            body,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+
+        var node;
+        var textOffset = 0;
+        var startNode = null;
+        var endNode = null;
+        var startOffset = 0;
+        var endOffset = 0;
+
+        while ((node = walker.nextNode())) {
+            var value = node.nodeValue || "";
+            var nextOffset = textOffset + value.length;
+
+            if (startNode === null && start >= textOffset && start <= nextOffset) {
+                startNode = node;
+                startOffset = Math.max(0, start - textOffset);
+            }
+
+            if (endNode === null && end >= textOffset && end <= nextOffset) {
+                endNode = node;
+                endOffset = Math.max(0, end - textOffset);
+                break;
+            }
+
+            textOffset = nextOffset;
+        }
+
+        if (!startNode) {
+            return "RANGE_NOT_FOUND";
+        }
+
+        if (!endNode) {
+            endNode = startNode;
+            endOffset = Math.min(
+                (startNode.nodeValue || "").length,
+                startOffset + lowerQuery.length
+            );
+        }
+
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+
+        var range = document.createRange();
+        range.setStart(startNode, startOffset);
+        range.setEnd(endNode, endOffset);
+        selection.addRange(range);
+
+        var rect = range.getBoundingClientRect();
+
+        if (rect) {
+            var targetY =
+                window.scrollY +
+                rect.top -
+                Math.max(60, window.innerHeight * 0.35);
+
+            window.scrollTo({
+                top: Math.max(0, targetY),
+                behavior: "auto"
+            });
+        } else if (startNode.parentElement) {
+            startNode.parentElement.scrollIntoView({
+                block: "center",
+                behavior: "auto"
+            });
+        }
+
+        return wrapped ? "FOUND_WRAPPED" : "FOUND";
+
+    } catch (e) {
+        return "ERROR:" + String(e);
+    }
+})();
                         """.trimIndent()
 
                     activeWebView.evaluateJavascript(
@@ -28660,21 +28767,41 @@ private fun showFindInPageDialog() {
 
                         try {
 
-                            if (
-                                result == null ||
-                                result.contains(
-                                    "NOT_FOUND"
-                                ) ||
-                                result.contains(
-                                    "ERROR"
-                                )
-                            ) {
+                            val cleanResult =
+                                result
+                                    ?.removePrefix("\"")
+                                    ?.removeSuffix("\"")
+                                    .orEmpty()
 
-                                Toast.makeText(
-                                    this,
-                                    "No match",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                            when {
+
+                                cleanResult.contains(
+                                    "FOUND_WRAPPED",
+                                    true
+                                ) -> {
+
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Search restarted from top",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+
+                                cleanResult.contains(
+                                    "FOUND",
+                                    true
+                                ) -> {
+                                    // Match selected and scrolled into view.
+                                }
+
+                                else -> {
+
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "No match",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
 
                         } catch (_: Throwable) {}
@@ -28689,7 +28816,7 @@ private fun showFindInPageDialog() {
                     )
 
                     Toast.makeText(
-                        this,
+                        this@MainActivity,
                         "Find failed",
                         Toast.LENGTH_SHORT
                     ).show()
@@ -28719,7 +28846,21 @@ private fun showFindInPageDialog() {
                             ?: binding.contentMain.webview
 
                     activeWebView.evaluateJavascript(
-                        "window.getSelection().removeAllRanges();",
+                        """
+(function() {
+    try {
+        window.__gelFindQuery = "";
+        window.__gelFindPosition = 0;
+        var selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+        }
+        return "CLEARED";
+    } catch (e) {
+        return "ERROR";
+    }
+})();
+                        """.trimIndent(),
                         null
                     )
 
