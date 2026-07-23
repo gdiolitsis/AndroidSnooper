@@ -271,6 +271,41 @@ private var popupWebView: WebView? =
     null
     
 // =====================================
+// LARGE PLAYLIST DOCUMENT SAFE MODE
+// Prevents giant TXT/M3U documents from triggering expensive DOM scans
+// =====================================
+
+private var largeListSafeMode =
+    false
+
+private var lastLargeListSafeUrl =
+    ""
+
+private fun isLargePlaylistDocumentUrl(
+    rawUrl: String?
+): Boolean {
+
+    return try {
+
+        val clean =
+            rawUrl
+                ?.substringBefore('#')
+                ?.substringBefore('?')
+                ?.trim()
+                ?.lowercase()
+                .orEmpty()
+
+        clean.endsWith(".txt") ||
+            clean.endsWith(".m3u") ||
+            clean.endsWith(".pls")
+
+    } catch (_: Throwable) {
+
+        false
+    }
+}
+
+// =====================================
 // WEBVIEW USER INTERACTION GUARD
 // =====================================
 
@@ -2770,6 +2805,35 @@ binding.contentMain.webview.webViewClient =
         favicon
     )
 
+    // Detect giant plain-text playlist documents as early as possible.
+    // Disabling off-screen pre-raster avoids rendering the whole enormous
+    // document outside the visible viewport.
+    try {
+
+        largeListSafeMode =
+            isLargePlaylistDocumentUrl(url)
+
+        if (
+            android.os.Build.VERSION.SDK_INT >=
+            android.os.Build.VERSION_CODES.M
+        ) {
+
+            view?.settings?.offscreenPreRaster =
+                !largeListSafeMode
+        }
+
+        if (largeListSafeMode) {
+
+            uiHandler.removeCallbacks(
+                refreshRunnable
+            )
+
+            lastDeepScanTime =
+                System.currentTimeMillis()
+        }
+
+    } catch (_: Throwable) {}
+
     try {
 
         if (!url.isNullOrBlank()) {
@@ -2844,6 +2908,65 @@ override fun onPageFinished(
                 )
 
             } catch (_: Throwable) {}
+
+            // =====================================
+            // LARGE TXT / M3U SAFE MODE
+            // Do not copy body.innerText / outerHTML and do not run the
+            // deep media scanners against a document containing thousands
+            // of playlist rows. Those operations can block WebView/UI long
+            // enough for Android to raise an ANR.
+            // =====================================
+
+            largeListSafeMode =
+                isLargePlaylistDocumentUrl(url)
+
+            if (largeListSafeMode) {
+
+                try {
+
+                    uiHandler.removeCallbacks(
+                        refreshRunnable
+                    )
+
+                    monitorRunning =
+                        false
+
+                    lastDeepScanTime =
+                        System.currentTimeMillis()
+
+                    if (
+                        android.os.Build.VERSION.SDK_INT >=
+                        android.os.Build.VERSION_CODES.M
+                    ) {
+
+                        view?.settings?.offscreenPreRaster =
+                            false
+                    }
+
+                    // Keep the loaded list scrollable, but avoid forcing
+                    // focus/layout/invalidate or injecting selection JS.
+                    view?.isVerticalScrollBarEnabled =
+                        true
+
+                    if (lastLargeListSafeUrl != url) {
+
+                        lastLargeListSafeUrl =
+                            url
+
+                        Toast.makeText(
+                            this,
+                            "Large list safe mode",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                } catch (_: Throwable) {}
+
+                return
+            }
+
+            lastLargeListSafeUrl =
+                ""
 
             // =====================================
             // COOKIE CONSENT WATCHER
@@ -13413,6 +13536,13 @@ private fun runDeepMediaScan(
 ) {
 
     try {
+
+        if (
+            largeListSafeMode ||
+            isLargePlaylistDocumentUrl(view?.url)
+        ) {
+            return
+        }
 
         if (view == null) {
             return
