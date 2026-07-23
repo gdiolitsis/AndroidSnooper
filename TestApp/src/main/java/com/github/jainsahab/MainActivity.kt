@@ -28409,7 +28409,9 @@ private fun copyCurrentPageUrl() {
 }
 
 // =====================================
-// FIND IN PAGE
+// FIND IN PAGE — ANR SAFE
+// Searches one occurrence at a time with window.find().
+// It never asks WebView to collect/highlight every match.
 // =====================================
 
 private fun showFindInPageDialog() {
@@ -28427,24 +28429,44 @@ private fun showFindInPageDialog() {
                 )
             }
 
-        binding.contentMain.webview.setFindListener { _, numberOfMatches, isDoneCounting ->
+        val dialog =
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Find in Page")
+                .setView(input)
+                .setPositiveButton(
+                    "FIND",
+                    null
+                )
+                .setNeutralButton(
+                    "NEXT",
+                    null
+                )
+                .setNegativeButton(
+                    "CLEAR",
+                    null
+                )
+                .create()
 
-            if (isDoneCounting) {
+        dialog.setOnShowListener {
 
-                Toast.makeText(
-                    this,
-                    "Matches: $numberOfMatches",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
+            val findButton =
+                dialog.getButton(
+                    androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE
+                )
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Find in Page")
-            .setView(input)
-            .setPositiveButton(
-                "FIND"
-            ) { _, _ ->
+            val nextButton =
+                dialog.getButton(
+                    androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL
+                )
+
+            val clearButton =
+                dialog.getButton(
+                    androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE
+                )
+
+            fun runSafeFind(
+                resetSearch: Boolean
+            ) {
 
                 try {
 
@@ -28455,38 +28477,131 @@ private fun showFindInPageDialog() {
                             .orEmpty()
 
                     if (query.isBlank()) {
-                        return@setPositiveButton
+
+                        Toast.makeText(
+                            this,
+                            "Enter search text",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return
                     }
 
-                    binding.contentMain.webview.findAllAsync(
-                        query
+                    val activeWebView =
+                        popupWebView
+                            ?: binding.contentMain.webview
+
+                    val quotedQuery =
+                        JSONObject.quote(
+                            query
+                        )
+
+                    val resetScript =
+                        if (resetSearch) {
+                            "window.getSelection().removeAllRanges();"
+                        } else {
+                            ""
+                        }
+
+                    val script =
+                        """
+                        (function() {
+                            try {
+                                $resetScript
+                                var found = window.find(
+                                    $quotedQuery,
+                                    false,
+                                    false,
+                                    true,
+                                    false,
+                                    true,
+                                    false
+                                );
+                                return found ? "FOUND" : "NOT_FOUND";
+                            } catch (e) {
+                                return "ERROR";
+                            }
+                        })();
+                        """.trimIndent()
+
+                    activeWebView.evaluateJavascript(
+                        script
+                    ) { result ->
+
+                        try {
+
+                            if (
+                                result == null ||
+                                result.contains(
+                                    "NOT_FOUND"
+                                ) ||
+                                result.contains(
+                                    "ERROR"
+                                )
+                            ) {
+
+                                Toast.makeText(
+                                    this,
+                                    "No match",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+                        } catch (_: Throwable) {}
+                    }
+
+                } catch (t: Throwable) {
+
+                    Log.e(
+                        "FIND_IN_PAGE",
+                        "search failed",
+                        t
                     )
 
-                } catch (_: Throwable) {}
+                    Toast.makeText(
+                        this,
+                        "Find failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
-            .setNeutralButton(
-                "NEXT"
-            ) { _, _ ->
+
+            findButton.setOnClickListener {
+
+                runSafeFind(
+                    true
+                )
+            }
+
+            nextButton.setOnClickListener {
+
+                runSafeFind(
+                    false
+                )
+            }
+
+            clearButton.setOnClickListener {
 
                 try {
 
-                    binding.contentMain.webview.findNext(
-                        true
+                    val activeWebView =
+                        popupWebView
+                            ?: binding.contentMain.webview
+
+                    activeWebView.evaluateJavascript(
+                        "window.getSelection().removeAllRanges();",
+                        null
                     )
 
-                } catch (_: Throwable) {}
-            }
-            .setNegativeButton(
-                "CLEAR"
-            ) { _, _ ->
-
-                try {
-
-                    binding.contentMain.webview.clearMatches()
+                    input.text?.clear()
 
                 } catch (_: Throwable) {}
             }
-            .show()
+
+            input.requestFocus()
+        }
+
+        dialog.show()
 
     } catch (t: Throwable) {
 
