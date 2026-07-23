@@ -53,6 +53,9 @@ private lateinit var binding:
 private var liveUrlInputText =
     ""
 
+private var lastFindInPageQuery =
+    ""
+
 // =====================================
 // BROWSER HISTORY / BOOKMARKS / MENU IDS
 // =====================================
@@ -28605,6 +28608,14 @@ private fun showFindInPageDialog() {
                 setSingleLine(
                     true
                 )
+
+                setText(
+                    lastFindInPageQuery
+                )
+
+                setSelection(
+                    text?.length ?: 0
+                )
             }
 
         val dialog =
@@ -28624,6 +28635,23 @@ private fun showFindInPageDialog() {
                     null
                 )
                 .create()
+
+        fun hideKeyboard() {
+
+            try {
+
+                val imm =
+                    getSystemService(
+                        android.content.Context.INPUT_METHOD_SERVICE
+                    ) as android.view.inputmethod.InputMethodManager
+
+                imm.hideSoftInputFromWindow(
+                    input.windowToken,
+                    0
+                )
+
+            } catch (_: Throwable) {}
+        }
 
         dialog.setOnShowListener {
 
@@ -28665,6 +28693,9 @@ private fun showFindInPageDialog() {
                         return
                     }
 
+                    lastFindInPageQuery =
+                        query
+
                     val activeWebView =
                         popupWebView
                             ?: binding.contentMain.webview
@@ -28692,114 +28723,169 @@ private fun showFindInPageDialog() {
             return "EMPTY";
         }
 
-        var body = document.body;
+        var root = document.body || document.documentElement;
 
-        if (!body) {
+        if (!root) {
             return "NO_BODY";
         }
 
-        var fullText = body.innerText || body.textContent || "";
-        var lowerText = fullText.toLocaleLowerCase();
         var lowerQuery = String(query).toLocaleLowerCase();
-
-        if (
-            reset ||
-            window.__gelFindQuery !== lowerQuery ||
-            typeof window.__gelFindPosition !== "number"
-        ) {
-            window.__gelFindQuery = lowerQuery;
-            window.__gelFindPosition = 0;
-        }
-
-        var start = lowerText.indexOf(
-            lowerQuery,
-            window.__gelFindPosition
-        );
-
-        var wrapped = false;
-
-        if (start < 0 && window.__gelFindPosition > 0) {
-            start = lowerText.indexOf(lowerQuery, 0);
-            wrapped = start >= 0;
-        }
-
-        if (start < 0) {
-            return "NOT_FOUND";
-        }
-
-        var end = start + lowerQuery.length;
-        window.__gelFindPosition = end;
-
+        var nodes = [];
         var walker = document.createTreeWalker(
-            body,
+            root,
             NodeFilter.SHOW_TEXT,
-            null,
+            {
+                acceptNode: function(node) {
+                    try {
+                        if (!node || !node.nodeValue || !node.nodeValue.trim()) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+
+                        var parent = node.parentElement;
+
+                        if (!parent) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+
+                        var tag = String(parent.tagName || "").toLowerCase();
+
+                        if (
+                            tag === "script" ||
+                            tag === "style" ||
+                            tag === "noscript" ||
+                            tag === "textarea" ||
+                            tag === "input"
+                        ) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+
+                        var style = window.getComputedStyle(parent);
+
+                        if (
+                            style &&
+                            (
+                                style.display === "none" ||
+                                style.visibility === "hidden"
+                            )
+                        ) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+
+                        return NodeFilter.FILTER_ACCEPT;
+
+                    } catch (e) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                }
+            },
             false
         );
 
         var node;
-        var textOffset = 0;
-        var startNode = null;
-        var endNode = null;
-        var startOffset = 0;
-        var endOffset = 0;
 
         while ((node = walker.nextNode())) {
-            var value = node.nodeValue || "";
-            var nextOffset = textOffset + value.length;
-
-            if (startNode === null && start >= textOffset && start <= nextOffset) {
-                startNode = node;
-                startOffset = Math.max(0, start - textOffset);
-            }
-
-            if (endNode === null && end >= textOffset && end <= nextOffset) {
-                endNode = node;
-                endOffset = Math.max(0, end - textOffset);
-                break;
-            }
-
-            textOffset = nextOffset;
+            nodes.push(node);
         }
 
-        if (!startNode) {
-            return "RANGE_NOT_FOUND";
+        if (
+            reset ||
+            window.__gelFindQuery !== lowerQuery ||
+            typeof window.__gelFindNodeIndex !== "number" ||
+            typeof window.__gelFindNodeOffset !== "number"
+        ) {
+            window.__gelFindQuery = lowerQuery;
+            window.__gelFindNodeIndex = 0;
+            window.__gelFindNodeOffset = 0;
         }
 
-        if (!endNode) {
-            endNode = startNode;
-            endOffset = Math.min(
-                (startNode.nodeValue || "").length,
-                startOffset + lowerQuery.length
-            );
+        function findFrom(startNodeIndex, startOffset) {
+
+            for (var i = startNodeIndex; i < nodes.length; i++) {
+
+                var value = String(nodes[i].nodeValue || "");
+                var lowerValue = value.toLocaleLowerCase();
+                var offset = i === startNodeIndex ? startOffset : 0;
+                var hit = lowerValue.indexOf(lowerQuery, offset);
+
+                if (hit >= 0) {
+                    return {
+                        nodeIndex: i,
+                        start: hit,
+                        end: hit + lowerQuery.length
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        var match = findFrom(
+            window.__gelFindNodeIndex,
+            window.__gelFindNodeOffset
+        );
+
+        var wrapped = false;
+
+        if (!match && window.__gelFindNodeIndex > 0) {
+            match = findFrom(0, 0);
+            wrapped = !!match;
+        }
+
+        if (!match) {
+            return "NOT_FOUND";
+        }
+
+        var matchNode = nodes[match.nodeIndex];
+
+        window.__gelFindNodeIndex = match.nodeIndex;
+        window.__gelFindNodeOffset = match.end;
+
+        if (window.__gelFindNodeOffset >= String(matchNode.nodeValue || "").length) {
+            window.__gelFindNodeIndex = match.nodeIndex + 1;
+            window.__gelFindNodeOffset = 0;
         }
 
         var selection = window.getSelection();
-        selection.removeAllRanges();
+
+        if (selection) {
+            selection.removeAllRanges();
+        }
 
         var range = document.createRange();
-        range.setStart(startNode, startOffset);
-        range.setEnd(endNode, endOffset);
-        selection.addRange(range);
+        range.setStart(matchNode, match.start);
+        range.setEnd(matchNode, match.end);
+
+        if (selection) {
+            selection.addRange(range);
+        }
 
         var rect = range.getBoundingClientRect();
+        var targetY = 0;
 
         if (rect) {
-            var targetY =
+            targetY =
                 window.scrollY +
                 rect.top -
-                Math.max(60, window.innerHeight * 0.35);
+                Math.max(80, window.innerHeight * 0.30);
 
-            window.scrollTo({
-                top: Math.max(0, targetY),
-                behavior: "auto"
-            });
-        } else if (startNode.parentElement) {
-            startNode.parentElement.scrollIntoView({
-                block: "center",
-                behavior: "auto"
-            });
+            window.scrollTo(
+                0,
+                Math.max(0, targetY)
+            );
+        } else if (matchNode.parentElement) {
+            matchNode.parentElement.scrollIntoView(
+                {
+                    block: "center",
+                    behavior: "auto"
+                }
+            );
         }
+
+        try {
+            if (matchNode.parentElement) {
+                matchNode.parentElement.focus({preventScroll: true});
+            }
+        } catch (e) {}
 
         return wrapped ? "FOUND_WRAPPED" : "FOUND";
 
@@ -28828,9 +28914,12 @@ private fun showFindInPageDialog() {
                                     true
                                 ) -> {
 
+                                    hideKeyboard()
+                                    dialog.dismiss()
+
                                     Toast.makeText(
                                         this@MainActivity,
-                                        "Search restarted from top",
+                                        "Found — restarted from top",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -28839,14 +28928,33 @@ private fun showFindInPageDialog() {
                                     "FOUND",
                                     true
                                 ) -> {
-                                    // Match selected and scrolled into view.
+
+                                    hideKeyboard()
+                                    dialog.dismiss()
                                 }
 
-                                else -> {
+                                cleanResult.contains(
+                                    "NOT_FOUND",
+                                    true
+                                ) -> {
 
                                     Toast.makeText(
                                         this@MainActivity,
                                         "No match",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+
+                                else -> {
+
+                                    Log.e(
+                                        "FIND_IN_PAGE",
+                                        "JS result: $cleanResult"
+                                    )
+
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Find failed",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -28889,6 +28997,9 @@ private fun showFindInPageDialog() {
 
                 try {
 
+                    lastFindInPageQuery =
+                        ""
+
                     val activeWebView =
                         popupWebView
                             ?: binding.contentMain.webview
@@ -28898,12 +29009,17 @@ private fun showFindInPageDialog() {
 (function() {
     try {
         window.__gelFindQuery = "";
-        window.__gelFindPosition = 0;
+        window.__gelFindNodeIndex = 0;
+        window.__gelFindNodeOffset = 0;
+
         var selection = window.getSelection();
+
         if (selection) {
             selection.removeAllRanges();
         }
+
         return "CLEARED";
+
     } catch (e) {
         return "ERROR";
     }
@@ -28913,6 +29029,8 @@ private fun showFindInPageDialog() {
                     )
 
                     input.text?.clear()
+                    hideKeyboard()
+                    dialog.dismiss()
 
                 } catch (_: Throwable) {}
             }
