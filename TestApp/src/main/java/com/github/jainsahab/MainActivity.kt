@@ -281,6 +281,11 @@ private var largeListSafeMode =
 private var lastLargeListSafeUrl =
     ""
 
+// Incremented on every navigation. Delayed work from an older page must
+// never execute against the newly loaded page.
+private var pageScanGeneration =
+    0L
+
 private fun isLargePlaylistDocumentUrl(
     rawUrl: String?
 ): Boolean {
@@ -297,7 +302,16 @@ private fun isLargePlaylistDocumentUrl(
 
         clean.endsWith(".txt") ||
             clean.endsWith(".m3u") ||
-            clean.endsWith(".pls")
+            clean.endsWith(".pls") ||
+            clean.contains("gist.github.com/") ||
+            clean.contains("gist.githubusercontent.com/") ||
+            clean.contains("raw.githubusercontent.com/") ||
+            clean.contains("pastebin.com/raw/") ||
+            clean.contains("github.com/") &&
+                (
+                    clean.contains("/blob/") ||
+                    clean.contains("/raw/")
+                )
 
     } catch (_: Throwable) {
 
@@ -946,7 +960,11 @@ private val refreshRunnable =
 
         try {
 
-            showAllMedia()
+            // Never rebuild a huge result TextView while a large/code list
+            // is open. Re-layout of thousands of rows can itself cause ANR.
+            if (!largeListSafeMode) {
+                showAllMedia()
+            }
 
         } catch (_: Throwable) {}
     }
@@ -2805,6 +2823,11 @@ binding.contentMain.webview.webViewClient =
         favicon
     )
 
+    // Invalidate every delayed scan that belongs to the previous page.
+    pageScanGeneration++
+    uiHandler.removeCallbacks(refreshRunnable)
+    monitorRunning = false
+
     // Detect giant plain-text playlist documents as early as possible.
     // Disabling off-screen pre-raster avoids rendering the whole enormous
     // document outside the visible viewport.
@@ -2875,6 +2898,14 @@ override fun onPageFinished(
             ) {
                 return
             }
+
+            // Snapshot for every delayed callback scheduled below.
+            // A callback is discarded after any new navigation.
+            val finishedPageGeneration =
+                pageScanGeneration
+
+            val finishedPageUrl =
+                url
 
             // =====================================
             // UPDATE URL BAR
@@ -3317,7 +3348,11 @@ if (isBlockedPage) {
                         if (
                             view != null &&
                             !isFinishing &&
-                            !isDestroyed
+                            !isDestroyed &&
+                            finishedPageGeneration == pageScanGeneration &&
+                            view.url == finishedPageUrl &&
+                            !largeListSafeMode &&
+                            !isLargePlaylistDocumentUrl(view.url)
                         ) {
 
                             lastDeepScanTime =
@@ -3350,7 +3385,11 @@ if (isBlockedPage) {
                         if (
                             view != null &&
                             !isFinishing &&
-                            !isDestroyed
+                            !isDestroyed &&
+                            finishedPageGeneration == pageScanGeneration &&
+                            view.url == finishedPageUrl &&
+                            !largeListSafeMode &&
+                            !isLargePlaylistDocumentUrl(view.url)
                         ) {
 
                             if (
@@ -13539,6 +13578,7 @@ private fun runDeepMediaScan(
 
         if (
             largeListSafeMode ||
+            webUserInteracting ||
             isLargePlaylistDocumentUrl(view?.url)
         ) {
             return
@@ -23853,6 +23893,14 @@ binding.contentMain.result.text =
 // =====================================
 
 private fun startStreamMonitor() {
+
+    if (
+        largeListSafeMode ||
+        isLargePlaylistDocumentUrl(binding.contentMain.webview.url)
+    ) {
+        monitorRunning = false
+        return
+    }
 
     binding.contentMain.webview.postDelayed(
 
